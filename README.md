@@ -33,14 +33,14 @@ All scripts are executed from the command line.
 
 ### 1️⃣ Find all shops
 
-Lists all shops found in a `t_shop.json` file.
+Lists all shops found in a `t_shop.json` file with the ability to search by shop name case-insensitive.
 
 ```bash
-python find_all_shops.py path/to/t_shop.json
+python find_all_shops.py path/to/t_shop.json [search_text]
 ```
 
 **Output:**
-- Printed list of shop definitions
+- Printed list of shop IDs
 
 ---
 
@@ -59,10 +59,10 @@ python find_unique_shop_item_id.py path/to/file.kurodlc.json
 
 ### 3️⃣ Find unique item IDs by item category
 
-Finds unique `item_id` values grouped by item category.
+Finds unique `item_id` values grouped by item category. (outfits category = 17 )
 
 ```bash
-python find_unique_item_id_for_t_item_category.py path/to/t_item.json
+python find_unique_item_id_for_t_item_category.py path/to/t_item.json <category>
 ```
 
 **Output:**
