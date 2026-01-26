@@ -1,37 +1,120 @@
-I quickly made scripts for bulk editing of shops in .kurodlc.json
+# 🐍 KuroDLC shops bulk editing tool
 
-Example:
-the first utility lists all unique ShopItem IDs in the .kurodlc.json file
+A collection of small Python scripts for **analyzing and modifying `.kurodlc.json` files**, mainly focused on working with *shops* and *items* (IDs, categories, costumes).
 
-python find_unique_shop_item_id.py FalcoDLC.kurodlc.json
+The tools are intended for modding / data analysis workflows where you need to inspect existing DLC data or generate shop definitions automatically.
 
-[4550, 4551, 4552]
+---
 
-I will then manually save these to the configuration file for example "create_shops_template.json", including the IDs of all new shops where I want these IDs.
+## 📦 Repository Contents
 
-{
-    "item_ids": [4550, 4551, 4552],
-    "shop_ids": [21, 22, 23, 248]
-}
+This repository contains the following Python scripts:
 
-The second script then generates a new definition of "ShopItem" which I can then replace with the original one in the .kurodlc.json file.
+| Script | Description |
+|------|-------------|
+| `find_all_shops.py` | Finds and lists all shops defined in a `t_shop.json` file with the ability to search by shop name|
+| `find_unique_shop_item_id.py` | Extracts unique `item_id` from `.kurodlc.json` file |
+| `create_shops.py` | Generates shop definitions from a template JSON file |
+| `find_unique_item_id_for_t_item_category.py` | Finds unique `item_id` values grouped by item category in a `t_item.json` file |
+| `find_unique_item_id_for_t_costumes.py` | Extracts unique `item_id` values for costume items in a `t_costume.json` file |
 
+---
+
+## 🧠 Requirements
+
+- Python **3.8+**
+- No external dependencies (standard library only)
+
+---
+
+## 🚀 Usage
+
+All scripts are executed from the command line.
+
+### 1️⃣ Find all shops
+
+Lists all shops found in a `t_shop.json` file.
+
+```bash
+python find_all_shops.py path/to/t_shop.json
+```
+
+**Output:**
+- Printed list of shop definitions
+
+---
+
+### 2️⃣ Find unique shop / item ID pairs
+
+Extracts unique `item_id`
+
+```bash
+python find_unique_shop_item_id.py path/to/file.kurodlc.json
+```
+
+**Output:**
+- List of unique item_id
+
+---
+
+### 3️⃣ Find unique item IDs by item category
+
+Finds unique `item_id` values grouped by item category.
+
+```bash
+python find_unique_item_id_for_t_item_category.py path/to/t_item.json
+```
+
+**Output:**
+- Unique item IDs per category
+
+---
+
+### 4️⃣ Find unique costume item IDs
+
+Extracts all unique `item_id` values for costume items.
+
+```bash
+python find_unique_item_id_for_t_costumes.py path/to/t_costume.json
+```
+
+**Output:**
+- List of costume item IDs
+
+---
+
+### 5️⃣ Create shop definitions
+
+Generates shop definitions using a template JSON file.
+
+```bash
 python create_shops.py create_shops_template.json
-Success: File 'output_create_shops_template.json' was created successfully.
+```
 
+#### Template example
+
+item_ids from find_unique_shop_item_id.py output
+shop_ids from find_all_shops.py output
+
+```json
 {
-    "ShopItem": [
-        {
-            "shop_id": 21,
-            "item_id": 4550,
-            "unknown": 1,
-            "start_scena_flags": [],
-            "empty1": 0,
-            "end_scena_flags": [],
-            "int2": 0
-        },
-        {
-.
-.
-.
-.
+  "item_ids": [4550, 4551, 4552],
+  "shop_ids": [21, 22, 23, 248]
+}
+```
+
+**Output:**
+- `output_create_shops_template.json` containing generated shop definitions
+
+This output can be manually merged into your main `.kurodlc.json` file.
+
+---
+## 📝 Notes
+
+- Use to convert tbl to json **`tbl2json.py`**.
+- https://github.com/nnguyen259/KuroTools
+
+- Use to extract script_eng.p3a / script_en.p3a **`kurodlc_extract_original_tbls.py`**.
+- https://github.com/eArmada8/kuro_dlc_tool
+  
+---
