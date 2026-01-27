@@ -14,10 +14,11 @@ This repository contains the following Python scripts:
 |------|-------------|
 | `find_all_shops.py` | Finds and lists all shops defined in a `t_shop.json` file with the ability to search by shop name|
 | `find_all_items.py` | Finds and lists all items defined in a `t_item.json` file with the ability to search by item name or item id|
-| `find_unique_shop_item_id.py` | Extracts unique `item_id` from `.kurodlc.json` file |
+| `find_unique_shop_item_id.py` | Extracts unique `item_id` from `.kurodlc.json` file (from costume and shops definitions)|
 | `create_shops.py` | Generates shop definitions from a template JSON file |
 | `find_unique_item_id_for_t_item_category.py` | Finds unique `item_id` values grouped by item category in a `t_item.json` file |
 | `find_unique_item_id_for_t_costumes.py` | Extracts unique `item_id` values for costume items in a `t_costume.json` file |
+| `find_unique_item_id.py` | Extracts unique `item_id` from `.kurodlc.json` (only from costume not from shops) file, or from all `.kurodlc.json` in directory |
 
 ---
 
@@ -141,6 +142,19 @@ python create_shops.py create_shops_template.json
 - `output_create_shops_template.json` containing generated shop definitions
 
 This output can be manually merged into your main `.kurodlc.json` file.
+
+---
+
+### 7 Find unique item ID
+
+Extracts unique `item_id`
+
+```bash
+python find_unique_item_id.py path/to/file.kurodlc.json
+```
+
+**Output:**
+- List of unique item_id
 
 ---
 ## 📝 Notes
