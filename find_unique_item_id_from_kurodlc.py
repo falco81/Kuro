@@ -1,94 +1,137 @@
 import json
 import sys
 import os
-from glob import glob
 
 def extract_item_ids(json_file):
-    """Load a JSON file and return a list of item_id from CostumeParam."""
+    """
+    Load a .kurodlc.json file and return a list of item_id values
+    from the CostumeParam section.
+    """
     with open(json_file, "r", encoding="utf-8") as f:
         data = json.load(f)
+
     return [
         item["item_id"]
         for item in data.get("CostumeParam", [])
         if "item_id" in item
     ]
 
-# Check arguments
+def get_all_kurodlc_files():
+    """
+    Return all *.kurodlc.json files (case-insensitive) in the current directory.
+    """
+    files = []
+    for f in os.listdir("."):
+        if f.lower().endswith(".kurodlc.json") and os.path.isfile(f):
+            files.append(f)
+
+    if not files:
+        print("No .kurodlc.json files found in the current directory.")
+        sys.exit(0)
+
+    return files
+
+# ---- Argument handling -----------------------------------------------------
+
 if len(sys.argv) < 2:
     print("""
-Usage: python find_unique_item_id_from_kurodlc.py <mode_or_file>
+Usage:
+  python find_unique_item_id_from_kurodlc.py <mode_or_file>
+
+Description:
+  Extracts item_id values from the "CostumeParam" section of *.kurodlc.json files.
 
 Modes:
-  <file.kurodlc.json>    Process a single JSON file and print unique item_ids.
-  searchall              Process all .kurodlc.json files in the current directory and print unique item_ids as a list.
-  searchallbydlc         Process all .kurodlc.json files, print each file name followed by its item_ids, then unique item_ids across all files.
-  searchallline          Process all .kurodlc.json files and print each unique item_id on a separate line.
+  <file.kurodlc.json>
+      Process a single file and print unique item_id values as a sorted list.
 
-Example:
+  searchall
+      Process all *.kurodlc.json files in the current directory and print
+      all unique item_id values as a single sorted list.
+
+  searchallline
+      Same as searchall, but print each unique item_id on a separate line.
+
+  searchallbydlc
+      For each *.kurodlc.json file:
+        - print the file name
+        - print item_id values found in that file as a list
+      Then print all unique item_id values across all files as a list.
+
+  searchallbydlcline
+      Same as searchallbydlc, but item_id values are printed line by line.
+      The final summary of unique item_id values is also printed line by line.
+
+Examples:
   python find_unique_item_id_from_kurodlc.py costume1.kurodlc.json
   python find_unique_item_id_from_kurodlc.py searchall
-  python find_unique_item_id_from_kurodlc.py searchallbydlc
   python find_unique_item_id_from_kurodlc.py searchallline
+  python find_unique_item_id_from_kurodlc.py searchallbydlc
+  python find_unique_item_id_from_kurodlc.py searchallbydlcline
 """)
     sys.exit(1)
 
-arg = sys.argv[1].lower()
+raw_arg = sys.argv[1]
+arg = raw_arg.lower()
+
+# ---- Modes -----------------------------------------------------------------
 
 if arg == "searchall":
-    # Find all .kurodlc.json files in the current directory
-    all_files = glob("*.kurodlc.json")
-    if not all_files:
-        print("No .kurodlc.json files found in the current directory.")
-        sys.exit(0)
-
-    # Collect all item_ids from all files
     all_item_ids = []
-    for file in all_files:
-        all_item_ids.extend(extract_item_ids(file))
+    for f in get_all_kurodlc_files():
+        all_item_ids.extend(extract_item_ids(f))
 
-    # Unique and sorted
-    unique_item_ids = sorted(set(all_item_ids))
-    print(unique_item_ids)
-
-elif arg == "searchallbydlc":
-    # Find all .kurodlc.json files in the current directory
-    all_files = glob("*.kurodlc.json")
-    if not all_files:
-        print("No .kurodlc.json files found in the current directory.")
-        sys.exit(0)
-
-    all_item_ids = []
-    for file in all_files:
-        item_ids = extract_item_ids(file)
-        all_item_ids.extend(item_ids)
-        print(f"{file}:")     # File name
-        print(item_ids)       # Print item_ids
-        print()               # Empty line after the list
-
-    # Finally, unique item_ids across all files
-    unique_item_ids = sorted(set(all_item_ids))
-    print("Unique item_ids across all files:")
-    print(unique_item_ids)
+    print(sorted(set(all_item_ids)))
 
 elif arg == "searchallline":
-    # Find all .kurodlc.json files in the current directory
-    all_files = glob("*.kurodlc.json")
-    if not all_files:
-        print("No .kurodlc.json files found in the current directory.")
-        sys.exit(0)
-
     all_item_ids = []
-    for file in all_files:
-        all_item_ids.extend(extract_item_ids(file))
+    for f in get_all_kurodlc_files():
+        all_item_ids.extend(extract_item_ids(f))
 
-    # Unique and sorted
-    unique_item_ids = sorted(set(all_item_ids))
-    # Print each item_id on a separate line
-    for item_id in unique_item_ids:
+    for item_id in sorted(set(all_item_ids)):
         print(item_id)
 
+elif arg == "searchallbydlc":
+    all_item_ids = []
+
+    for f in get_all_kurodlc_files():
+        item_ids = extract_item_ids(f)
+        all_item_ids.extend(item_ids)
+
+        print(f"{f}:")
+        print(item_ids)
+        print()
+
+    print("Unique item_ids across all files:")
+    print(sorted(set(all_item_ids)))
+
+elif arg == "searchallbydlcline":
+    all_item_ids = []
+
+    for f in get_all_kurodlc_files():
+        item_ids = extract_item_ids(f)
+        all_item_ids.extend(item_ids)
+
+        print(f"{f}:")
+        for item_id in sorted(set(item_ids)):
+            print(item_id)
+        print()
+
+    print("Unique item_ids across all files:")
+    for item_id in sorted(set(all_item_ids)):
+        print(item_id)
+
+# ---- Single file -----------------------------------------------------------
+
 else:
-    # Original functionality for a single file
-    json_file = sys.argv[1]
-    unique_item_ids = sorted(set(extract_item_ids(json_file)))
+    if not os.path.isfile(raw_arg):
+        print(f"Error: Unknown parameter or file not found: '{raw_arg}'")
+        print("Use one of: searchall, searchallline, searchallbydlc, searchallbydlcline")
+        sys.exit(1)
+
+    if not raw_arg.lower().endswith(".kurodlc.json"):
+        print(f"Error: Invalid file type: '{raw_arg}' (expected .kurodlc.json)")
+        sys.exit(1)
+
+    unique_item_ids = sorted(set(extract_item_ids(raw_arg)))
     print(unique_item_ids)
