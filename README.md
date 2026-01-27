@@ -25,7 +25,7 @@ This repository contains the following Python scripts:
 ## 🧠 Requirements
 
 - Python **3.8+**
-- No external dependencies (standard library only)
+- using lib from https://github.com/eArmada8/kuro_dlc_tool
 
 ---
 
