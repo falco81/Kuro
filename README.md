@@ -7,25 +7,6 @@
 
 ---
 
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Scripts Documentation](#scripts-documentation)
-  - [Item Management](#item-management)
-  - [Shop Management](#shop-management)
-  - [DLC ID Management](#dlc-id-management)
-  - [Conflict Resolution](#conflict-resolution)
-- [File Format Reference](#file-format-reference)
-- [Workflow Examples](#workflow-examples)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
-
----
-
 ## 🎯 Overview
 
 The **KuroDLC Tools Collection** is a set of Python utilities designed to help modders and developers work with game item databases, shop configurations, and DLC content files in KuroDLC JSON format. These tools provide functionality for:
