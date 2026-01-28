@@ -4,6 +4,18 @@ import os
 from glob import glob
 
 # ------------------------------------------------------------
+# Colorama for Windows CMD colors
+# ------------------------------------------------------------
+try:
+    import colorama
+    from colorama import Fore, Style
+    colorama.init(autoreset=True)
+    USE_COLOR = True
+except ImportError:
+    USE_COLOR = False
+    Fore = Style = type('', (), {'RED':'', 'GREEN':'', 'RESET_ALL':''})()
+
+# ------------------------------------------------------------
 # Utilities
 # ------------------------------------------------------------
 
@@ -107,17 +119,76 @@ if len(sys.argv) < 2:
 Usage: python script.py <mode> [options]
 
 Modes:
-  <file.kurodlc.json>
-  searchall
-  searchallbydlc
-  searchallbydlcline
-  searchallline
-  check
 
-Check options:
-  --source json|tbl|original|p3a
+  <file.kurodlc.json>
+      Process a single .kurodlc.json file and print all unique item_ids.
+
+  searchall
+      Process all .kurodlc.json files in the current directory.
+      Prints a single sorted list of unique item_ids.
+
+  searchallbydlc
+      Process all .kurodlc.json files.
+      For each file, prints its item_ids as a list.
+      After all files, prints the unique item_ids across all files.
+
+  searchallbydlcline
+      Similar to searchallbydlc but prints each item_id on a separate line.
+      Also prints unique item_ids at the end, each on a separate line.
+
+  searchallline
+      Process all .kurodlc.json files and print each unique item_id on a separate line.
+      Simple list without grouping by file.
+
+  check
+      Special mode to check if item_ids in .kurodlc.json files are already assigned in the game data.
+      Supports multiple sources: t_item.json, t_item.tbl, t_item.tbl.original, script_en.p3a, script_eng.p3a.
+
+      The script will detect all available sources automatically. If multiple sources are found:
+        - Interactive selection is prompted (default)
+        - Use --no-interactive to skip prompt and pick the first detected source
+        - Use --source=<type> to force a specific source
+
+Check Mode Options:
+
+  --source=<type>
+      Force the source to use for check.
+      Allowed values:
+        json      : use t_item.json
+        tbl       : use t_item.tbl
+        original  : use t_item.tbl.original
+        p3a       : use script_en.p3a or script_eng.p3a (will extract t_item.tbl.original.tmp)
+
   --no-interactive
+      Do not prompt user for source selection.
+      If multiple sources exist, the first detected source will be used automatically.
+
   --keep-extracted
+      If using a P3A source, the extracted temporary file t_item.tbl.original.tmp will be kept instead of deleted after check.
+
+Check Mode Output:
+
+  For each unique item_id found in .kurodlc.json files:
+    <item_id> : <name> [OK/BAD]
+
+    [OK]   = item_id is available (not present in game data)
+    [BAD]  = item_id is assigned (exists in game data)
+
+  Summary at the end:
+    Total IDs : <total number of unique item_ids>
+    OK        : <number of available IDs>
+    BAD       : <number of assigned IDs>
+    Source used for check: <actual source file used>
+
+Examples:
+
+  python script.py costume1.kurodlc.json
+  python script.py searchall
+  python script.py searchallbydlc
+  python script.py searchallbydlcline
+  python script.py check
+  python script.py check --source=json
+  python script.py check --source=p3a --keep-extracted
 """)
     sys.exit(1)
 
@@ -196,10 +267,10 @@ if arg == "check":
         id_str = str(item_id).rjust(max_id_len)
         if item_id in items_dict:
             name = items_dict[item_id].ljust(max_name_len)
-            print(f"{id_str} : {name} [BAD]")
+            print(f"{id_str} : {name} {Fore.RED}[BAD]{Style.RESET_ALL}")
             bad_count += 1
         else:
-            print(f"{id_str} : {'available'.ljust(max_name_len)} [OK]")
+            print(f"{id_str} : {'available'.ljust(max_name_len)} {Fore.GREEN}[OK]{Style.RESET_ALL}")
             ok_count += 1
 
     print("\nSummary:")
