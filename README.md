@@ -1454,45 +1454,7 @@ python resolve_id_conflicts_in_kurodlc.py repair --apply
 
 ---
 
-## 🤝 Contributing
 
-Contributions are welcome! Here's how you can help:
-
-### Reporting Bugs
-
-1. Use the issue tracker
-2. Include:
-   - OS and Python version
-   - Full command you ran
-   - Error message or unexpected behavior
-   - Sample data (anonymized if needed)
-
-### Suggesting Features
-
-1. Check existing issues first
-2. Describe the use case
-3. Explain expected behavior
-4. Provide examples if possible
-
-### Code Contributions
-
-1. Fork the repository
-2. Create a feature branch
-3. Write tests for new features
-4. Follow existing code style
-5. Submit a pull request
-
-### Documentation
-
-- Fix typos or clarify instructions
-- Add more examples
-- Translate to other languages
-- Create video tutorials
-- Share your mod-making workflows
-
----
-
----
 
 <div align="center">
 
