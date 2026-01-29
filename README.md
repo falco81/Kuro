@@ -582,9 +582,10 @@ Checks if item IDs in DLC files conflict with existing game data.
 - `t_item.tbl` - Binary TBL format
 - `t_item.tbl.original` - Original backup TBL file
 - `script_en.p3a` / `script_eng.p3a` - P3A archives (auto-extracts)
+- `zzz_combined_tables.p3a` - P3A archives (auto-extracts)
 
 **Options**:
-- `--source=<type>` - Force specific source: `json`, `tbl`, `original`, or `p3a`
+- `--source=<type>` - Force specific source: `json`, `tbl`, `original`, `p3a` or `zzz`
 - `--no-interactive` - Skip source selection prompt (uses first available)
 - `--keep-extracted` - Keep temporary files from P3A extraction
 
@@ -916,6 +917,7 @@ The repair process intelligently updates IDs in all these sections:
 | `--source=tbl` | Force use of t_item.tbl |
 | `--source=original` | Force use of t_item.tbl.original |
 | `--source=p3a` | Force use of P3A archive |
+| `--source=zzz` | Force use of P3A zzz_combined_tables.p3a archive |
 | `--no-interactive` | Skip prompts, use first available source |
 | `--keep-extracted` | Keep temporary files from P3A extraction |
 
@@ -1245,6 +1247,7 @@ Output:
    - `t_item.tbl`
    - `t_item.tbl.original`
    - `script_en.p3a` or `script_eng.p3a`
+   - `zzz_combined_tables.p3a`
 
 2. Verify you're running the script in the correct directory
 
