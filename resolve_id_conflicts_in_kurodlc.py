@@ -222,11 +222,11 @@ def apply_repair(repair_entries, timestamp):
                     if 'items' in item and isinstance(item['items'], list):
                         item['items'] = [new_id if x==old_id else x for x in item['items']]
                         block_lines.append(f"DLCTableData : {str(old_id).rjust(5)} -> {str(new_id).rjust(5)}")
-                    if 'ItemTableData' in item and isinstance(item['ItemTableData'], list):
-                        for subitem in item['ItemTableData']:
-                            if subitem.get('id') == old_id:
-                                subitem['id'] = new_id
-                                block_lines.append(f"DLCTableData : {str(old_id).rjust(5)} -> {str(new_id).rjust(5)}")
+                    #if 'ItemTableData' in item and isinstance(item['ItemTableData'], list):
+                    #    for subitem in item['ItemTableData']:
+                    #        if subitem.get('id') == old_id:
+                    #            subitem['id'] = new_id
+                    #            block_lines.append(f"DLCTableData : {str(old_id).rjust(5)} -> {str(new_id).rjust(5)}")
 
             if block_lines:
                 verbose_lines.append("\n".join(block_lines))
