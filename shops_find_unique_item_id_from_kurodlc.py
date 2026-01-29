@@ -1,5 +1,6 @@
 import json
 import sys
+import os
 
 # Check if an argument was provided
 if len(sys.argv) < 2:
@@ -28,9 +29,42 @@ if len(sys.argv) >= 3:
         print("Allowed parameters are: shop, costume")
         sys.exit(1)
 
+# Check if the file actually exists
+if not os.path.exists(json_file):
+    print(f"Error: The file '{json_file}' does not exist.")
+    sys.exit(1)  # Exit the program with an error
+
 # Load JSON file
 with open(json_file, "r", encoding="utf-8") as f:
     data = json.load(f)
+
+def is_valid_kurodlc_structure(data):
+    # Kontrola hlavních klíčů
+    required_keys = ["CostumeParam", "DLCTableData", "ItemTableData"]
+    for key in required_keys:
+        if key not in data or not isinstance(data[key], list):
+            return False
+
+    # Kontrola základních polí v CostumeParam
+    for item in data["CostumeParam"]:
+        if not isinstance(item, dict) or "item_id" not in item or "mdl_name" not in item:
+            return False
+
+    # Kontrola základních polí v DLCTableData
+    for item in data["DLCTableData"]:
+        if not isinstance(item, dict) or "id" not in item or "items" not in item:
+            return False
+
+    # Kontrola základních polí v ItemTableData
+    for item in data["ItemTableData"]:
+        if not isinstance(item, dict) or "id" not in item or "name" not in item:
+            return False
+
+    return True
+
+if not is_valid_kurodlc_structure(data):
+    print(f"Error: JSON file '{json_file}' does not have a valid kurodlc structure.")
+    sys.exit(1)
 
 shop_item_ids = []
 costume_item_ids = []

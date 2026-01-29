@@ -55,12 +55,29 @@ except ImportError:
 def print_usage():
     print(__doc__)
 
-def get_all_files():
-    """Return all .kurodlc.json files ignoring backup/snapshot files"""
-    return [
-        f for f in os.listdir('.')
-        if f.lower().endswith('.kurodlc.json') and '.bak_' not in f.lower()
-    ]
+def get_all_files(cmdlog=False):
+    valid_files = []
+
+    for name in os.listdir('.'):
+        lname = name.lower()
+
+        if not lname.endswith('.kurodlc.json'):
+            continue
+        if '.bak_' in lname:
+            continue
+        if not os.path.isfile(name):
+            continue
+
+        ok, reason = is_valid_kurodlc_json(name)
+        if not ok:
+            if cmdlog:
+                print(f"Skipping {name}: {reason}")
+            continue
+
+        valid_files.append(name)
+
+    return valid_files
+
 
 def extract_item_ids(json_file):
     """Extract item_ids from all relevant sections."""
@@ -75,6 +92,50 @@ def extract_item_ids(json_file):
                     for sub in item['ItemTableData']:
                         if 'id' in sub: ids.append(sub['id'])
     return ids
+
+def is_valid_kurodlc_json(path):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return False, "invalid json"
+
+    if not isinstance(data, dict):
+        return False, "root is not object"
+
+    # ---- CostumeParam ----
+    if "CostumeParam" not in data or not isinstance(data["CostumeParam"], list):
+        return False, "missing or invalid CostumeParam"
+
+    for item in data["CostumeParam"]:
+        if not isinstance(item, dict):
+            return False, "CostumeParam item not object"
+        if "item_id" not in item or not isinstance(item["item_id"], int):
+            return False, "CostumeParam.item_id missing or not int"
+
+    # ---- DLCTableData ----
+    if "DLCTableData" not in data or not isinstance(data["DLCTableData"], list):
+        return False, "missing or invalid DLCTableData"
+
+    for item in data["DLCTableData"]:
+        if not isinstance(item, dict):
+            return False, "DLCTableData item not object"
+        if "items" not in item or not isinstance(item["items"], list):
+            return False, "DLCTableData.items missing or not list"
+        if not all(isinstance(x, int) for x in item["items"]):
+            return False, "DLCTableData.items contains non-int"
+
+    # ---- ItemTableData ----
+    if "ItemTableData" not in data or not isinstance(data["ItemTableData"], list):
+        return False, "missing or invalid ItemTableData"
+
+    for item in data["ItemTableData"]:
+        if not isinstance(item, dict):
+            return False, "ItemTableData item not object"
+        if "id" not in item or not isinstance(item["id"], int):
+            return False, "ItemTableData.id missing or not int"
+
+    return True, "ok"
 
 # -------------------------
 # Source detection

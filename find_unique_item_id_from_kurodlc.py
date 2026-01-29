@@ -22,14 +22,66 @@ except ImportError:
 def get_all_files():
     return [f for f in os.listdir('.') if f.lower().endswith('.kurodlc.json')]
 
-def extract_item_ids(json_file):
-    with open(json_file, "r", encoding="utf-8") as f:
-        data = json.load(f)
+def extract_item_ids(json_file, strict=False, cmdlog=False):
+    try:
+        with open(json_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        if cmdlog:
+            print(f"Skipping {json_file}: invalid JSON ({e})")
+        return []
+
+    if not is_valid_kurodlc_structure(data):
+        msg = f"{json_file} has invalid kurodlc structure"
+        if strict:
+            raise ValueError(msg)
+        if cmdlog:
+            print(f"Skipping {json_file}: {msg}")
+        return []
+
     return [
         item["item_id"]
-        for item in data.get("CostumeParam", [])
-        if "item_id" in item
+        for item in data["CostumeParam"]
+        if isinstance(item, dict) and "item_id" in item
     ]
+
+def is_valid_kurodlc_structure(data):
+    if not isinstance(data, dict):
+        return False
+
+    required_root_keys = ["CostumeParam", "DLCTableData", "ItemTableData"]
+    if not all(k in data for k in required_root_keys):
+        return False
+
+    if not all(isinstance(data[k], list) for k in required_root_keys):
+        return False
+
+    # CostumeParam → item_id
+    if not any(
+        isinstance(x, dict) and "item_id" in x and isinstance(x["item_id"], int)
+        for x in data["CostumeParam"]
+    ):
+        return False
+
+    # DLCTableData → items[]
+    if not any(
+        isinstance(x, dict)
+        and "items" in x
+        and isinstance(x["items"], list)
+        and all(isinstance(i, int) for i in x["items"])
+        for x in data["DLCTableData"]
+    ):
+        return False
+
+    # ItemTableData → id
+    if not any(
+        isinstance(x, dict) and "id" in x and isinstance(x["id"], int)
+        for x in data["ItemTableData"]
+    ):
+        return False
+
+    return True
+
 
 # ------------------------------------------------------------
 # Source detection & selection (CHECK MODE)
