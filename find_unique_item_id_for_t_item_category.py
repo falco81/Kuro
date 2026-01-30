@@ -2,8 +2,20 @@ import json
 import sys
 
 def get_unique_ids_by_category(json_path, category):
-    with open(json_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    """
+    Extract unique item IDs from a specific category in ItemTableData.
+    
+    IMPROVED: Added error handling and None filtering.
+    """
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        print(f"Error: File '{json_path}' not found.")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON in '{json_path}': {e}")
+        sys.exit(1)
 
     unique_ids = set()
 
@@ -11,7 +23,14 @@ def get_unique_ids_by_category(json_path, category):
         if block.get("name") == "ItemTableData":
             for item in block.get("data", []):
                 if item.get("category") == category:
-                    unique_ids.add(item.get("id"))
+                    item_id = item.get("id")
+                    # FIXED: Filter out None values
+                    if item_id is not None:
+                        unique_ids.add(item_id)
+
+    if not unique_ids:
+        print(f"Warning: No item IDs found in category {category}.")
+        return []
 
     return sorted(unique_ids)
 
@@ -33,9 +52,14 @@ if __name__ == "__main__":
         )
         sys.exit(1)
 
-
     json_file = sys.argv[1]
-    category = int(sys.argv[2])
+    
+    # FIXED: Validate category input
+    try:
+        category = int(sys.argv[2])
+    except ValueError:
+        print(f"Error: Category must be an integer, got '{sys.argv[2]}'")
+        sys.exit(1)
 
     ids = get_unique_ids_by_category(json_file, category)
 

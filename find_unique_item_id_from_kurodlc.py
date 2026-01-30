@@ -16,6 +16,17 @@ except ImportError:
     Fore = Style = type('', (), {'RED':'', 'GREEN':'', 'RESET_ALL':''})()
 
 # ------------------------------------------------------------
+# Import required libraries with error handling
+# ------------------------------------------------------------
+try:
+    from p3a_lib import p3a_class
+    from kurodlc_lib import kuro_tables
+    HAS_LIBS = True
+except ImportError as e:
+    HAS_LIBS = False
+    MISSING_LIB = str(e)
+
+# ------------------------------------------------------------
 # Utilities
 # ------------------------------------------------------------
 
@@ -23,6 +34,15 @@ def get_all_files():
     return [f for f in os.listdir('.') if f.lower().endswith('.kurodlc.json')]
 
 def extract_item_ids(json_file, strict=False, cmdlog=False):
+    """
+    Extract item_ids from all relevant sections.
+    
+    FIXED: Now correctly extracts from all four sections:
+    - CostumeParam: uses 'item_id' field
+    - ItemTableData: uses 'id' field
+    - DLCTableData: uses 'items' field (list of integers)
+    - ShopItem: uses 'item_id' field (optional section)
+    """
     try:
         with open(json_file, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -39,17 +59,40 @@ def extract_item_ids(json_file, strict=False, cmdlog=False):
             print(f"Skipping {json_file}: {msg}")
         return []
 
-    return [
-        item["item_id"]
-        for item in data["CostumeParam"]
-        if isinstance(item, dict) and "item_id" in item
-    ]
+    ids = []
+    
+    # CostumeParam: item_id field
+    if 'CostumeParam' in data:
+        for item in data['CostumeParam']:
+            if isinstance(item, dict) and 'item_id' in item:
+                ids.append(item['item_id'])
+    
+    # ItemTableData: id field
+    if 'ItemTableData' in data:
+        for item in data['ItemTableData']:
+            if isinstance(item, dict) and 'id' in item:
+                ids.append(item['id'])
+    
+    # DLCTableData: items field (list of integers)
+    if 'DLCTableData' in data:
+        for item in data['DLCTableData']:
+            if isinstance(item, dict) and 'items' in item and isinstance(item['items'], list):
+                ids.extend(item['items'])
+  
+    return ids
 
 def is_valid_kurodlc_structure(data):
+    """
+    Validate .kurodlc.json structure.
+    
+    FIXED: ItemTableData and ShopItem are now OPTIONAL.
+    Only CostumeParam and DLCTableData are required.
+    """
     if not isinstance(data, dict):
         return False
 
-    required_root_keys = ["CostumeParam", "DLCTableData", "ItemTableData"]
+    # Only CostumeParam and DLCTableData are REQUIRED
+    required_root_keys = ["CostumeParam", "DLCTableData"]
     if not all(k in data for k in required_root_keys):
         return False
 
@@ -73,12 +116,20 @@ def is_valid_kurodlc_structure(data):
     ):
         return False
 
-    # ItemTableData → id
-    if not any(
-        isinstance(x, dict) and "id" in x and isinstance(x["id"], int)
-        for x in data["ItemTableData"]
-    ):
-        return False
+    # ItemTableData → id (OPTIONAL)
+    if "ItemTableData" in data:
+        if not isinstance(data["ItemTableData"], list):
+            return False
+        if data["ItemTableData"] and not any(
+            isinstance(x, dict) and "id" in x and isinstance(x["id"], int)
+            for x in data["ItemTableData"]
+        ):
+            return False
+
+    # ShopItem → item_id (OPTIONAL)
+    if "ShopItem" in data:
+        if not isinstance(data["ShopItem"], list):
+            return False
 
     return True
 
@@ -133,8 +184,7 @@ def select_source_interactive(sources):
 # ------------------------------------------------------------
 
 def extract_from_p3a(p3a_file, out_file):
-    from p3a_lib import p3a_class
-
+    """Extract t_item.tbl from P3A archive."""
     p3a = p3a_class()
     with open(p3a_file, 'rb') as p3a.f:
         headers, entries, p3a_dict = p3a.read_p3a_toc()
@@ -160,7 +210,7 @@ def load_items_from_json():
     return {}
 
 def load_items_from_tbl(tbl_file):
-    from kurodlc_lib import kuro_tables
+    """Load items from .tbl file."""
     kt = kuro_tables()
     table = kt.read_table(tbl_file)
     return {x['id']: x['name'] for x in table['ItemTableData']}
@@ -263,12 +313,24 @@ if arg == "check":
     forced_source = None
     for opt in options:
         if opt.startswith("--source"):
-            _, forced_source = opt.split("=") if "=" in opt else (None, None)
+            if "=" in opt:
+                _, forced_source = opt.split("=", 1)
+            else:
+                print("Error: --source requires format: --source=TYPE")
+                print("Available types: json, tbl, original, p3a, zzz")
+                sys.exit(1)
 
     sources = detect_sources()
     if not sources:
         print("Error: No valid item source found.")
         sys.exit(1)
+    
+    # Check if required libraries are available for P3A sources
+    if any(stype in ("p3a", "zzz") for stype, _ in sources) and not HAS_LIBS:
+        if forced_source in ("p3a", "zzz") or not forced_source:
+            print(f"Error: Required library missing: {MISSING_LIB}")
+            print("P3A extraction requires p3a_lib and kurodlc_lib modules.")
+            sys.exit(1)
 
     extracted_temp = False
     temp_tbl = "t_item.tbl.original.tmp"
