@@ -5,6 +5,13 @@ resolve_id_conflicts_in_kurodlc.py
 Description:
 Detects and repairs item ID conflicts in .kurodlc.json files against game item data.
 
+NEW in v2.7: Smart ID Assignment Algorithm
+- Searches only in range 1-5000 (safe limit)
+- Starts from middle (2500) for better distribution
+- Finds continuous blocks when possible (fast)
+- Falls back to scattered search if needed (handles fragmentation)
+- Clear error messages if not enough IDs available
+
 Supported sources:
 - t_item.json
 - t_item.tbl
@@ -20,9 +27,10 @@ Modes:
 
 2) repair
    - Same as checkbydlc, but generates a repair plan for [BAD] IDs.
+   - NEW: Uses smart algorithm to find IDs in range 1-5000
    - --apply actually modifies files with backups and verbose logs.
-   - NEW: --export exports repair plan to id_mapping.json for manual editing
-   - NEW: --import imports edited id_mapping.json and applies changes
+   - --export exports repair plan to id_mapping.json for manual editing
+   - --import imports edited id_mapping.json and applies changes
 
 3) repair --export
    - Generates repair plan and exports to id_mapping.json
@@ -57,7 +65,7 @@ Options:
 
 Workflow examples:
 
-  # Classic automatic repair:
+  # Classic automatic repair (NEW: uses smart algorithm, IDs in range 1-5000):
   python resolve_id_conflicts_in_kurodlc.py repair --apply
   
   # NEW: Interactive workflow with manual editing:
@@ -93,6 +101,19 @@ Workflow examples:
 Other examples:
   python resolve_id_conflicts_in_kurodlc.py checkbydlc
   python resolve_id_conflicts_in_kurodlc.py repair --source=json
+  
+Algorithm Details:
+  The smart algorithm searches for available IDs in range 1-5000:
+  1. Starts from middle (2500) for better distribution
+  2. Tries to find continuous block first (e.g., 4000-4049)
+  3. Falls back to scattered search if needed (e.g., 2499, 2501, 2502, ...)
+  4. Gives clear error if not enough IDs available in range
+  
+  Benefits:
+  - Guaranteed to stay within 1-5000 range
+  - Better ID distribution (not clustered at end)
+  - Handles fragmented ID space efficiently
+  - Clear error messages with suggestions
 """
 
 import os, sys, json, shutil, datetime
@@ -118,6 +139,123 @@ try:
 except ImportError:
     class Dummy:
         RED=GREEN=RESET_ALL=""
+    Fore = Style = Dummy()
+
+# -------------------------
+# Smart ID Assignment Algorithm
+# -------------------------
+
+def find_available_ids_in_range(used_ids, count_needed, min_id=1, max_id=5000):
+    """
+    Find available IDs within specified range using smart search strategy.
+    
+    Algorithm:
+    1. Try to find continuous block first (fast path)
+    2. Fall back to scattered search if needed (handles fragmentation)
+    3. Start from middle of range for better distribution
+    
+    Args:
+        used_ids: Set of already used IDs
+        count_needed: Number of available IDs needed
+        min_id: Minimum ID value (inclusive, default=1)
+        max_id: Maximum ID value (inclusive, default=5000)
+    
+    Returns:
+        List of available IDs (sorted)
+        
+    Raises:
+        ValueError: If not enough IDs available in range
+    """
+    # Validate range
+    if min_id >= max_id:
+        raise ValueError(f"Invalid range: min_id ({min_id}) must be less than max_id ({max_id})")
+    
+    total_range = max_id - min_id + 1
+    if count_needed > total_range:
+        raise ValueError(f"Requested {count_needed} IDs but range only has {total_range} total")
+    
+    # Strategy 1: Try to find continuous block first (fast path)
+    available = find_continuous_block(used_ids, count_needed, min_id, max_id)
+    if available:
+        return available
+    
+    # Strategy 2: Find scattered IDs (handles fragmented space)
+    available = find_scattered_ids(used_ids, count_needed, min_id, max_id)
+    if available:
+        return available
+    
+    # Not enough IDs available
+    used_in_range = len([id for id in used_ids if min_id <= id <= max_id])
+    available_count = total_range - used_in_range
+    raise ValueError(
+        f"Not enough available IDs in range [{min_id}, {max_id}].\n"
+        f"      Requested: {count_needed}\n"
+        f"      Available: {available_count}\n"
+        f"      Used in range: {used_in_range}\n"
+        f"      Suggestion: Increase max_id (e.g., --max-id={max_id + 5000}) or remove some items"
+    )
+
+
+def find_continuous_block(used_ids, count_needed, min_id, max_id):
+    """
+    Try to find a continuous block of available IDs.
+    Starts from middle of range and searches outward for better distribution.
+    
+    Returns:
+        List of IDs if continuous block found, None otherwise
+    """
+    middle = (min_id + max_id) // 2
+    max_offset = max(middle - min_id, max_id - middle)
+    
+    # Search from middle outward
+    for offset in range(max_offset + 1):
+        # Try middle + offset
+        start = middle + offset
+        if start + count_needed - 1 <= max_id:
+            if all(id not in used_ids for id in range(start, start + count_needed)):
+                return list(range(start, start + count_needed))
+        
+        # Try middle - offset (avoid duplicate at offset=0)
+        if offset > 0:
+            start = middle - offset
+            if start >= min_id and start + count_needed - 1 <= max_id:
+                if all(id not in used_ids for id in range(start, start + count_needed)):
+                    return list(range(start, start + count_needed))
+    
+    return None
+
+
+def find_scattered_ids(used_ids, count_needed, min_id, max_id):
+    """
+    Find scattered available IDs throughout the range.
+    Uses middle-out search for better distribution.
+    
+    Returns:
+        Sorted list of IDs if enough found, None otherwise
+    """
+    available = []
+    middle = (min_id + max_id) // 2
+    max_offset = max(middle - min_id, max_id - middle)
+    
+    # Start from middle and spiral outward
+    for offset in range(max_offset + 1):
+        # Check middle + offset
+        candidate = middle + offset
+        if min_id <= candidate <= max_id and candidate not in used_ids:
+            available.append(candidate)
+            if len(available) >= count_needed:
+                return sorted(available)
+        
+        # Check middle - offset (avoid duplicate at offset=0)
+        if offset > 0:
+            candidate = middle - offset
+            if min_id <= candidate <= max_id and candidate not in used_ids:
+                available.append(candidate)
+                if len(available) >= count_needed:
+                    return sorted(available)
+    
+    return None
+
     Fore=Style=Dummy()
 
 # -------------------------
@@ -397,7 +535,8 @@ def print_ids_for_list(item_ids, items_dict, used_ids_snapshot, mode="check"):
     ok_count = bad_count = 0
     repair_entries = []
     
-    next_id = max(local_used_ids, default=0) + 1
+    # Collect conflicts first
+    conflicts = []
     
     for item_id in unique_ids:
         id_str = str(item_id).rjust(max_id_len)
@@ -406,16 +545,62 @@ def print_ids_for_list(item_ids, items_dict, used_ids_snapshot, mode="check"):
             print(f"{id_str} : {name} {Fore.RED}[BAD]{Style.RESET_ALL}")
             bad_count += 1
             if mode == "repair":
-                # Find next available ID
-                while next_id in local_used_ids:
-                    next_id += 1
-                new_id = next_id
-                local_used_ids.add(new_id)
-                next_id += 1
-                repair_entries.append((item_id, new_id))
+                conflicts.append(item_id)
         else:
             print(f"{id_str} : {'available'.ljust(max_name_len)} {Fore.GREEN}[OK]{Style.RESET_ALL}")
             ok_count += 1
+    
+    # NEW: Use smart algorithm to find all available IDs at once
+    if mode == "repair" and conflicts:
+        print(f"\n{'='*60}")
+        print(f"Searching for {len(conflicts)} available IDs in range [1, 5000]...")
+        print(f"{'='*60}")
+        
+        try:
+            # Use smart algorithm with range 1-5000
+            available_ids = find_available_ids_in_range(
+                local_used_ids,
+                len(conflicts),
+                min_id=1,
+                max_id=5000
+            )
+            
+            print(f"\n[SUCCESS] Found {len(available_ids)} available IDs")
+            if available_ids:
+                id_range_str = f"{min(available_ids)}-{max(available_ids)}" if len(available_ids) > 1 else str(available_ids[0])
+                print(f"ID range: {id_range_str}")
+            
+            # Check if IDs form continuous block
+            if len(available_ids) > 1:
+                is_continuous = available_ids == list(range(min(available_ids), max(available_ids) + 1))
+                if is_continuous:
+                    print(f"Type: Continuous block")
+                else:
+                    print(f"Type: Scattered IDs (using gaps in ID space)")
+            
+            print(f"{'='*60}\n")
+            
+            # Create repair entries
+            print("Repair plan:")
+            for old_id, new_id in zip(conflicts, available_ids):
+                # Show the mapping
+                conflict_name = items_dict.get(old_id, 'Unknown')
+                print(f"  {old_id} -> {new_id} ({conflict_name})")
+                repair_entries.append((old_id, new_id))
+                local_used_ids.add(new_id)
+            
+        except ValueError as e:
+            print(f"\n[ERROR] {e}")
+            print("\n" + "="*60)
+            print("Cannot proceed with repair. Please choose one of these options:")
+            print("="*60)
+            print("  1. Remove some items from your DLC mod")
+            print("  2. Use manual ID assignment:")
+            print("     python resolve_id_conflicts_in_kurodlc.py repair --export")
+            print("     (then edit the mapping file to use higher IDs)")
+            print("  3. Contact for help if you need assistance")
+            print("="*60 + "\n")
+            return ok_count, bad_count, len(unique_ids), []
     
     return ok_count, bad_count, len(unique_ids), repair_entries
 
