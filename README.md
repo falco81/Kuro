@@ -3,7 +3,6 @@
 A comprehensive Python toolkit for creating and managing DLC mods for games using the KuroDLC format. This toolkit provides utilities for item discovery, ID management, conflict resolution, and shop assignment automation.
 
 [![Python Version](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ## 📋 Table of Contents
 
@@ -29,7 +28,8 @@ A comprehensive Python toolkit for creating and managing DLC mods for games usin
 
 - **🔍 Item Discovery**: Search and browse game items from JSON, TBL, and P3A sources
 - **⚠️ Conflict Detection**: Automatically detect ID conflicts between DLC and game data
-- **🔧 Smart Resolution**: Automatic or manual ID conflict resolution with validation
+- **🔧 Smart Resolution**: NEW  Intelligent ID assignment algorithm with 1-5000 range limit
+- **🎯 Better Distribution**: IDs assigned from middle of range (2500) for optimal spacing
 - **🛒 Shop Integration**: Generate shop assignments for custom items in bulk
 - **📦 Multiple Formats**: Support for JSON, TBL, and P3A archive formats
 - **✅ Validation**: Comprehensive .kurodlc.json structure validation
@@ -86,12 +86,20 @@ python resolve_id_conflicts_in_kurodlc.py
 python resolve_id_conflicts_in_kurodlc.py checkbydlc
 ```
 
-### Automatic Conflict Resolution
+### Automatic Conflict Resolution (NEW - Smart Algorithm!)
 
 ```bash
 # Detect and fix conflicts automatically
+# NEW: Uses smart algorithm to assign IDs in range 1-5000
+# IDs are distributed from middle (2500) for better spacing
 python resolve_id_conflicts_in_kurodlc.py repair --apply
 ```
+
+**What's New**
+- ✅ IDs guaranteed to stay within 1-5000 range
+- ✅ Smart distribution starting from middle (2500)
+- ✅ Finds continuous blocks when possible
+- ✅ Clear errors if not enough IDs available
 
 ### Manual Conflict Resolution (Recommended)
 
@@ -380,7 +388,7 @@ Total unique IDs: 5
 
 ---
 
-#### Mode 2: Automatic Repair
+#### Mode 2: Automatic Repair (NEW - Smart Algorithm!)
 
 ```bash
 python resolve_id_conflicts_in_kurodlc.py repair --apply
@@ -388,23 +396,34 @@ python resolve_id_conflicts_in_kurodlc.py repair --apply
 
 **What it does:**
 1. Detects conflicts
-2. Automatically assigns new non-conflicting IDs
-3. Creates backup files (`.bak_TIMESTAMP.json`)
-4. Generates detailed logs
-5. Modifies files in place
+2. Uses **smart algorithm** to find IDs in range **1-5000**
+3. Starts search from **middle (2500)** for better distribution
+4. Tries to find **continuous blocks** first (faster)
+5. Falls back to **scattered search** if needed (handles fragmentation)
+6. Creates backup files (`.bak_TIMESTAMP.json`)
+7. Generates detailed logs
+8. Modifies files in place
 
-**Sample Output:**
+**Sample Output**
 ```
 Processing: custom_items_mod.kurodlc.json
 ------------------------------------------------------------
 
-Conflicts detected: 2
+3596 : Custom Outfit Alpha      [BAD]
+3607 : Custom Outfit Beta       [BAD]
 
-3596 : Custom Outfit Alpha
-  Suggested new ID: 4001
+============================================================
+Searching for 2 available IDs in range [1, 5000]...
+============================================================
 
-3607 : Custom Outfit Beta
-  Suggested new ID: 4002
+[SUCCESS] Found 2 available IDs
+ID range: 4000-4001
+Type: Continuous block
+============================================================
+
+Repair plan:
+  3596 -> 4000 (Custom Outfit Alpha)
+  3607 -> 4001 (Custom Outfit Beta)
 
 Applying changes...
 
@@ -413,11 +432,17 @@ Backup     : custom_items_mod.kurodlc.json.bak_20260131_154523.json
 Verbose log: custom_items_mod.kurodlc.json.repair_verbose_20260131_154523.txt
 
 Changes applied:
-  3596 -> 4001 (Custom Outfit Alpha)
-  3607 -> 4002 (Custom Outfit Beta)
+  3596 -> 4000 (Custom Outfit Alpha)
+  3607 -> 4001 (Custom Outfit Beta)
 
 [SUCCESS] All changes applied successfully with backups.
 ```
+
+**Key Improvements:**
+- ✅ IDs guaranteed within 1-5000 (safe range)
+- ✅ Better distribution (not clustered at end)
+- ✅ Shows ID range and type (continuous/scattered)
+- ✅ Clear error if not enough IDs available
 
 **Files Created:**
 - `.bak_TIMESTAMP.json` - Backup of original file
@@ -633,6 +658,142 @@ RECOMMENDED SOLUTIONS:
 - `original` - t_item.tbl.original
 - `p3a` - script_en.p3a / script_eng.p3a
 - `zzz` - zzz_combined_tables.p3a
+
+---
+
+#### Smart ID Assignment Algorithm (NEW)
+
+The automatic repair mode now uses an intelligent algorithm to assign new IDs.
+
+**How It Works:**
+
+**1. Range Constraint (1-5000)**
+```
+All assigned IDs are guaranteed to be between 1 and 5000
+```
+- ✅ Safe limit that avoids extremely high IDs
+- ✅ Better compatibility with game systems
+- ✅ Professional ID scheme
+
+**2. Middle-Out Search Strategy**
+```
+Instead of: 1 → 2 → 3 → ... → 5000 (sequential from start)
+Now uses:   2500 → 2501/2499 → 2502/2498 → ... (from middle)
+```
+- ✅ Better distribution of IDs
+- ✅ Creates buffer from game data (typically 1-3500)
+- ✅ More predictable spacing
+
+**3. Two Search Strategies**
+
+**Strategy A: Continuous Block (Fast Path)**
+```
+Need: 50 IDs
+Game uses: 1-3500
+Algorithm: Searches from 2500
+Finds: 3501-3550 (continuous block)
+Result: Clean, sequential IDs ✓
+```
+
+**Strategy B: Scattered Search (Fallback)**
+```
+Need: 50 IDs
+Game uses: Every 3rd ID (1, 4, 7, 10, 13...)
+Algorithm: Finds gaps
+Finds: [2, 3, 5, 6, 8, 9, 11, 12...]
+Result: Uses available gaps efficiently ✓
+```
+
+**4. Clear Error Handling**
+
+If not enough IDs available in range 1-5000:
+```
+[ERROR] Not enough available IDs in range [1, 5000].
+      Requested: 200
+      Available: 150
+      Used in range: 4850
+      Suggestion: Increase max_id or remove some items
+
+Cannot proceed with repair. Please choose one of these options:
+  1. Remove some items from your DLC mod
+  2. Use manual ID assignment (--export/--import)
+  3. Contact for help if you need assistance
+```
+
+**Algorithm Examples:**
+
+**Example 1: Small Mod (5 conflicts)**
+```
+Game IDs: 1-3500
+Conflicts: 5 IDs need replacement
+
+Algorithm:
+  1. Start search from 2500 (middle of 1-5000)
+  2. Find continuous block at 3501-3505
+  3. Assign IDs: 3501, 3502, 3503, 3504, 3505
+
+Result: Clean block just after game data ✓
+```
+
+**Example 2: Medium Mod (50 conflicts)**
+```
+Game IDs: 1-3800
+Conflicts: 50 IDs need replacement
+
+Algorithm:
+  1. Start search from 2500
+  2. Find continuous block at 4000-4049
+  3. Assign IDs: 4000-4049
+
+Result: Better buffer from game data (200 ID gap) ✓
+```
+
+**Example 3: Fragmented Space**
+```
+Game IDs: Every 3rd ID (1, 4, 7, 10, ...)
+Conflicts: 50 IDs need replacement
+
+Algorithm:
+  1. Start search from 2500
+  2. No continuous block found
+  3. Use scattered search
+  4. Find gaps: [2, 3, 5, 6, 8, 9, ...]
+
+Result: Efficiently uses available gaps ✓
+```
+
+**Example 4: Not Enough Space**
+```
+Game IDs: 1-4950
+Conflicts: 100 IDs need replacement
+Available in 1-5000: Only 50 IDs
+
+Algorithm:
+  1. Attempts to find 100 IDs
+  2. Only finds 50 available
+  3. Returns clear error
+
+Result: Clear message with solutions ✓
+```
+
+**Benefits Over Old Algorithm:**
+
+| Aspect | Old Algorithm | New Algorithm |
+|--------|---------------|----------------------|
+| Range | Unlimited (could go 10000+) | **Limited to 1-5000** ✓ |
+| Start | From highest ID | **From middle (2500)** ✓ |
+| Distribution | Clustered at end | **Well distributed** ✓ |
+| Gaps | Ignored | **Utilized efficiently** ✓ |
+| Errors | Silent failures | **Clear messages** ✓ |
+| Speed | O(n) sequential | O(log n) for blocks ✓ |
+
+**When to Use Manual Assignment:**
+
+While the smart algorithm works great for most cases, use manual assignment (--export/--import) when:
+- You need IDs > 5000 (rare)
+- You want specific ID numbers (e.g., 6000, 6100, 6200...)
+- You have a custom ID scheme for your mod
+- You're working on a very large mod (200+ items)
 
 ---
 
@@ -1047,6 +1208,106 @@ pip install p3a_lib kurodlc_lib
 
 ---
 
+#### Issue: "Not enough IDs available" (NEW)
+
+**Error:**
+```
+[ERROR] Not enough available IDs in range [1, 5000].
+      Requested: 200
+      Available: 150
+      Used in range: 4850
+      Suggestion: Increase max_id or remove some items
+```
+
+**Cause:** Your mod has more conflicts than available IDs in the 1-5000 range.
+
+**Why this happens:**
+The smart algorithm constrains IDs to the safe range of 1-5000. If:
+- Game uses IDs 1-3500
+- Other DLCs use 3501-4850
+- You need 200 new IDs
+- Only 150 IDs available (4851-5000)
+
+**Solutions:**
+
+**Option 1: Remove some items (Recommended)**
+```bash
+# Edit your .kurodlc.json and remove least important items
+# Then retry
+python resolve_id_conflicts_in_kurodlc.py repair --apply
+```
+
+**Option 2: Use manual assignment with custom range**
+```bash
+# Step 1: Export
+python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=custom
+
+# Step 2: Edit id_mapping_custom.json
+# Manually assign IDs in higher range (e.g., 6000-6199)
+
+# Step 3: Import
+python resolve_id_conflicts_in_kurodlc.py repair --import --mapping-file=id_mapping_custom.json
+```
+
+**Option 3: Split into multiple DLC files**
+```bash
+# Divide your items across multiple .kurodlc.json files
+# Each file gets separate ID allocation
+my_mod_part1.kurodlc.json  # Gets IDs 4000-4099
+my_mod_part2.kurodlc.json  # Gets IDs 4100-4199
+```
+
+**Prevention:**
+- Plan your ID usage before creating large mods
+- Use ID ranges strategically (e.g., 4000-4999 for costumes)
+- Check available space first:
+  ```bash
+  python find_unique_item_id_from_kurodlc.py check
+  ```
+
+---
+
+#### Issue: "File does not have valid kurodlc structure"
+
+**Error:**
+```
+Error: JSON file 'my_mod.kurodlc.json' does not have a valid kurodlc structure.
+```
+
+**Cause:** Missing required sections or fields.
+
+**Solution:**
+
+Ensure your file has:
+
+**Required Sections:**
+```json
+{
+  "CostumeParam": [...],  // Required
+  "DLCTableData": [...]   // Required
+}
+```
+
+**Required Fields:**
+```json
+{
+  "CostumeParam": [
+    {
+      "item_id": 100,  // Must be integer
+      "mdl_name": "..." // Must exist
+    }
+  ],
+  "DLCTableData": [
+    {
+      "id": 1,          // Must be integer
+      "items": [100]    // Must be array of integers
+    }
+  ]
+}
+```
+
+---
+
 #### Issue: Conflicts still appear after repair
 
 **Symptom:** IDs still show `[BAD]` after running repair.
@@ -1149,6 +1410,46 @@ If issues persist:
 
 ---
 
+## 🎯 Best Practices
+
+### ID Management
+
+✅ **DO:**
+- **Let the algorithm choose IDs** - smart algorithm handles distribution
+- Use ID ranges appropriate for your mod size:
+  - Small mods (< 50 items): Let automatic repair handle it
+  - Medium mods (50-200 items): Review suggested IDs via export first
+  - Large mods (200+ items): Use manual assignment with custom ranges
+- **Start high when manually assigning** - Use 4000+ to avoid game data
+- Document your ID schemes (e.g., 4000-4099 = Costumes)
+- Use sequential IDs for related items
+- Export mapping files before making changes
+- Keep mapping files in version control
+
+❌ **DON'T:**
+- Manually specify IDs close to game data (e.g., 3500-3600 if game uses 1-3500)
+- Mix ID ranges for different item types without documentation
+- Manually edit .kurodlc.json between export/import
+- Delete backup files immediately
+- Reuse IDs across different mods without checking conflicts
+- Ignore the 1-5000 range limit warnings
+
+**NEW: Understanding the Range Limit**
+
+The automatic algorithm uses 1-5000 range because:
+- ✅ Provides ~1500-2000 IDs for mods (assuming game uses 1-3500)
+- ✅ Safe buffer from game data
+- ✅ Professional ID scheme
+- ✅ Compatible with most game systems
+
+If you need > 5000, use manual assignment:
+```bash
+python resolve_id_conflicts_in_kurodlc.py repair --export
+# Edit mapping to use higher IDs (6000+)
+python resolve_id_conflicts_in_kurodlc.py repair --import
+```
+
+---
 
 ### Workflow Recommendations
 
@@ -1227,6 +1528,24 @@ id_mapping_*.json
 # Schema
 kurodlc_schema.json
 ```
+
+---
+
+
+
+## 📚 Additional Resources
+
+- **JSON Format Guide:** [json.org](https://www.json.org)
+- **JSON Validator:** [jsonlint.com](https://jsonlint.com)
+- **Python Documentation:** [python.org/docs](https://docs.python.org/3/)
+- **KuroDLC Format Specification:** See `kurodlc_schema.json`
+
+---
+
+- Existing mods with IDs < 5000: No changes needed
+- Existing mods with IDs > 5000: Can continue as-is or migrate
+- New automatic repairs: Use smart algorithm automatically
+
 
 ---
 
