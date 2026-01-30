@@ -1,642 +1,303 @@
-# KuroDLC Tools Collection
+# KuroDLC Modding Toolkit
 
-> A comprehensive toolkit for managing game items, shops, and DLC content in KuroDLC JSON format
+A comprehensive Python toolkit for creating and managing DLC mods for games using the KuroDLC format. This toolkit provides utilities for item discovery, ID management, conflict resolution, and shop assignment automation.
 
-[![Python Version](https://img.shields.io/badge/python-3.6%2B-blue.svg)](https://www.python.org/downloads/)
-[![Status](https://img.shields.io/badge/status-active-success.svg)]()
+[![Python Version](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
----
+## 📋 Table of Contents
 
-## 🎯 Overview
-
-The **KuroDLC Tools Collection** is a set of Python utilities designed to help modders and developers work with game item databases, shop configurations, and DLC content files in KuroDLC JSON format. These tools provide functionality for:
-
-- Searching and filtering game items and shops
-- Extracting unique item IDs from various sources
-- Creating shop configurations programmatically
-- Detecting and resolving ID conflicts between game data and DLC mods
-- Managing costume and item data across multiple files
-
-### Key Use Cases
-
-- **Mod Development**: Create custom items and shops without ID conflicts
-- **Data Analysis**: Search and analyze existing game content
-- **Quality Assurance**: Verify DLC content before release
-- **Batch Operations**: Automate shop creation and item management
+- [Features](#-features)
+- [Requirements](#-requirements)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Scripts Overview](#-scripts-overview)
+- [Detailed Documentation](#-detailed-documentation)
+  - [Item Discovery Tools](#item-discovery-tools)
+  - [ID Extraction Tools](#id-extraction-tools)
+  - [Conflict Resolution](#conflict-resolution)
+  - [Shop Management](#shop-management)
+- [Common Workflows](#-common-workflows)
+- [File Formats](#-file-formats)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ---
 
 ## ✨ Features
 
-- 🔍 **Advanced Searching**: Filter items and shops by name, ID, or category
-- 🎨 **Color-Coded Output**: Visual feedback for conflicts and status (requires colorama)
-- 📊 **Multiple Data Sources**: Support for JSON, TBL, and P3A archive formats
-- 🔧 **Automatic Conflict Resolution**: Intelligent ID reassignment with backup creation
-- 📝 **Detailed Logging**: Verbose repair logs for tracking all changes
-- 🛡️ **Safe Operations**: Automatic backups before any modifications
-- 🚀 **Batch Processing**: Handle multiple DLC files simultaneously
+- **🔍 Item Discovery**: Search and browse game items from JSON, TBL, and P3A sources
+- **⚠️ Conflict Detection**: Automatically detect ID conflicts between DLC and game data
+- **🔧 Smart Resolution**: Automatic or manual ID conflict resolution with validation
+- **🛒 Shop Integration**: Generate shop assignments for custom items in bulk
+- **📦 Multiple Formats**: Support for JSON, TBL, and P3A archive formats
+- **✅ Validation**: Comprehensive .kurodlc.json structure validation
+- **💾 Safety First**: Automatic backups and detailed logging for all modifications
+- **🎨 User-Friendly**: Interactive menus and colored output (Windows CMD compatible)
 
 ---
 
-## 📦 Prerequisites
+## 📦 Requirements
 
-### Required
-
-- **Python 3.6+**
-- Basic understanding of JSON format
-- Game data files in supported formats
+### Core Requirements
+- **Python 3.7+**
+- Standard library modules (included): `json`, `sys`, `os`, `pathlib`, `shutil`, `datetime`, `glob`
 
 ### Optional Dependencies
 
-- **colorama** - For colored terminal output (Windows CMD support)
-  ```bash
-  pip install colorama
-  ```
+For enhanced functionality:
 
-- **p3a_lib** - For extracting from P3A archives (required for P3A operations)
-  - Must be available in the same directory or Python path
-  ```python
-    https://github.com/eArmada8/kuro_dlc_tool
-  ```
+```bash
+# For colored terminal output (recommended for Windows)
+pip install colorama
 
-- **kurodlc_lib** - For reading TBL format files
-  - Must be available in the same directory or Python path
-  ```python
-    https://github.com/eArmada8/kuro_dlc_tool
-  ```
+# For P3A archive support (optional)
+# Requires custom libraries: p3a_lib, kurodlc_lib
+# Contact library maintainers or check documentation
+```
+
+**Note**: The toolkit works fully without optional dependencies using JSON/TBL sources.
 
 ---
 
 ## 🚀 Installation
 
-1. **Clone or Download** this repository:
-   ```bash
-   git clone https://github.com/yourusername/kurodlc-tools.git
-   cd kurodlc-tools
-   ```
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/kurodlc-toolkit.git
+cd kurodlc-toolkit
 
-2. **Install Optional Dependencies** (recommended):
-   ```bash
-   pip install colorama
-   ```
+# Optional: Install colorama for colored output
+pip install colorama
 
-3. **Verify Installation**:
-   ```bash
-   python find_all_items.py
-   ```
-   You should see the usage instructions.
+# Verify installation
+python resolve_id_conflicts_in_kurodlc.py
+```
 
 ---
 
-## 📚 Scripts Documentation
+## ⚡ Quick Start
 
-### Item Management
+### Check for ID Conflicts
 
-#### `find_all_items.py`
-
-**Purpose**: Search and filter items from game item databases.
-
-**Usage**:
 ```bash
-python find_all_items.py <t_item.json> [search_text] [search_id]
+# Check all .kurodlc.json files in current directory
+python resolve_id_conflicts_in_kurodlc.py checkbydlc
 ```
 
-**Arguments**:
-- `t_item.json` - Path to the JSON file containing item data
-- `search_text` - (Optional) Filter items by text in their name (case-insensitive)
-- `search_id` - (Optional) Filter items by exact ID
-
-**Features**:
-- Recursively searches through nested JSON structures
-- Case-insensitive text search
-- Exact ID matching
-- Formatted output with aligned columns
-
-**Examples**:
+### Automatic Conflict Resolution
 
 ```bash
-# List all items from the file
+# Detect and fix conflicts automatically
+python resolve_id_conflicts_in_kurodlc.py repair --apply
+```
+
+### Manual Conflict Resolution (Recommended)
+
+```bash
+# Step 1: Export conflict report
+python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=my_mod
+
+# Step 2: Edit id_mapping_my_mod.json (change new_id values as needed)
+
+# Step 3: Apply your custom mappings
+python resolve_id_conflicts_in_kurodlc.py repair --import --mapping-file=id_mapping_my_mod.json
+```
+
+---
+
+## 🛠️ Scripts Overview
+
+| Script | Purpose | Key Features |
+|--------|---------|--------------|
+| **`resolve_id_conflicts_in_kurodlc.py`** | **Main conflict resolver** | Auto/manual repair, validation, backups |
+| `find_all_items.py` | Search game items | ID/name search, auto-detect mode |
+| `find_all_shops.py` | Search game shops | Filter by shop name |
+| `find_unique_item_id_for_t_costumes.py` | Extract costume IDs | From CostumeParam section |
+| `find_unique_item_id_for_t_item_category.py` | Extract category IDs | Filter by item category |
+| `find_unique_item_id_from_kurodlc.py` | Extract DLC IDs | Multiple modes, conflict checking |
+| `shops_create.py` | Generate shop assignments | Batch item-shop combinations |
+| `shops_find_unique_item_id_from_kurodlc.py` | Extract shop item IDs | Section-specific extraction |
+
+---
+
+## 📖 Detailed Documentation
+
+### Item Discovery Tools
+
+#### `find_all_items.py` - Item Database Browser
+
+Search and browse items from game data files.
+
+**Basic Usage:**
+```bash
+python find_all_items.py t_item.json [search_query]
+```
+
+**Search Modes:**
+
+| Mode | Syntax | Description | Example |
+|------|--------|-------------|---------|
+| **Auto-detect** | `TEXT` or `NUMBER` | Numbers → ID search<br>Text → name search | `sword`<br>`100` |
+| **Explicit ID** | `id:NUMBER` | Search by exact ID | `id:100` |
+| **Explicit name** | `name:TEXT` | Search in item names | `name:100` |
+
+**Examples:**
+
+```bash
+# List all items in database
 python find_all_items.py t_item.json
 
-# Find all items with "sepith" in their name
-python find_all_items.py t_item.json sepith
+# Search by name (auto-detect)
+python find_all_items.py t_item.json sword
+# Output: All items with "sword" in name
 
-# Find item with specific ID 310
-python find_all_items.py t_item.json "" 310
+# Search by ID (auto-detect)
+python find_all_items.py t_item.json 100
+# Output: Item with ID 100
+
+# Search for "100" in item names (explicit)
+python find_all_items.py t_item.json name:100
+# Output: "Sword of 100", "Level 100 Armor", etc.
+
+# Search by exact ID (explicit)
+python find_all_items.py t_item.json id:100
+# Output: Only item with ID 100
 ```
 
-**Sample Output**:
+**Sample Output:**
 ```
-  310 : Earth Sepith
-  311 : Water Sepith
-  312 : Fire Sepith
-  313 : Wind Sepith
-  314 : Time Sepith
-  315 : Space Sepith
-  316 : Mirage Sepith
+ 100 : Iron Sword
+ 101 : Steel Sword
+ 102 : Mithril Sword
+ 250 : Legendary Blade
 ```
 
-**Real-World Example**:
-```bash
-# Search for all tokens
-python find_all_items.py t_item.json token
-
-# Output:
-  319 : G-Tokens
-```
-
-**Technical Details**:
-- Uses recursive traversal to handle complex JSON structures
-- Automatically formats output based on longest ID length
-- Handles missing or malformed data gracefully
+**Pro Tip:** Use `name:` prefix when searching for numbers in item names to avoid auto-detection treating them as IDs.
 
 ---
 
-#### `find_unique_item_id_for_t_item_category.py`
+#### `find_all_shops.py` - Shop Database Browser
 
-**Purpose**: Extract all unique item IDs from a specific category in the item database.
+Search and filter game shops.
 
-**Usage**:
+**Usage:**
 ```bash
-python find_unique_item_id_for_t_item_category.py <t_item.json> <category>
+python find_all_shops.py t_shop.json [search_text]
 ```
 
-**Arguments**:
-- `t_item.json` - Path to the JSON file containing item data
-- `category` - Category number to filter items by (integer)
-
-**Category Reference**:
-Based on the game data:
-- **Category 0**: Materials and Components (Sepith, etc.)
-- **Category 1**: Food and Consumables
-- **Category 2**: Books, Notes, and Quest Items
-- **Category 15**: Accessories (Boots, Greaves, etc.)
-- **Category 17**: Costumes and Outfits
-
-**Examples**:
-
-```bash
-# Get all item IDs in category 0 (Materials)
-python find_unique_item_id_for_t_item_category.py t_item.json 0
-
-# Get all item IDs in category 15 (Accessories)
-python find_unique_item_id_for_t_item_category.py t_item.json 15
-
-# Get all item IDs in category 17 (Costumes)
-python find_unique_item_id_for_t_item_category.py t_item.json 17
-```
-
-**Sample Output**:
-```bash
-# Category 0 (Materials):
-[310, 311, 312, 313, 314, 315, 316, 317, 318, 319]
-
-# Category 15 (Accessories):
-[1200, 1201, 1210, 1220, 1230]
-```
-
-**Use Cases**:
-- Finding available ID ranges for specific item types
-- Analyzing category distribution
-- Preparing data for mod creation
-
----
-
-#### `find_unique_item_id_for_t_costumes.py`
-
-**Purpose**: Extract all unique item IDs from costume data.
-
-**Usage**:
-```bash
-python find_unique_item_id_for_t_costumes.py <t_costume.json>
-```
-
-**Arguments**:
-- `t_costume.json` - Path to the JSON file containing costume data
-
-**Examples**:
-
-```bash
-# Extract all costume item IDs
-python find_unique_item_id_for_t_costumes.py t_costume.json
-```
-
-**Sample Output**:
-```
-[2500, 2501, 2502, 2503, 2504, 2505, 2506, 2600, 2601, 2602]
-```
-
-**Technical Details**:
-- Specifically targets the `CostumeParam` section
-- Returns sorted list of unique IDs
-- Useful for avoiding conflicts when adding new costumes
-- Common costume ID range: 2500-2999
-
----
-
-### Shop Management
-
-#### `find_all_shops.py`
-
-**Purpose**: Search and filter shop data from shop databases.
-
-**Usage**:
-```bash
-python find_all_shops.py <t_shop.json> [search_text]
-```
-
-**Arguments**:
-- `t_shop.json` - Path to the JSON file containing shop data
-- `search_text` - (Optional) Filter shops by text in their name (case-insensitive)
-
-**Examples**:
+**Examples:**
 
 ```bash
 # List all shops
 python find_all_shops.py t_shop.json
 
-# Find all newspaper shops
-python find_all_shops.py t_shop.json newspaper
-
-# Find bistro shops
-python find_all_shops.py t_shop.json bistro
+# Find shops with "weapon" in name
+python find_all_shops.py t_shop.json weapon
 ```
 
-**Sample Output**:
+**Sample Output:**
 ```
-  5 : Item Shop
-  6 : Weapon/Armor Shop
-  7 : Shared Table Test
-  8 : Modification/Trade Shop
-  9 : Kitchen
- 10 : Orbments
- 21 : Melrose Newspapers & Tobacco
- 22 : Melrose Newspapers & Tobacco
- 23 : Melrose Newspapers & Tobacco
- 24 : Montmart Bistro
- 25 : Montmart Bistro
- 26 : Montmart Bistro
-```
-
-**Real-World Example**:
-```bash
-# Find all Melrose shops
-python find_all_shops.py t_shop.json melrose
-
-# Output:
- 21 : Melrose Newspapers & Tobacco
- 22 : Melrose Newspapers & Tobacco
- 23 : Melrose Newspapers & Tobacco
-```
-
-**Features**:
-- Recursive search through shop data
-- Case-insensitive filtering
-- Aligned output formatting
-- Handles nested shop structures
-
----
-
-#### `shops_create.py`
-
-**Purpose**: Generate shop configurations by creating all combinations of items and shops from a configuration file.
-
-**Usage**:
-```bash
-python shops_create.py <config_file.json>
-```
-
-**Input Format**:
-The configuration file must have this structure:
-```json
-{
-    "item_ids": [109, 110, 111, 112, 113],
-    "shop_ids": [21, 22, 23]
-}
-```
-
-**Real-World Example**:
-
-Let's say you want to add the DOA Fortune Summer costumes to multiple Melrose shop locations:
-
-**Step 1**: Create `doa_summer_config.json`:
-```json
-{
-    "item_ids": [109, 110, 111, 112, 113],
-    "shop_ids": [21, 22, 23]
-}
-```
-
-**Step 2**: Run the script:
-```bash
-python shops_create.py doa_summer_config.json
-```
-
-**Output**:
-Creates `output_doa_summer_config.json` with all item-shop combinations:
-
-```json
-{
-    "ShopItem": [
-        {
-            "shop_id": 21,
-            "item_id": 109,
-            "unknown": 1,
-            "start_scena_flags": [],
-            "empty1": 0,
-            "end_scena_flags": [],
-            "int2": 0
-        },
-        {
-            "shop_id": 21,
-            "item_id": 110,
-            "unknown": 1,
-            "start_scena_flags": [],
-            "empty1": 0,
-            "end_scena_flags": [],
-            "int2": 0
-        }
-        // ... 15 total entries (5 items × 3 shops)
-    ]
-}
-```
-
-**Use Cases**:
-- Quickly adding multiple items to multiple shops
-- Creating test data for shop systems
-- Batch shop configuration for mods (like the DOA Fortune Summer Pack)
-
-**Technical Details**:
-- Generates Cartesian product of items × shops
-- Creates properly structured ShopItem entries
-- Output file is ready for use in DLC files
-
----
-
-#### `shops_find_unique_item_id_from_kurodlc.py`
-
-**Purpose**: Extract unique item IDs from DLC shop and costume data.
-
-**Usage**:
-```bash
-python shops_find_unique_item_id_from_kurodlc.py <file.kurodlc.json> [shop|costume]
-```
-
-**Arguments**:
-- `file.kurodlc.json` - Path to the DLC JSON file
-- `shop` - (Optional) Search only in ShopItem section
-- `costume` - (Optional) Search only in CostumeParam section
-- *No parameter* - Search in both sections (default)
-
-**Real-World Examples**:
-
-```bash
-# Extract all item IDs from DOA Fortune Summer Pack 2
-python shops_find_unique_item_id_from_kurodlc.py DOAFortuneSummerMod2_kurodlc.json
-
-# Extract only shop item IDs
-python shops_find_unique_item_id_from_kurodlc.py DOAFortuneSummerMod2_kurodlc.json shop
-
-# Extract only costume item IDs
-python shops_find_unique_item_id_from_kurodlc.py DOAFortuneSummerMod2_kurodlc.json costume
-```
-
-**Sample Output**:
-```
-# All IDs (default):
-[109, 110, 111, 112, 113]
-
-# Costume only:
-[109, 110, 111, 112, 113]
-
-# Shop only:
-[109, 110, 111, 112, 113]
-```
-
-**Use Cases**:
-- Quick inventory of DLC content
-- Verifying item assignments in costume packs
-- Preparing data for conflict checking
-
----
-
-### DLC ID Management
-
-#### `find_unique_item_id_from_kurodlc.py`
-
-**Purpose**: Comprehensive tool for extracting and checking item IDs across DLC files with multiple operation modes.
-
-**Modes**:
-
-##### 1. Single File Mode
-```bash
-python find_unique_item_id_from_kurodlc.py <file.kurodlc.json>
-```
-Extracts and prints all unique item IDs from a single DLC file.
-
-**Example**:
-```bash
-python find_unique_item_id_from_kurodlc.py DOAFortuneSummerMod2_kurodlc.json
-```
-
-**Output**:
-```
-[109, 110, 111, 112, 113]
+  1 : Weapon Shop - Central District
+ 15 : Advanced Weaponry
+ 23 : Rare Weapon Dealer
+ 87 : Blacksmith's Armory
 ```
 
 ---
 
-##### 2. Search All Mode
-```bash
-python find_unique_item_id_from_kurodlc.py searchall
-```
-Processes all `.kurodlc.json` files in the current directory and prints a single sorted list of unique item IDs.
+#### `find_unique_item_id_for_t_costumes.py` - Costume ID Extractor
 
-**Example**:
+Extract all unique item IDs from costume data.
+
+**Usage:**
 ```bash
-python find_unique_item_id_from_kurodlc.py searchall
+python find_unique_item_id_for_t_costumes.py t_costume.json
 ```
 
-**Output** (with both DOA packs present):
+**Sample Output:**
 ```
-[100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113]
+[100, 101, 102, 150, 151, 200, 201, 202, 250]
+```
+
+**Use Case:** Quickly identify costume-related items for mod integration.
+
+---
+
+#### `find_unique_item_id_for_t_item_category.py` - Category ID Extractor
+
+Extract item IDs filtered by category number.
+
+**Usage:**
+```bash
+python find_unique_item_id_for_t_item_category.py t_item.json <category_number>
+```
+
+**Examples:**
+
+```bash
+# Get all items from category 5 (typically accessories)
+python find_unique_item_id_for_t_item_category.py t_item.json 5
+
+# Get all items from category 1 (typically weapons)
+python find_unique_item_id_for_t_item_category.py t_item.json 1
+```
+
+**Sample Output:**
+```
+[500, 501, 502, 550, 551, 600, 601]
 ```
 
 ---
 
-##### 3. Search All By DLC Mode
+### ID Extraction Tools
+
+#### `find_unique_item_id_from_kurodlc.py` - DLC ID Analyzer
+
+Extract and validate item IDs from DLC files with conflict checking.
+
+**Usage:**
 ```bash
-python find_unique_item_id_from_kurodlc.py searchallbydlc
-```
-Processes all DLC files, showing item IDs per file, then displays unique IDs across all files.
-
-**Example**:
-```bash
-python find_unique_item_id_from_kurodlc.py searchallbydlc
+python find_unique_item_id_from_kurodlc.py <mode> [options]
 ```
 
-**Output**:
-```
-DOAFortuneSummerMod_kurodlc.json:
-[100, 101, 102, 103, 104, 105, 106, 107, 108]
+**Modes:**
 
-DOAFortuneSummerMod2_kurodlc.json:
-[109, 110, 111, 112, 113]
-
-Unique item_ids across all files:
-[100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113]
-```
+| Mode | Description | Output |
+|------|-------------|--------|
+| `<file.kurodlc.json>` | Process single file | List of IDs |
+| `searchall` | All unique IDs from all files | Single sorted list |
+| `searchallbydlc` | IDs grouped by file | Per-file lists + unique total |
+| `searchallbydlcline` | IDs per file, one per line | Line-separated output |
+| `searchallline` | All unique IDs, one per line | Simple list |
+| **`check`** | **Check for conflicts** | **Conflict report with [OK]/[BAD]** |
 
 ---
 
-##### 4. Search All By DLC Line Mode
-```bash
-python find_unique_item_id_from_kurodlc.py searchallbydlcline
-```
-Similar to `searchallbydlc` but prints each ID on a separate line.
-
-**Example**:
-```bash
-python find_unique_item_id_from_kurodlc.py searchallbydlcline
-```
-
-**Output**:
-```
-DOAFortuneSummerMod_kurodlc.json:
-100
-101
-102
-103
-104
-105
-106
-107
-108
-
-DOAFortuneSummerMod2_kurodlc.json:
-109
-110
-111
-112
-113
-
-Unique item_ids across all files:
-100
-101
-102
-103
-104
-105
-106
-107
-108
-109
-110
-111
-112
-113
-```
-
----
-
-##### 5. Search All Line Mode
-```bash
-python find_unique_item_id_from_kurodlc.py searchallline
-```
-Processes all DLC files and prints each unique ID on a separate line without grouping.
-
-**Example**:
-```bash
-python find_unique_item_id_from_kurodlc.py searchallline
-```
-
-**Output**:
-```
-100
-101
-102
-103
-104
-105
-106
-107
-108
-109
-110
-111
-112
-113
-```
-
----
-
-##### 6. Check Mode ⭐ (Most Important)
-```bash
-python find_unique_item_id_from_kurodlc.py check [options]
-```
-
-Checks if item IDs in DLC files conflict with existing game data.
-
-**Supported Data Sources**:
-- `t_item.json` - JSON format item database
-- `t_item.tbl` - Binary TBL format
-- `t_item.tbl.original` - Original backup TBL file
-- `script_en.p3a` / `script_eng.p3a` - P3A archives (auto-extracts)
-- `zzz_combined_tables.p3a` - P3A archives (auto-extracts)
-
-**Options**:
-- `--source=<type>` - Force specific source: `json`, `tbl`, `original`, `p3a` or `zzz`
-- `--no-interactive` - Skip source selection prompt (uses first available)
-- `--keep-extracted` - Keep temporary files from P3A extraction
-
-**Real-World Examples**:
+**Check Mode (Most Important):**
 
 ```bash
-# Interactive check (prompts for source if multiple available)
+# Interactive source selection
 python find_unique_item_id_from_kurodlc.py check
 
-# Force JSON source
+# Force specific source
 python find_unique_item_id_from_kurodlc.py check --source=json
 
-# Use P3A and keep extracted files
-python find_unique_item_id_from_kurodlc.py check --source=p3a --keep-extracted
-
-# Non-interactive mode (auto-select first source)
+# Non-interactive mode (for scripts)
 python find_unique_item_id_from_kurodlc.py check --no-interactive
+
+# Use P3A and keep extracted file
+python find_unique_item_id_from_kurodlc.py check --source=p3a --keep-extracted
 ```
 
-**Sample Output** (checking DOA Fortune Summer mods):
+**Check Mode Output:**
 ```
-  100 : available               [OK]
-  101 : available               [OK]
-  102 : available               [OK]
-  103 : available               [OK]
-  104 : available               [OK]
-  105 : available               [OK]
-  106 : available               [OK]
-  107 : available               [OK]
-  108 : available               [OK]
-  109 : available               [OK]
-  110 : available               [OK]
-  111 : available               [OK]
-  112 : available               [OK]
-  113 : available               [OK]
-
-Summary:
-Total IDs : 14
-OK        : 14
-BAD       : 0
-
-Source used for check: t_item.json
-```
-
-**Example with Conflicts** (if IDs were already used):
-```
-  109 : Earth Sepith            [BAD]
-  110 : Water Sepith            [BAD]
-  111 : available               [OK]
-  112 : available               [OK]
-  113 : available               [OK]
+3596 : Custom Outfit Alpha      [BAD]
+3605 : available                [OK]
+3606 : available                [OK]
+3607 : Custom Outfit Beta       [BAD]
+3608 : available                [OK]
 
 Summary:
 Total IDs : 5
@@ -646,826 +307,929 @@ BAD       : 2
 Source used for check: t_item.json
 ```
 
-**Color Coding** (with colorama):
-- 🟢 **[OK]** - Item ID is available (not in use)
-- 🔴 **[BAD]** - Item ID conflicts with existing game data
+**Legend:**
+- `[OK]` = ID available (safe to use)
+- `[BAD]` = ID conflicts with game data (needs fixing)
 
-**Technical Details**:
-- Automatically detects available data sources
-- Interactive source selection when multiple sources exist
-- Extracts from P3A archives on-the-fly if needed
-- Handles cleanup of temporary files
-- Comprehensive error handling
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--source=TYPE` | Force source type:<br>`json`, `tbl`, `original`, `p3a`, `zzz` |
+| `--no-interactive` | Skip prompts, auto-select first source |
+| `--keep-extracted` | Keep temporary P3A extraction file |
 
 ---
 
 ### Conflict Resolution
 
-#### `resolve_id_conflicts_in_kurodlc.py`
+#### `resolve_id_conflicts_in_kurodlc.py` - Main Conflict Resolver
 
-**Purpose**: The most powerful tool in the collection - detects and automatically resolves ID conflicts between DLC content and game data.
+The primary tool for detecting and resolving ID conflicts in DLC files.
 
-**Modes**:
+**Three Main Modes:**
 
-##### 1. Check By DLC Mode
+1. **`checkbydlc`** - Detect conflicts only (no changes)
+2. **`repair --apply`** - Automatic conflict resolution
+3. **`repair --export/--import`** - Manual conflict resolution
+
+---
+
+#### Mode 1: Check for Conflicts
+
 ```bash
-python resolve_id_conflicts_in_kurodlc.py checkbydlc [options]
-```
-
-Checks all DLC files for conflicts, showing detailed results per file.
-
-**Real-World Example**:
-
-```bash
-# Interactive check
 python resolve_id_conflicts_in_kurodlc.py checkbydlc
-
-# Force specific source
-python resolve_id_conflicts_in_kurodlc.py checkbydlc --source=json
-
-# Non-interactive mode
-python resolve_id_conflicts_in_kurodlc.py checkbydlc --no-interactive
 ```
 
-**Sample Output** (checking DOA Fortune Summer packs):
+**What it does:**
+- Scans all `.kurodlc.json` files in current directory
+- Compares against game item database
+- Reports conflicts without making changes
+
+**Sample Output:**
 ```
-Processing file: DOAFortuneSummerMod_kurodlc.json
-
-  100 : available               [OK]
-  101 : available               [OK]
-  102 : available               [OK]
-  103 : available               [OK]
-  104 : available               [OK]
-  105 : available               [OK]
-  106 : available               [OK]
-  107 : available               [OK]
-  108 : available               [OK]
-
-Summary for this file:
-Total IDs : 9
-OK        : 9
-BAD       : 0
-
-Processing file: DOAFortuneSummerMod2_kurodlc.json
-
-  109 : available               [OK]
-  110 : available               [OK]
-  111 : available               [OK]
-  112 : available               [OK]
-  113 : available               [OK]
-
-Summary for this file:
-Total IDs : 5
-OK        : 5
-BAD       : 0
-
-Overall Summary:
-Total IDs : 14
-OK        : 14
-BAD       : 0
+============================================================
+MODE: Check all .kurodlc.json files
+============================================================
 
 Source used for check: t_item.json
-```
 
-**Example with Conflicts**:
-```
-Processing file: DOAFortuneSummerMod2_kurodlc.json
+Processing: custom_items_mod.kurodlc.json
+------------------------------------------------------------
 
-  109 : Earth Sepith            [BAD]
-  110 : Water Sepith            [BAD]
-  111 : available               [OK]
-  112 : available               [OK]
-  113 : available               [OK]
+3596 : Custom Outfit Alpha      [BAD]
+3605 : available                [OK]
+3606 : available                [OK]
+3607 : Custom Outfit Beta       [BAD]
+3622 : available                [OK]
 
-Summary for this file:
-Total IDs : 5
-OK        : 3
-BAD       : 2
+Summary for custom_items_mod.kurodlc.json:
+  Total IDs: 5
+  [OK]  : 3
+  [BAD] : 2
 
-Overall Summary:
-Total IDs : 5
-OK        : 3
-BAD       : 2
-
-Source used for check: t_item.json
+============================================================
+OVERALL SUMMARY
+============================================================
+Total files processed: 1
+Total unique IDs: 5
+[OK]  : 3  (60.0%)
+[BAD] : 2  (40.0%)
+============================================================
 ```
 
 ---
 
-##### 2. Repair Mode 🔧 (Most Powerful)
-```bash
-python resolve_id_conflicts_in_kurodlc.py repair [options]
-```
+#### Mode 2: Automatic Repair
 
-Generates a repair plan for all conflicting IDs. Use `--apply` to actually modify files.
-
-**Options**:
-- `--apply` - **Actually modify the DLC files** (creates backups first)
-- `--source=<type>` - Force specific source
-- `--no-interactive` - Skip source selection prompt
-- `--keep-extracted` - Keep temporary P3A extraction files
-
-**Workflow**:
-
-**Step 1: Preview Repair Plan** (Safe, no changes)
-```bash
-python resolve_id_conflicts_in_kurodlc.py repair
-```
-
-This shows what would be changed without modifying anything.
-
-**Sample Output** (if conflicts existed):
-```
-Processing file: DOAFortuneSummerMod2_kurodlc.json
-
-  109 : Earth Sepith            [BAD]
-  110 : Water Sepith            [BAD]
-  111 : available               [OK]
-  112 : available               [OK]
-  113 : available               [OK]
-
-Summary for this file:
-Total IDs : 5
-OK        : 3
-BAD       : 2
-
-Overall Summary:
-Total IDs : 5
-OK        : 3
-BAD       : 2
-
-Source used for check: t_item.json
-
-------------------------------------------------------------
-Repair log generated: repair_log.txt
-------------------------------------------------------------
-```
-
-**repair_log.txt** would contain:
-```
-DOAFortuneSummerMod2_kurodlc.json: 109 -> 3000 (CostumeParam, ShopItem, DLCTableData)
-DOAFortuneSummerMod2_kurodlc.json: 110 -> 3001 (CostumeParam, ShopItem, DLCTableData)
-```
-
----
-
-**Step 2: Apply Repairs** (Modifies files)
 ```bash
 python resolve_id_conflicts_in_kurodlc.py repair --apply
 ```
 
-**What Happens**:
-1. ✅ Creates timestamped backups (e.g., `DOAFortuneSummerMod2_kurodlc.json.bak_20260128_143022.json`)
-2. ✅ Modifies all affected sections: `CostumeParam`, `ShopItem`, `ItemTableData`, `DLCTableData`
-3. ✅ Generates verbose logs showing exactly what changed
-4. ✅ Preserves all other data in the files
+**What it does:**
+1. Detects conflicts
+2. Automatically assigns new non-conflicting IDs
+3. Creates backup files (`.bak_TIMESTAMP.json`)
+4. Generates detailed logs
+5. Modifies files in place
 
-**Sample Output**:
+**Sample Output:**
 ```
-File       : DOAFortuneSummerMod2_kurodlc.json
-Backup     : DOAFortuneSummerMod2_kurodlc.json.bak_20260128_143022.json
-Verbose log: DOAFortuneSummerMod2_kurodlc.json.repair_verbose_20260128_143022.txt
+Processing: custom_items_mod.kurodlc.json
 ------------------------------------------------------------
 
-All changes applied with backups.
+Conflicts detected: 2
+
+3596 : Custom Outfit Alpha
+  Suggested new ID: 4001
+
+3607 : Custom Outfit Beta
+  Suggested new ID: 4002
+
+Applying changes...
+
+File       : custom_items_mod.kurodlc.json
+Backup     : custom_items_mod.kurodlc.json.bak_20260131_154523.json
+Verbose log: custom_items_mod.kurodlc.json.repair_verbose_20260131_154523.txt
+
+Changes applied:
+  3596 -> 4001 (Custom Outfit Alpha)
+  3607 -> 4002 (Custom Outfit Beta)
+
+[SUCCESS] All changes applied successfully with backups.
 ```
 
-**Verbose Log Example** (`DOAFortuneSummerMod2_kurodlc.json.repair_verbose_20260128_143022.txt`):
-```
-File       : DOAFortuneSummerMod2_kurodlc.json
-Backup     : DOAFortuneSummerMod2_kurodlc.json.bak_20260128_143022.json
-Verbose log: DOAFortuneSummerMod2_kurodlc.json.repair_verbose_20260128_143022.txt
-
-------------------------------------------------------------
-CostumeParam :   109 ->  3000, mdl_name: chr5001_c107
-------------------------------------------------------------
-ShopItem     :   109 ->  3000, shop_id : 21
-------------------------------------------------------------
-ItemTableData:   109 ->  3000, name    : Agnès' Neo Venus Swimsuit
-------------------------------------------------------------
-DLCTableData :   109 ->  3000
-------------------------------------------------------------
-CostumeParam :   110 ->  3001, mdl_name: chr5005_c107
-------------------------------------------------------------
-ShopItem     :   110 ->  3001, shop_id : 21
-------------------------------------------------------------
-ItemTableData:   110 ->  3001, name    : Risette's Neo Venus Swimsuit
-------------------------------------------------------------
-```
+**Files Created:**
+- `.bak_TIMESTAMP.json` - Backup of original file
+- `.repair_verbose_TIMESTAMP.txt` - Detailed change log
 
 ---
 
-**Advanced Examples**:
+#### Mode 3: Manual Repair (Recommended for Important Mods)
+
+This three-step workflow gives you full control over ID assignments.
+
+**Step 1: Export Conflict Report**
 
 ```bash
-# Repair with JSON source and apply immediately
-python resolve_id_conflicts_in_kurodlc.py repair --apply --source=json
+# With auto-generated timestamp
+python resolve_id_conflicts_in_kurodlc.py repair --export
 
-# Repair using P3A, apply changes, keep extracted files
-python resolve_id_conflicts_in_kurodlc.py repair --apply --source=p3a --keep-extracted
-
-# Non-interactive repair with first available source
-python resolve_id_conflicts_in_kurodlc.py repair --apply --no-interactive
+# With custom name (recommended)
+python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=my_mod
 ```
 
----
-
-**Safety Features**:
-
-1. **Automatic Backups**:
-   - Created before any modifications
-   - Timestamped to prevent overwriting
-   - Contains exact copy of original file
-
-2. **Verbose Logging**:
-   - Shows every single change made
-   - Includes context (mdl_name, shop_id, character names)
-   - Separate log file per modified DLC file
-
-3. **Comprehensive Coverage**:
-   - Updates all sections that reference the ID
-   - Maintains data integrity across references
-   - Preserves all other file content
-
-4. **Smart ID Assignment**:
-   - Finds next available ID in the range
-   - Avoids conflicts with both game data and other DLC files
-   - Sequentially assigns new IDs for multiple conflicts
-
----
-
-**Sections Updated by Repair**:
-
-The repair process intelligently updates IDs in all these sections:
-
-| Section | ID Field | Context Logged | Example |
-|---------|----------|----------------|----------------------|
-| `CostumeParam` | `item_id` | `mdl_name` | chr5001_c107 |
-| `ShopItem` | `item_id` | `shop_id` | 21 (Melrose Newspapers) |
-| `ItemTableData` | `id` | `name` | Agnès' Neo Venus Swimsuit |
-| `DLCTableData` (direct) | `items` array | - | [109, 110, 111, 112, 113] |
-| `DLCTableData` (nested) | `ItemTableData[].id` | - | - |
-
----
-
-**Common Options Summary**:
-
-| Option | Description |
-|--------|-------------|
-| `--apply` | Actually modify files (creates backups) |
-| `--source=json` | Force use of t_item.json |
-| `--source=tbl` | Force use of t_item.tbl |
-| `--source=original` | Force use of t_item.tbl.original |
-| `--source=p3a` | Force use of P3A archive |
-| `--source=zzz` | Force use of P3A zzz_combined_tables.p3a archive |
-| `--no-interactive` | Skip prompts, use first available source |
-| `--keep-extracted` | Keep temporary files from P3A extraction |
-
----
-
-**File Handling**:
-
-**Ignored Files**:
-- Backup files (containing `.bak_` in filename)
-- Temporary extraction files (unless `--keep-extracted` used)
-
-**Generated Files**:
-- `repair_log.txt` - Summary of all ID changes
-- `*.bak_TIMESTAMP.json` - Backup before modifications
-- `*.repair_verbose_TIMESTAMP.txt` - Detailed change log per file
-- `t_item.tbl.original.tmp` - Temporary P3A extraction (auto-cleaned)
-
----
-
-## 📄 File Format Reference
-
-### t_item.json Structure
+**Creates: `id_mapping_my_mod.json`**
 
 ```json
 {
-    "headers": [
-        {
-            "name": "ItemTableData",
-            "schema": "Kuro1"
-        }
-    ],
-    "data": [
-        {
-            "name": "ItemTableData",
-            "data": [
-                {
-                    "id": 310,
-                    "name": "Earth Sepith",
-                    "category": 0,
-                    "chr_restrict": 0,
-                    "price": 10,
-                    "desc": "A crystalline material...",
-                    // ... other properties
-                }
-            ]
-        }
-    ]
+  "_comment": [
+    "ID Mapping File - Generated by resolve_id_conflicts_in_kurodlc.py",
+    "",
+    "INSTRUCTIONS:",
+    "1. Review each mapping below",
+    "2. Edit 'new_id' values as needed (must be unique)",
+    "3. Save this file",
+    "4. Run: python resolve_id_conflicts_in_kurodlc.py repair --import",
+    "",
+    "IMPORTANT:",
+    "- Do NOT change 'old_id' values!",
+    "- Do NOT change 'occurrences' values!",
+    "- Do NOT change 'files' list!",
+    "- You CAN change 'new_id' values",
+    "- Do NOT manually edit .kurodlc.json files between export and import!",
+    "",
+    "Generated: 2026-01-31 15:45:23"
+  ],
+  "source": {
+    "type": "json",
+    "path": "t_item.json"
+  },
+  "mappings": [
+    {
+      "old_id": 3596,
+      "new_id": 4001,
+      "conflict_name": "Custom Outfit Alpha",
+      "occurrences": 3,
+      "files": ["custom_items_mod.kurodlc.json"]
+    },
+    {
+      "old_id": 3607,
+      "new_id": 4002,
+      "conflict_name": "Custom Outfit Beta",
+      "occurrences": 3,
+      "files": ["custom_items_mod.kurodlc.json"]
+    }
+  ]
 }
 ```
 
-**Real Item Examples**:
-- ID 310: Earth Sepith (Category 0 - Materials)
-- ID 311: Water Sepith (Category 0 - Materials)
-- ID 319: G-Tokens (Category 0 - Currency)
-- ID 1200: Leather Boots (Category 15 - Accessories)
-- ID 1201: Rigid Spikes (Category 15 - Accessories)
+**Step 2: Edit Mapping File**
 
----
-
-### t_costume.json Structure
+Open `id_mapping_my_mod.json` in your text editor and change `new_id` values:
 
 ```json
 {
-    "headers": [
-        {
-            "name": "CostumeParam",
-            "schema": "Kuro1"
-        }
-    ],
-    "data": [
-        {
-            "name": "CostumeParam",
-            "data": [
-                {
-                    "item_id": 2500,
-                    "mdl_name": "chr5001_c100",
-                    "char_restrict": 1,
-                    "type": 0,
-                    // ... other properties
-                }
-            ]
-        }
-    ]
+  "old_id": 3596,
+  "new_id": 5000,  // Changed from 4001 to your preferred ID
+  "conflict_name": "Custom Outfit Alpha",
+  "occurrences": 3,
+  "files": ["custom_items_mod.kurodlc.json"]
 }
 ```
 
-**Real Costume ID Range**: 2500-2999 (approximately)
+**Important Notes:**
+- ✅ **DO** change `new_id` values
+- ❌ **DON'T** change `old_id`, `occurrences`, or `files`
+- ❌ **DON'T** manually edit `.kurodlc.json` files between export and import
+
+**Step 3: Import and Apply**
+
+```bash
+# Interactive selection (if multiple mapping files exist)
+python resolve_id_conflicts_in_kurodlc.py repair --import
+
+# Or specify exact file
+python resolve_id_conflicts_in_kurodlc.py repair --import --mapping-file=id_mapping_my_mod.json
+```
+
+**Validation Output:**
+```
+============================================================
+MODE: Import ID mapping from file
+============================================================
+
+Step 1: Loading mapping file...
+Found single mapping file: id_mapping_my_mod.json
+
+Step 2: Loading item source from mapping file...
+Source type: json
+Source path: t_item.json
+
+Step 3: Validating ID mappings...
+============================================================
+
+[OK] 3596 -> 5000 ('Custom Outfit Alpha')
+[OK] 3607 -> 5001 ('Custom Outfit Beta')
+
+============================================================
+
+[SUCCESS] Validation PASSED!
+All 2 ID mappings verified successfully.
+Ready to modify 1 file(s).
+============================================================
+
+Step 4: Applying imported ID mappings...
+
+File       : custom_items_mod.kurodlc.json
+Backup     : custom_items_mod.kurodlc.json.bak_20260131_160123.json
+Verbose log: custom_items_mod.kurodlc.json.repair_verbose_20260131_160123.txt
+------------------------------------------------------------
+
+[SUCCESS] All changes from imported mapping applied successfully with backups.
+```
 
 ---
 
-### t_shop.json Structure
+#### Advanced Validation Features
 
+The import process performs comprehensive validation:
+
+**1. Structure Validation**
+- Checks JSON format
+- Verifies required fields exist
+- Validates data types
+
+**2. ID Existence Check**
+- Confirms old IDs still exist in files
+- Detects if files were manually edited
+
+**3. Occurrence Validation** ⭐ **New!**
+- Verifies ID appears same number of times as during export
+- Prevents partial modifications
+
+**4. Conflict Check**
+- Ensures new IDs don't conflict with game data
+- Checks against existing DLC IDs
+
+**5. Duplicate Prevention**
+- Prevents assigning same new ID multiple times
+
+**Sample Validation Error:**
+
+```
+============================================================
+[ERROR] VALIDATION FAILED - Found 1 issue(s)
+============================================================
+
+Cannot proceed with import due to inconsistencies between
+mapping file and current state of .kurodlc.json files.
+
+Details:
+------------------------------------------------------------
+
+Issue #1:
+  ID 3596: Number of occurrences changed!
+      File: custom_items_mod.kurodlc.json
+      Expected: 3 occurrence(s)
+      Found: 2 occurrence(s)
+      Current sections: ItemTableData, DLCTableData
+      
+      Possible cause: Manual changes to file - ID removed from some sections.
+      Solution: Either restore ALL occurrences or create a new export.
+
+============================================================
+POSSIBLE CAUSES:
+  1. Files were manually edited between export and import
+  2. IDs were changed or removed in .kurodlc.json files
+  3. Wrong mapping file selected
+
+RECOMMENDED SOLUTIONS:
+  1. Restore original .kurodlc.json files from backup
+  2. Create a new export with current file state:
+     python resolve_id_conflicts_in_kurodlc.py repair --export
+  3. Manually fix the IDs mentioned above
+============================================================
+```
+
+---
+
+#### Command-Line Options
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `--apply` | Apply changes immediately (automatic mode) | `repair --apply` |
+| `--export` | Export repair plan to mapping file | `repair --export` |
+| `--export-name=NAME` | Custom export filename<br>(auto-adds prefix/suffix) | `--export-name=my_mod`<br>→ `id_mapping_my_mod.json` |
+| `--import` | Import and apply edited mapping | `repair --import` |
+| `--mapping-file=PATH` | Specify mapping file to import | `--mapping-file=id_mapping_my_mod.json` |
+| `--source=TYPE` | Force source type | `--source=json` |
+| `--no-interactive` | Skip all prompts | `checkbydlc --no-interactive` |
+| `--keep-extracted` | Keep temporary P3A extractions | `repair --source=p3a --keep-extracted` |
+
+**Source Types:**
+- `json` - t_item.json
+- `tbl` - t_item.tbl
+- `original` - t_item.tbl.original
+- `p3a` - script_en.p3a / script_eng.p3a
+- `zzz` - zzz_combined_tables.p3a
+
+---
+
+### Shop Management
+
+#### `shops_create.py` - Shop Assignment Generator
+
+Generate shop item assignments from configuration file.
+
+**Usage:**
+```bash
+python shops_create.py config.json
+```
+
+**Input: `config.json`**
 ```json
 {
-    "headers": [
-        {
-            "name": "ShopInfo",
-            "schema": "Kuro1"
-        }
-    ],
-    "data": [
-        {
-            "name": "ShopInfo",
-            "data": [
-                {
-                    "id": 21,
-                    "shop_name": "Melrose Newspapers & Tobacco",
-                    // ... other properties
-                }
-            ]
-        }
-    ]
+  "item_ids": [100, 101, 102],
+  "shop_ids": [1, 5, 10, 15]
 }
 ```
 
-**Real Shop Examples**:
-- ID 5: Item Shop
-- ID 6: Weapon/Armor Shop
-- ID 8: Modification/Trade Shop
-- ID 9: Kitchen
-- ID 10: Orbments
-- ID 21-23: Melrose Newspapers & Tobacco (multiple locations)
-- ID 24-26: Montmart Bistro (multiple locations)
-- ID 27-28: Stanley's Factory
+**What it does:**
+- Creates all combinations of items × shops
+- Generates properly formatted ShopItem entries
+
+**Output: `output_config.json`**
+```json
+{
+  "ShopItem": [
+    {
+      "shop_id": 1,
+      "item_id": 100,
+      "unknown": 1,
+      "start_scena_flags": [],
+      "empty1": 0,
+      "end_scena_flags": [],
+      "int2": 0
+    },
+    // ... 11 more entries (3 items × 4 shops = 12 total)
+  ]
+}
+```
+
+**Console Output:**
+```
+Success: File 'output_config.json' was created successfully.
+Generated 12 shop item entries:
+  - 3 items
+  - 4 shops
+  - Total combinations: 3 × 4 = 12
+```
+
+**Next Steps:**
+1. Review `output_config.json`
+2. Copy `ShopItem` section into your `.kurodlc.json` file
+3. Adjust shop IDs/flags if needed
+
+**Example Config Template:**
+```json
+{
+  "item_ids": [5000, 5001, 5002, 5003],
+  "shop_ids": [1, 5, 10]
+}
+```
 
 ---
 
+#### `shops_find_unique_item_id_from_kurodlc.py` - Shop ID Extractor
 
-## 🔄 Workflow Examples
+Extract item IDs from specific sections of DLC files.
 
-### Example 1: Fixing ID Conflicts in Multiple DLC Files
-
-**Scenario**: You downloaded two mods that have conflicting IDs.
-
-**Step 1: Check All DLCs for Conflicts**
+**Usage:**
 ```bash
-python resolve_id_conflicts_in_kurodlc.py checkbydlc
+python shops_find_unique_item_id_from_kurodlc.py <file.kurodlc.json> [mode]
 ```
 
-Output shows conflicts:
-```
-Processing file: mod1.kurodlc.json:
-  310 : Earth Sepith    [BAD]
-  311 : Water Sepith    [BAD]
+**Modes:**
 
-Processing file: mod2.kurodlc.json:
-  312 : Fire Sepith     [BAD]
-```
+| Mode | Sections Extracted | Use Case |
+|------|-------------------|----------|
+| `all` | All sections (default) | Complete ID inventory |
+| `shop` | ShopItem only | Shop assignments |
+| `costume` | CostumeParam only | Costume items |
+| `item` | ItemTableData only | Item definitions |
+| `dlc` | DLCTableData.items only | DLC pack contents |
 
-**Step 2: Generate Repair Plan**
+**Combination Modes (use `+`):**
+- `shop+costume` - Shop items + costumes
+- `costume+item` - Costumes + item data
+- `item+dlc` - Item data + DLC packs
+- `shop+item+dlc` - Custom combinations
+
+**Examples:**
+
 ```bash
-python resolve_id_conflicts_in_kurodlc.py repair
+# Extract from all sections
+python shops_find_unique_item_id_from_kurodlc.py custom_mod.kurodlc.json
+
+# Extract only shop assignments
+python shops_find_unique_item_id_from_kurodlc.py custom_mod.kurodlc.json shop
+
+# Extract costumes and items
+python shops_find_unique_item_id_from_kurodlc.py custom_mod.kurodlc.json costume+item
+
+# Extract shop and DLC data
+python shops_find_unique_item_id_from_kurodlc.py custom_mod.kurodlc.json shop+dlc
 ```
 
-Review `repair_log.txt`:
+**Sample Output:**
 ```
-mod1.kurodlc.json: 310 -> 4000
-mod1.kurodlc.json: 311 -> 4001
-mod2.kurodlc.json: 312 -> 4002
+# Extraction summary:
+#   ShopItem: 12 IDs
+#   CostumeParam: 8 IDs
+#   ItemTableData: 8 IDs
+#   DLCTableData.items: 8 IDs
+#   Total unique IDs: 15
+
+[100, 101, 102, 103, 104, 105, 106, 107, 200, 201, 202, 203, 204, 205, 206]
 ```
 
-**Step 3: Apply Repairs**
+**Pro Tip:** Use this to verify your shop assignments are correct before testing.
+
+---
+
+## 🔄 Common Workflows
+
+### Workflow 1: Creating a New DLC Mod
+
 ```bash
+# 1. Find available ID range in game data
+python find_all_items.py t_item.json | tail -20
+# Note the highest ID (e.g., 3500)
+
+# 2. Create your .kurodlc.json file
+# Use IDs starting from 5000 to be safe
+
+# 3. Validate structure and check for conflicts
+python find_unique_item_id_from_kurodlc.py check
+
+# 4. If conflicts found (unlikely with 5000+), auto-fix
 python resolve_id_conflicts_in_kurodlc.py repair --apply
-```
 
-**Step 4: Verify Repairs**
-```bash
-python resolve_id_conflicts_in_kurodlc.py checkbydlc
-```
+# 5. Generate shop assignments (optional)
+# Create shop_config.json with your IDs
+python shops_create.py shop_config.json
 
-All items should now show `[OK]`.
+# 6. Integrate shop data
+# Copy ShopItem section from output_shop_config.json
+# into your .kurodlc.json file
 
-**Step 5: Review Changes**
-
-Check the verbose logs:
-```bash
-cat mod1.kurodlc.json.repair_verbose_20260128_143022.txt
-```
-
----
-
-### Example 2: Adding Items to All Bistro Locations
-
-**Goal**: Add special food items to all Montmart Bistro locations.
-
-**Step 1: Find All Bistro Shop IDs**
-```bash
-python find_all_shops.py t_shop.json bistro
-```
-
-Output:
-```
- 24 : Montmart Bistro
- 25 : Montmart Bistro
- 26 : Montmart Bistro
-```
-
-**Step 2: Choose Available Item IDs**
-```bash
+# 7. Final validation
 python find_unique_item_id_from_kurodlc.py check
 ```
 
-Choose item IDs to add to shops.
+---
 
-**Step 3: Create Config File**
+### Workflow 2: Updating Existing DLC
 
-`bistro_items_config.json`:
-```json
-{
-    "item_ids": [5000, 5001, 5002],
-    "shop_ids": [24, 25, 26]
-}
-```
-
-**Step 4: Generate Shop File**
 ```bash
-python shops_create.py bistro_items_config.json
+# 1. Backup current version
+cp my_mod.kurodlc.json my_mod.kurodlc.json.backup
+
+# 2. Check for new conflicts
+python resolve_id_conflicts_in_kurodlc.py checkbydlc
+
+# 3. If conflicts found, export for manual review
+python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=my_mod_v2
+
+# 4. Edit id_mapping_my_mod_v2.json
+# Carefully choose new IDs that fit your mod's ID scheme
+
+# 5. Apply changes
+python resolve_id_conflicts_in_kurodlc.py repair --import --mapping-file=id_mapping_my_mod_v2.json
+
+# 6. Verify changes
+python find_unique_item_id_from_kurodlc.py check
+
+# 7. Test in game
 ```
-
-**Step 5: Use Generated File**
-
-The `output_bistro_items_config.json` now contains the food items in all bistro locations!
-You can manually merge with .kurodlc.json
 
 ---
 
-### Example 3: Preparing a Mod Release (Complete Example)
+### Workflow 3: Batch Processing Multiple DLCs
 
-**Goal**: Ensure your DOA-style costume mod has no conflicts before releasing.
-
-**Step 1: Collect All DLC Files**
-
-Place all your `.kurodlc.json` files in one directory:
-- `my_costume_pack_1.kurodlc.json`
-- `my_costume_pack_2.kurodlc.json`
-
-**Step 2: Comprehensive Check**
 ```bash
-python find_unique_item_id_from_kurodlc.py check
-```
+# 1. Place all .kurodlc.json files in same directory
 
-**Step 3: Fix Any Issues**
-```bash
-python resolve_id_conflicts_in_kurodlc.py repair --apply
-```
-
-**Step 4: Final Verification**
-```bash
+# 2. Check all files at once
 python resolve_id_conflicts_in_kurodlc.py checkbydlc
-```
 
-**Step 5: Extract ID List for Documentation**
-```bash
+# 3. Export repair plan (covers all files)
+python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=batch_fix
+
+# 4. Review and edit id_mapping_batch_fix.json
+
+# 5. Apply to all files
+python resolve_id_conflicts_in_kurodlc.py repair --import --mapping-file=id_mapping_batch_fix.json
+
+# 6. Verify all files
 python find_unique_item_id_from_kurodlc.py searchallbydlc
-```
-
-Output:
-```
-my_costume_pack_1.kurodlc.json:
-[3100, 3101, 3102, 3103, 3104]
-
-my_costume_pack_2.kurodlc.json:
-[3105, 3106, 3107, 3108, 3109]
-```
-
-**Step 6: Document Changes**
-
-Include in your README:
-```
-ID Ranges Used:
-- Pack 1: 3100-3104 (5 costumes)
-- Pack 2: 3105-3109 (5 costumes)
-
-Shops Modified:
-- 21, 22, 23: Melrose Newspapers & Tobacco
-```
-
-**Step 7: Package Release**
-
-Create release package:
-```
-my_costume_mod_v1.0/
-  ├── my_costume_pack_1.kurodlc.json
-  ├── my_costume_pack_2.kurodlc.json
-  ├── README.txt (with ID ranges)
-  ├── CHANGELOG.txt (from repair_log.txt if any repairs were made)
-  └── screenshots/
+python find_unique_item_id_from_kurodlc.py check
 ```
 
 ---
 
-### Example 4: Searching for Specific Item Types
-
-**Goal**: Find all Sepith items in the game.
+### Workflow 4: Migrating from Another Mod Format
 
 ```bash
-python find_all_items.py t_item.json sepith
-```
+# 1. Extract IDs from your existing mod files
+python find_unique_item_id_from_kurodlc.py my_old_mod.kurodlc.json > old_ids.txt
 
-Output:
-```
-  310 : Earth Sepith
-  311 : Water Sepith
-  312 : Fire Sepith
-  313 : Wind Sepith
-  314 : Time Sepith
-  315 : Space Sepith
-  316 : Mirage Sepith
-  317 : Sepith Mass
-  318 : All Element Sepith
+# 2. Check which IDs conflict
+python find_unique_item_id_from_kurodlc.py check
+
+# 3. Use manual workflow for control
+python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=migration
+
+# 4. Plan new ID scheme
+# Edit id_mapping_migration.json
+# Use sequential IDs like 6000-6999
+
+# 5. Apply migration
+python resolve_id_conflicts_in_kurodlc.py repair --import --mapping-file=id_mapping_migration.json
+
+# 6. Update documentation with new ID ranges
 ```
 
 ---
 
-## 🐛 Troubleshooting
+## 📄 File Formats
 
-### Common Issues
+### Mapping File Structure
+
+The mapping file created during export:
+
+```json
+{
+  "_comment": [
+    "Instructions for editing..."
+  ],
+  "source": {
+    "type": "json",
+    "path": "t_item.json"
+  },
+  "mappings": [
+    {
+      "old_id": 3596,
+      "new_id": 5000,
+      "conflict_name": "Custom Outfit Alpha",
+      "occurrences": 3,
+      "files": ["custom_mod.kurodlc.json"]
+    }
+  ]
+}
+```
+
+**Field Descriptions:**
+
+| Field | Type | Editable? | Description |
+|-------|------|-----------|-------------|
+| `old_id` | Integer | ❌ No | Conflicting ID from your mod |
+| `new_id` | Integer | ✅ **Yes** | **New ID to assign** |
+| `conflict_name` | String | ❌ No | Item name from game data |
+| `occurrences` | Integer | ❌ No | Number of times ID appears |
+| `files` | Array | ❌ No | Files containing this ID |
+
+**Validation Rules for `new_id`:**
+- Must be an integer
+- Must not conflict with game data
+- Must not duplicate other new IDs in mapping
+- Must be unique across all your mods
+
+---
+
+### Shop Config File Format
+
+Simple configuration for bulk shop assignment:
+
+```json
+{
+  "item_ids": [5000, 5001, 5002],
+  "shop_ids": [1, 5, 10]
+}
+```
+
+**Field Descriptions:**
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| `item_ids` | Array of integers | Item IDs to add to shops | `[5000, 5001]` |
+| `shop_ids` | Array of integers | Shop IDs where items appear | `[1, 5, 10]` |
+
+**Result:** Every item appears in every shop (Cartesian product)
+
+**Example:** 
+- 3 items × 4 shops = 12 shop entries generated
+
+---
+
+## 🔧 Troubleshooting
+
+### Common Issues and Solutions
 
 #### Issue: "No valid item source found"
 
-**Cause**: None of the supported data files exist in the current directory.
-
-**Solution**:
-1. Make sure you have at least one of these files:
-   - `t_item.json`
-   - `t_item.tbl`
-   - `t_item.tbl.original`
-   - `script_en.p3a` or `script_eng.p3a`
-   - `zzz_combined_tables.p3a`
-
-2. Verify you're running the script in the correct directory
-
----
-
-#### Issue: "Failed to extract t_item.tbl from P3A"
-
-**Cause**: The P3A library is not available or the P3A file is corrupted.
-
-**Solution**:
-1. Ensure `p3a_lib.py` is in the same directory
-2. Try using a different source: `--source=json` or `--source=tbl`
-3. Verify the P3A file is not corrupted
-
----
-
-#### Issue: Colors not showing on Windows
-
-**Cause**: Colorama library not installed or not working.
-
-**Solution**:
-```bash
-pip install colorama
+**Error:**
+```
+Error: No valid item source found.
 ```
 
-If still not working:
-```bash
-pip uninstall colorama
-pip install colorama --upgrade
+**Cause:** Missing game data files.
+
+**Solution:**
+Ensure you have at least one of these files in the current directory:
+- `t_item.json`
+- `t_item.tbl`
+- `t_item.tbl.original`
+- `script_en.p3a` or `script_eng.p3a`
+- `zzz_combined_tables.p3a`
+
+---
+
+#### Issue: "Invalid JSON" errors
+
+**Error:**
+```
+[ERROR] Invalid JSON in custom_mod.kurodlc.json:
+        Expecting value: line 45 column 5 (char 1234)
 ```
 
----
+**Cause:** Malformed JSON syntax.
 
-#### Issue: "Module 'kurodlc_lib' not found"
-
-**Cause**: Required library for reading TBL files is missing.
-
-**Solution**:
-1. Ensure `kurodlc_lib.py` is in the same directory or Python path
-2. Use `--source=json` to work with JSON files instead
-3. Contact the developer for the library file
-
----
-
-#### Issue: Script modifies wrong IDs
-
-**Cause**: Backup or snapshot files are being processed.
-
-**Solution**:
-The script automatically ignores files with `.bak_` in the name. Make sure your backup naming follows this pattern.
-
----
-
-#### Issue: JSON decode error
-
-**Cause**: Malformed JSON file.
-
-**Solution**:
-1. Validate your JSON using an online validator (jsonlint.com)
+**Solution:**
+1. Use a JSON validator: [jsonlint.com](https://jsonlint.com)
 2. Check for:
-   - Missing commas
-   - Trailing commas
-   - Unmatched brackets
-   - Incorrect escape sequences (especially in character names with special chars like "Agnès")
-3. Use a proper JSON editor with syntax highlighting (VS Code, Notepad++)
+   - Missing commas between array elements
+   - Missing closing brackets/braces
+   - Trailing commas (not allowed in JSON)
+   - Unescaped quotes in strings
+
+**Common mistakes:**
+```json
+// WRONG - trailing comma
+{"items": [100, 101,]}
+
+// CORRECT
+{"items": [100, 101]}
+
+// WRONG - missing comma
+{"id": 100
+ "name": "Item"}
+
+// CORRECT
+{"id": 100,
+ "name": "Item"}
+```
 
 ---
 
-#### Issue: IDs still conflicting after repair
+#### Issue: "Number of occurrences changed"
 
-**Cause**: New conflicts introduced by other files or the game was updated.
+**Error:**
+```
+ID 3596: Number of occurrences changed!
+    Expected: 3 occurrence(s)
+    Found: 2 occurrence(s)
+```
 
-**Solution**:
-1. Run check again: `python resolve_id_conflicts_in_kurodlc.py checkbydlc`
-2. Run repair again: `python resolve_id_conflicts_in_kurodlc.py repair --apply`
-3. Consider using a higher ID range (e.g., 9000+)
+**Cause:** .kurodlc.json file was manually edited between export and import.
+
+**Why this happens:**
+IDs typically appear in multiple sections (CostumeParam, ItemTableData, DLCTableData). If you manually edited one section but not others, the count changes.
+
+**Solution:**
+
+**Option 1:** Restore from backup
+```bash
+cp custom_mod.kurodlc.json.bak_TIMESTAMP.json custom_mod.kurodlc.json
+```
+
+**Option 2:** Create new export with current state
+```bash
+python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=fresh
+```
+
+**Prevention:** Don't manually edit `.kurodlc.json` files between export and import!
 
 ---
 
-#### Issue: Costume not showing in game after adding
+#### Issue: P3A extraction fails
 
-**Cause**: Possible issues with model files or character restrictions.
+**Error:**
+```
+Error: Required library missing: No module named 'p3a_lib'
+```
 
-**Solution**:
-1. Verify `mdl_name` matches your model file (e.g., `chr5001_c107`)
-2. Check `char_restrict` value matches the character ID
-3. Ensure the item is added to correct shops
-4. Verify the costume category is 17
+**Cause:** Missing optional P3A libraries.
+
+**Solution:**
+
+**Option 1:** Use JSON source instead
+```bash
+python resolve_id_conflicts_in_kurodlc.py repair --source=json
+```
+
+**Option 2:** Install P3A libraries (if available)
+```bash
+# Contact library maintainers for installation instructions
+pip install p3a_lib kurodlc_lib
+```
+
+---
+
+#### Issue: Conflicts still appear after repair
+
+**Symptom:** IDs still show `[BAD]` after running repair.
+
+**Possible Causes:**
+1. Repair was not applied (only exported)
+2. Wrong source file
+3. Multiple DLC files with same IDs
+
+**Debug Steps:**
+
+```bash
+# 1. Check if backup exists (proves repair was applied)
+ls -la *.bak_*.json
+
+# 2. Verify source file used
+python find_unique_item_id_from_kurodlc.py check
+# Check "Source used for check" line
+
+# 3. Check all DLC files
+python find_unique_item_id_from_kurodlc.py searchallbydlc
+
+# 4. Re-run check after repair
+python resolve_id_conflicts_in_kurodlc.py repair --apply
+python find_unique_item_id_from_kurodlc.py check
+```
+
+---
+
+### Debug Information
+
+For detailed troubleshooting, examine these files:
+
+**1. Backup Files**
+```
+custom_mod.kurodlc.json.bak_20260131_154523.json
+```
+- Original file before changes
+- Use to restore if something goes wrong
+
+**2. Verbose Logs**
+```
+custom_mod.kurodlc.json.repair_verbose_20260131_154523.txt
+```
+- Detailed change log
+- Lists every ID change
+- Shows which sections were modified
+
+**Sample verbose log:**
+```
+=== REPAIR LOG ===
+File: custom_mod.kurodlc.json
+Timestamp: 2026-01-31 15:45:23
+
+OLD_ID -> NEW_ID : NAME
+3596   -> 5000   : Custom Outfit Alpha
+
+Sections modified:
+  - CostumeParam[0]: item_id changed from 3596 to 5000
+  - ItemTableData[0]: id changed from 3596 to 5000
+  - DLCTableData[0]: items array updated (3596 -> 5000)
+```
+
+**3. Mapping Files**
+```
+id_mapping_my_mod.json
+```
+- Shows intended changes
+- Compare with actual results
+- Verify `new_id` values were correctly applied
 
 ---
 
 ### Getting Help
 
-If you encounter issues not covered here:
+If issues persist:
 
-1. **Check the Usage**:
+1. **Check file structure:**
    ```bash
-   python scriptname.py
+   python -m json.tool custom_mod.kurodlc.json > /dev/null
    ```
-   (Shows detailed usage instructions)
 
-2. **Verify File Formats**:
-   - Ensure JSON files are valid
-   - Check file encoding is UTF-8
-   - Watch for special characters in names (Agnès, etc.)
+2. **Validate against schema:**
+   ```bash
+   pip install jsonschema
+   python -m jsonschema -i custom_mod.kurodlc.json kurodlc_schema.json
+   ```
 
-3. **Enable Verbose Output**:
-   - Review generated log files
-   - Check verbose repair logs for details
+3. **Generate debug report:**
+   ```bash
+   python find_unique_item_id_from_kurodlc.py searchallbydlc > debug_report.txt
+   python find_unique_item_id_from_kurodlc.py check >> debug_report.txt
+   ```
 
-4. **Create an Issue**:
-   - Include the command you ran
-   - Include error messages
-   - Include relevant file snippets (remove sensitive data)
-   - Mention which game version you're modding
+4. **Create issue on GitHub** with:
+   - Error messages (full text)
+   - Debug report
+   - Sample mapping file (anonymize IDs if needed)
+   - Python version: `python --version`
 
 ---
 
-## 📊 Quick Reference
 
-### Command Cheat Sheet
+### Workflow Recommendations
 
+**For Quick Testing:**
 ```bash
-# Search items
-python find_all_items.py t_item.json
-python find_all_items.py t_item.json sepith
-python find_all_items.py t_item.json "" 310
-
-# Search shops
-python find_all_shops.py t_shop.json
-python find_all_shops.py t_shop.json melrose
-python find_all_shops.py t_shop.json bistro
-
-# Extract IDs by category
-python find_unique_item_id_for_t_item_category.py t_item.json 0
-python find_unique_item_id_for_t_item_category.py t_item.json 15
-python find_unique_item_id_for_t_item_category.py t_item.json 17
-
-# Extract costume IDs
-python find_unique_item_id_for_t_costumes.py t_costume.json
-
-# Check DLC for conflicts
-python find_unique_item_id_from_kurodlc.py check
-python find_unique_item_id_from_kurodlc.py check --source=json
-
-# Create shops
-python shops_create.py config.json
-
-# Extract DLC item IDs
-python shops_find_unique_item_id_from_kurodlc.py DOAFortuneSummerMod2_kurodlc.json
-python shops_find_unique_item_id_from_kurodlc.py DOAFortuneSummerMod2_kurodlc.json shop
-python shops_find_unique_item_id_from_kurodlc.py DOAFortuneSummerMod2_kurodlc.json costume
-
-# Check and repair conflicts
-python resolve_id_conflicts_in_kurodlc.py checkbydlc
-python resolve_id_conflicts_in_kurodlc.py repair
 python resolve_id_conflicts_in_kurodlc.py repair --apply
+```
+
+**For Production Mods:**
+```bash
+# Always use export/import workflow
+python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=production_v1
+# Edit mapping carefully
+python resolve_id_conflicts_in_kurodlc.py repair --import
+```
+
+**For Team Projects:**
+```bash
+# Share mapping files, not .kurodlc.json
+git add id_mapping_*.json
+git commit -m "Add ID mapping for new feature"
 ```
 
 ---
 
-### File Extensions Guide
+### File Organization
 
-| Extension | Description | Used By |
-|-----------|-------------|---------|
-| `.json` | JSON format data | All scripts |
-| `.kurodlc.json` | DLC content file | DLC-specific scripts |
-| `.tbl` | Binary table format | Check/repair scripts |
-| `.tbl.original` | Original backup TBL | Check/repair scripts |
-| `.p3a` | Archive format | Check/repair scripts |
-| `.bak_*.json` | Auto-created backup | Repair script |
-| `.repair_verbose_*.txt` | Detailed change log | Repair script |
-| `repair_log.txt` | Summary change log | Repair script |
-| `.tmp` | Temporary extraction | Auto-cleaned |
-
----
-
-### ID Ranges Reference (Based on Game Data)
-
-| Category | Range | Description | Examples |
-|----------|-------|-------------|----------|
-| 0 | 300-399 | Materials/Components | 310: Earth Sepith, 319: G-Tokens |
-| 1 | 200-299 | Food/Consumables | 285: Soul Chef: Sausage |
-| 2 | 300-399, 3000+ | Books/Quest Items | 300: Spriggan Notebook |
-| 15 | 1200-1999 | Accessories | 1200: Leather Boots, 1201: Rigid Spikes |
-| 17 | 2500-2999 | Costumes | 2500-2602 (base game costumes) |
-
-**Recommended Ranges for Mods**:
-- **Costumes**: 3000-3999 (to avoid base game range 2500-2999)
-- **Custom Items**: 4000-4999
-- **Quest Items**: 5000-5999
+**Recommended structure:**
+```
+my_mod/
+├── src/
+│   └── my_mod.kurodlc.json          # Source file
+├── mappings/
+│   ├── id_mapping_v1.json           # Version 1 mapping
+│   ├── id_mapping_v2.json           # Version 2 mapping
+│   └── id_mapping_current.json      # Current mapping
+├── backups/
+│   └── *.bak_*.json                 # Auto-generated backups
+├── logs/
+│   └── *.repair_verbose_*.txt       # Repair logs
+└── config/
+    └── shop_config.json             # Shop assignments
+```
 
 ---
 
-### Shop ID Reference (Real Game Shops)
+### Version Control
 
-| Shop ID | Shop Name | Location/Type |
-|---------|-----------|---------------|
-| 5 | Item Shop | General items |
-| 6 | Weapon/Armor Shop | Equipment |
-| 8 | Modification/Trade Shop | Upgrades |
-| 9 | Kitchen | Food |
-| 10 | Orbments | Quartz/Orbments |
-| 21-23 | Melrose Newspapers & Tobacco | Multiple locations |
-| 24-26 | Montmart Bistro | Food/Dining |
-| 27-28 | Stanley's Factory | Industrial |
+**Recommended `.gitignore`:**
+```gitignore
+# Backups
+*.bak_*.json
+
+# Logs
+*.repair_verbose_*.txt
+
+# Temporary files
+*.tmp
+t_item.tbl.original.tmp
+
+# Output files
+output_*.json
+```
+
+**Track these files:**
+```gitignore
+# Source files
+*.kurodlc.json
+
+# Mapping files (important!)
+id_mapping_*.json
+
+# Config files
+*_config.json
+
+# Schema
+kurodlc_schema.json
+```
 
 ---
 
-
-
-<div align="center">
-
-**[⬆ Back to Top](#kurodlc-tools-collection)**
-
----
-
-
-*Special thanks to the Trails modding community*
-
-</div>
+<p align="center">
+  Made with ❤️ by the modding community
+</p>
