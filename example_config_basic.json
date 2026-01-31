@@ -1,0 +1,5 @@
+{
+    "_comment": "Basic configuration - v1.0 compatible (no template specified)",
+    "item_ids": [5000, 5001, 5002],
+    "shop_ids": [1, 5, 10, 15]
+}

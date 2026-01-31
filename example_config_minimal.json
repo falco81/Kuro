@@ -1,0 +1,11 @@
+{
+    "_comment": "Minimal template - only essential fields",
+    "item_ids": [5000, 5001, 5002, 5003],
+    "shop_ids": [1, 2, 3],
+    "output_section": "MinimalShopItems",
+    "template": {
+        "shop_id": "${shop_id}",
+        "item_id": "${item_id}",
+        "enabled": true
+    }
+}

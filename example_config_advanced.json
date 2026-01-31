@@ -1,0 +1,32 @@
+{
+    "_comment": "Advanced template - using all available variables",
+    "item_ids": [5000, 5001],
+    "shop_ids": [1, 2],
+    "output_section": "AdvancedShopItems",
+    "template": {
+        "shop_id": "${shop_id}",
+        "item_id": "${item_id}",
+        "entry_id": "${index}",
+        "total_entries": "${count}",
+        "display_name": "Shop ${shop_id} - Item ${item_id}",
+        "sort_order": "${index}",
+        "metadata": {
+            "created_by": "shops_create.py v2.0",
+            "entry_number": "${index}",
+            "of_total": "${count}"
+        },
+        "pricing": {
+            "base_price": 1000,
+            "shop_modifier": "${shop_id}"
+        },
+        "availability": {
+            "in_shop": "${shop_id}",
+            "item": "${item_id}"
+        },
+        "tags": [
+            "shop_${shop_id}",
+            "item_${item_id}",
+            "entry_${index}"
+        ]
+    }
+}

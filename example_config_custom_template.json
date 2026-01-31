@@ -1,0 +1,20 @@
+{
+    "_comment": "Configuration with custom template - v2.0 feature",
+    "item_ids": [5000, 5001, 5002],
+    "shop_ids": [1, 5, 10],
+    "template": {
+        "shop_id": "${shop_id}",
+        "item_id": "${item_id}",
+        "price": 1000,
+        "stock": 99,
+        "discount": 0,
+        "required_level": 1,
+        "required_flags": [],
+        "available_from_chapter": 1,
+        "metadata": {
+            "description": "Item ${item_id} in shop ${shop_id}",
+            "entry_number": "${index}",
+            "is_limited_edition": false
+        }
+    }
+}
