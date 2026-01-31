@@ -3,7 +3,6 @@
 A comprehensive Python toolkit for creating and managing DLC mods for games using the KuroDLC format. This toolkit provides utilities for item discovery, ID management, conflict resolution, and shop assignment automation.
 
 [![Python Version](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-2.7.1-green)](https://github.com/yourusername/kurodlc-toolkit/releases)
 [![License](https://img.shields.io/badge/license-GPL--3.0-green)](LICENSE)
 
 > **⚠️ GPL-3.0 License Notice**  
@@ -146,13 +145,13 @@ pip install lz4 zstandard xxhash --break-system-packages
 ## 🚀 Installation
 
 ### Option 1: Download Release (Recommended)
-1. Download the latest release from [Releases](https://github.com/yourusername/kurodlc-toolkit/releases)
+1. Download the latest release from [Releases](https://github.com/falco81/KuroDLCTools/releases)
 2. Extract to your desired location
 3. Run `install_python_modules.bat` (Windows) or install packages manually
 
 ### Option 2: Clone Repository
 ```bash
-git clone https://github.com/yourusername/kurodlc-toolkit.git
+git clone https://github.com/falco81/KuroDLCTools.git
 cd kurodlc-toolkit
 ```
 
@@ -787,8 +786,7 @@ See **[ADVANCED_DOCUMENTATION.md](ADVANCED_DOCUMENTATION.md)** ⭐
 
 ## 📧 Support
 
-- **Issues:** [GitHub Issues](https://github.com/yourusername/kurodlc-toolkit/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/yourusername/kurodlc-toolkit/discussions)
+- **Issues:** [GitHub Issues](https://github.com/falco81/KuroDLCTools/issues)
 
 ---
 
