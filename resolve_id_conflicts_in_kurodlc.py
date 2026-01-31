@@ -926,7 +926,7 @@ def select_mapping_file_interactive(mapping_files):
                     display = file
             else:
                 display = file
-        except:
+        except (ValueError, IndexError, AttributeError) as e:
             display = file
         
         print(f"  {i}) {display}")

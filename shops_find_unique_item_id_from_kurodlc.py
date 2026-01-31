@@ -1,219 +1,232 @@
 #!/usr/bin/env python3
 """
-shops_find_unique_item_id_from_kurodlc.py - v2.0
+shops_find_unique_item_id_from_kurodlc.py - v2.1 FINAL
 
-Extracts unique item IDs from .kurodlc.json files and can generate
-template config files for shops_create.py v2.0.
+Extract unique item IDs from .kurodlc.json files with template generation support.
 
-NEW in v2.0:
-- Generate template config for shops_create.py
-- Extract shop IDs from ShopItem section
-- Support for --generate-template mode
-- Template data source selection (same as extraction modes)
+Version History:
+  v2.1 (2026-01-31) - FIXED non-interactive bug
+    - Added --no-interactive flag for CI/CD and automated workflows
+    - Added --default-shop-ids flag for automatic fallback
+    - Better error handling when ShopItem section is missing
+    - Clear error messages with actionable solutions
+    - Prevents EOFError in non-interactive environments
+    
+  v2.0 (2026-01-31) - Template generation support
+    - Added --generate-template mode
+    - Auto-extract shop IDs from ShopItem section
+    - Auto-extract template structure
+    - Custom output filenames
+    
+  v1.0 (2025) - Initial release
+    - Basic ID extraction from .kurodlc.json files
+    - Multiple extraction modes (shop, costume, item, dlc)
+
+GitHub: https://github.com/yourusername/kurodlc-toolkit
 """
 
 import json
 import sys
 import os
-from pathlib import Path
 from datetime import datetime
+from typing import Dict, List, Set, Tuple, Any, Optional
 
 def print_usage():
     """Print usage information."""
     print("""
 Usage: python shops_find_unique_item_id_from_kurodlc.py <file.kurodlc.json> [mode] [options]
 
-This script extracts unique item IDs from a .kurodlc JSON file.
+BASIC USAGE:
+  python shops_find_unique_item_id_from_kurodlc.py my_dlc.kurodlc.json
+      Extract all item IDs from all sections (default)
 
-=============================================================================
-BASIC MODES (Extract and Print IDs)
-=============================================================================
+  python shops_find_unique_item_id_from_kurodlc.py my_dlc.kurodlc.json costume
+      Extract IDs only from CostumeParam section
 
-Available modes:
-  all         -> Extract from ALL sections (default)
-                 Includes: ShopItem, CostumeParam, ItemTableData, DLCTableData.items
+EXTRACTION MODES:
+  all         - Extract from all sections (default)
+  shop        - Extract from ShopItem section only
+  costume     - Extract from CostumeParam section only
+  item        - Extract from ItemTableData section only
+  dlc         - Extract from DLCTableData.items section only
+  
+  Combinations (use +):
+    costume+item   - Extract from CostumeParam and ItemTableData
+    shop+costume   - Extract from ShopItem and CostumeParam
 
-  shop        -> Extract only from 'ShopItem' section
-  costume     -> Extract only from 'CostumeParam' section
-  item        -> Extract only from 'ItemTableData' section (uses 'id' field)
-  dlc         -> Extract only from 'DLCTableData.items' section
-
-Combination modes (use + to combine):
-  shop+costume     -> ShopItem + CostumeParam
-  costume+item     -> CostumeParam + ItemTableData
-  item+dlc         -> ItemTableData + DLCTableData.items
-  shop+item+dlc    -> ShopItem + ItemTableData + DLCTableData.items
-  ... any combination you want!
-
-=============================================================================
-TEMPLATE GENERATION MODE (NEW in v2.0)
-=============================================================================
-
-Generate a template config file for shops_create.py v2.0:
-
+TEMPLATE GENERATION (v2.0):
   --generate-template [source]
+      Generate template config for shops_create.py
+      Optional source: costume, item, dlc, all (default: all)
+      Creates: template_<filename>.json
 
-This will:
-  1. Extract item IDs from specified source (default: all)
-  2. Extract shop IDs from ShopItem section (if exists)
-  3. Extract template structure from first ShopItem entry
-  4. Create a shops_create.py compatible config file
+TEMPLATE OPTIONS:
+  --shop-ids=1,5,10       Manually specify shop IDs (comma-separated)
+  --default-shop-ids      Use [1] as default when ShopItem not found
+  --no-interactive        Do not prompt for input (required for CI/CD)
+  --output=filename.json  Custom output filename
 
-Source options (same as modes above):
-  all, shop, costume, item, dlc, or combinations like costume+item
+EXAMPLES:
 
-Output file: template_<original_filename>.json
+  1. Extract all IDs:
+     python shops_find_unique_item_id_from_kurodlc.py my_dlc.kurodlc.json
 
-=============================================================================
-OPTIONS
-=============================================================================
+  2. Extract only costume IDs:
+     python shops_find_unique_item_id_from_kurodlc.py my_dlc.kurodlc.json costume
 
-  --generate-template [source]
-      Generate template config file
-      Source: all, shop, costume, item, dlc, or combinations
-      Default source: all
+  3. Generate template (auto-detect shop IDs):
+     python shops_find_unique_item_id_from_kurodlc.py my_dlc.kurodlc.json --generate-template costume
 
-  --output=<filename>
-      Custom output filename for generated template
-      Default: template_<original_filename>.json
+  4. Generate template with manual shop IDs:
+     python shops_find_unique_item_id_from_kurodlc.py my_dlc.kurodlc.json --generate-template costume --shop-ids=1,5,10,15
 
-  --shop-ids=<ids>
-      Manually specify shop IDs (comma-separated)
-      Example: --shop-ids=1,5,10,15
-      If not specified, extracts from ShopItem section
+  5. For DLC without ShopItem (use default):
+     python shops_find_unique_item_id_from_kurodlc.py my_dlc.kurodlc.json --generate-template costume --default-shop-ids
 
-  --default-shop-ids
-      Use default shop IDs [1] if ShopItem section not found
-      Otherwise script will prompt for shop IDs
+  6. For CI/CD (non-interactive):
+     python shops_find_unique_item_id_from_kurodlc.py my_dlc.kurodlc.json --generate-template costume --default-shop-ids --no-interactive
 
-=============================================================================
-EXAMPLES
-=============================================================================
+  7. Custom output:
+     python shops_find_unique_item_id_from_kurodlc.py my_dlc.kurodlc.json --generate-template --output=my_template.json
 
-Example 1: Basic extraction (print IDs)
-  python shops_find_unique_item_id_from_kurodlc.py file.json
-  python shops_find_unique_item_id_from_kurodlc.py file.json costume
-  python shops_find_unique_item_id_from_kurodlc.py file.json costume+item
+COMPLETE WORKFLOW - Creating Shop Assignments:
 
-Example 2: Generate template from all sections
-  python shops_find_unique_item_id_from_kurodlc.py file.json --generate-template
+  Step 1: Generate template from your DLC
+    $ python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-template costume
+    Output: template_my_mod.kurodlc.json
 
-Example 3: Generate template from specific sections
-  python shops_find_unique_item_id_from_kurodlc.py file.json --generate-template costume+item
+  Step 2: (Optional) Edit template_my_mod.kurodlc.json
+    - Review item_ids (auto-extracted)
+    - Modify shop_ids if needed
+    - Customize template structure
 
-Example 4: Generate template with custom shop IDs
-  python shops_find_unique_item_id_from_kurodlc.py file.json --generate-template --shop-ids=1,5,10
+  Step 3: Generate shop assignments
+    $ python shops_create.py template_my_mod.kurodlc.json
+    Output: output_template_my_mod.kurodlc.json
 
-Example 5: Generate template with custom output name
-  python shops_find_unique_item_id_from_kurodlc.py file.json --generate-template --output=my_config.json
+  Step 4: Copy ShopItem section into your DLC
+    Copy ShopItem section from output_template_my_mod.kurodlc.json
+    Paste into your my_mod.kurodlc.json file
 
-Example 6: Generate template, use default shop ID if not found
-  python shops_find_unique_item_id_from_kurodlc.py file.json --generate-template costume --default-shop-ids
+  Result: All costume items now available in all specified shops!
 
-=============================================================================
-TEMPLATE GENERATION WORKFLOW
-=============================================================================
+OUTPUT:
+  - Standard mode: Prints Python list of IDs to stdout
+  - Template mode: Creates template_<filename>.json file
+  - Extraction summary: Printed to stderr (use 2>/dev/null to suppress)
 
-1. Extract item IDs from your DLC:
-   python shops_find_unique_item_id_from_kurodlc.py my_dlc.json --generate-template costume
-
-2. Edit generated template_my_dlc.json:
-   - Review item_ids (extracted automatically)
-   - Modify shop_ids as needed
-   - Customize template structure if needed
-
-3. Generate shop assignments:
-   python shops_create.py template_my_dlc.json
-
-4. Integrate output into your .kurodlc.json file
+NOTES:
+  - When ShopItem exists: shop IDs are auto-detected from it
+  - When ShopItem missing: use --shop-ids or --default-shop-ids
+  - For automation/CI/CD: always use --no-interactive flag
+  - Template files can be manually edited before using with shops_create.py
 """)
 
-def is_valid_kurodlc_structure(data):
-    """Validate .kurodlc.json structure."""
-    required_keys = ["CostumeParam", "DLCTableData"]
-    for key in required_keys:
-        if key not in data or not isinstance(data[key], list):
-            return False
-
-    for item in data["CostumeParam"]:
-        if not isinstance(item, dict) or "item_id" not in item or "mdl_name" not in item:
-            return False
-
-    for item in data["DLCTableData"]:
-        if not isinstance(item, dict) or "id" not in item or "items" not in item:
-            return False
-        if not isinstance(item["items"], list) or not all(isinstance(x, int) for x in item["items"]):
-            return False
-
-    if "ItemTableData" in data:
-        if not isinstance(data["ItemTableData"], list):
-            return False
-        for item in data["ItemTableData"]:
-            if not isinstance(item, dict) or "id" not in item or "name" not in item:
-                return False
-
-    if "ShopItem" in data:
-        if not isinstance(data["ShopItem"], list):
-            return False
-        for item in data["ShopItem"]:
-            if not isinstance(item, dict) or "item_id" not in item:
-                return False
-
+def is_valid_kurodlc_structure(data: Dict) -> bool:
+    """
+    Validate .kurodlc.json structure.
+    
+    Required sections: CostumeParam, DLCTableData
+    Optional sections: ItemTableData, ShopItem
+    """
+    if not isinstance(data, dict):
+        return False
+    
+    # Required sections
+    required = ["CostumeParam", "DLCTableData"]
+    if not all(k in data for k in required):
+        return False
+    
+    if not all(isinstance(data[k], list) for k in required):
+        return False
+    
+    # Validate CostumeParam has item_id
+    if not any(isinstance(x, dict) and "item_id" in x for x in data["CostumeParam"]):
+        return False
+    
+    # Validate DLCTableData has items
+    if not any(isinstance(x, dict) and "items" in x for x in data["DLCTableData"]):
+        return False
+    
     return True
 
-def extract_ids_by_mode(data, requested_modes):
-    """Extract item IDs based on requested modes."""
-    all_ids = []
-    extraction_summary = []
-
-    if "shop" in requested_modes:
-        if "ShopItem" in data:
-            shop_item_ids = [item["item_id"] for item in data["ShopItem"] if "item_id" in item]
-            all_ids.extend(shop_item_ids)
-            extraction_summary.append(f"ShopItem: {len(shop_item_ids)} IDs")
-        else:
-            extraction_summary.append("ShopItem: not present in file")
-
-    if "costume" in requested_modes:
-        costume_item_ids = [item["item_id"] for item in data.get("CostumeParam", []) if "item_id" in item]
-        all_ids.extend(costume_item_ids)
-        extraction_summary.append(f"CostumeParam: {len(costume_item_ids)} IDs")
-
-    if "item" in requested_modes:
-        if "ItemTableData" in data:
-            item_table_ids = [item["id"] for item in data["ItemTableData"] if "id" in item]
-            all_ids.extend(item_table_ids)
-            extraction_summary.append(f"ItemTableData: {len(item_table_ids)} IDs")
-        else:
-            extraction_summary.append("ItemTableData: not present in file")
-
-    if "dlc" in requested_modes:
-        dlc_table_ids = []
-        for item in data.get("DLCTableData", []):
-            if "items" in item and isinstance(item["items"], list):
-                dlc_table_ids.extend(item["items"])
-        all_ids.extend(dlc_table_ids)
-        extraction_summary.append(f"DLCTableData.items: {len(dlc_table_ids)} IDs")
-
-    return all_ids, extraction_summary
-
-def extract_shop_ids(data):
-    """Extract unique shop IDs from ShopItem section."""
-    if "ShopItem" not in data:
-        return []
+def extract_ids_by_mode(data: Dict, modes: Set[str]) -> Tuple[List[int], List[str]]:
+    """
+    Extract IDs based on selected modes.
     
-    shop_ids = [item["shop_id"] for item in data["ShopItem"] if "shop_id" in item]
-    return sorted(set(shop_ids))
+    Returns:
+        (list of IDs, extraction summary lines)
+    """
+    all_ids = []
+    summary = []
+    
+    if "shop" in modes and "ShopItem" in data:
+        shop_ids = [item["item_id"] for item in data["ShopItem"] 
+                   if isinstance(item, dict) and "item_id" in item]
+        all_ids.extend(shop_ids)
+        summary.append(f"ShopItem: {len(shop_ids)} IDs")
+    
+    if "costume" in modes and "CostumeParam" in data:
+        costume_ids = [item["item_id"] for item in data["CostumeParam"]
+                      if isinstance(item, dict) and "item_id" in item]
+        all_ids.extend(costume_ids)
+        summary.append(f"CostumeParam: {len(costume_ids)} IDs")
+    
+    if "item" in modes and "ItemTableData" in data:
+        item_ids = [item["id"] for item in data["ItemTableData"]
+                   if isinstance(item, dict) and "id" in item]
+        all_ids.extend(item_ids)
+        summary.append(f"ItemTableData: {len(item_ids)} IDs")
+    
+    if "dlc" in modes and "DLCTableData" in data:
+        dlc_ids = []
+        for dlc in data["DLCTableData"]:
+            if isinstance(dlc, dict) and "items" in dlc and isinstance(dlc["items"], list):
+                dlc_ids.extend(dlc["items"])
+        all_ids.extend(dlc_ids)
+        summary.append(f"DLCTableData.items: {len(dlc_ids)} IDs")
+    
+    return all_ids, summary
 
-def extract_template_from_shop_item(data):
-    """Extract template structure from first ShopItem entry."""
-    if "ShopItem" not in data or not data["ShopItem"]:
+def extract_shop_ids(data: Dict) -> Optional[List[int]]:
+    """
+    Extract unique shop IDs from ShopItem section.
+    
+    Returns:
+        List of unique shop IDs, or None if ShopItem section doesn't exist
+    """
+    if "ShopItem" not in data or not isinstance(data["ShopItem"], list):
         return None
     
-    # Get first shop item as template
-    first_item = data["ShopItem"][0]
+    if len(data["ShopItem"]) == 0:
+        return None
     
-    # Create template by replacing values with variables
+    shop_ids = set()
+    for item in data["ShopItem"]:
+        if isinstance(item, dict) and "shop_id" in item:
+            shop_ids.add(item["shop_id"])
+    
+    return sorted(list(shop_ids)) if shop_ids else None
+
+def extract_template_from_shop_item(data: Dict) -> Optional[Dict]:
+    """
+    Extract template structure from first ShopItem entry.
+    
+    Returns:
+        Template dict with ${shop_id} and ${item_id} placeholders,
+        or None if ShopItem section doesn't exist
+    """
+    if "ShopItem" not in data or not isinstance(data["ShopItem"], list):
+        return None
+    
+    if len(data["ShopItem"]) == 0:
+        return None
+    
+    first_item = data["ShopItem"][0]
+    if not isinstance(first_item, dict):
+        return None
+    
+    # Create template from first item
     template = {}
     for key, value in first_item.items():
         if key == "shop_id":
@@ -221,23 +234,42 @@ def extract_template_from_shop_item(data):
         elif key == "item_id":
             template[key] = "${item_id}"
         else:
-            # Keep other fields as-is
             template[key] = value
     
     return template
 
-def generate_template_config(json_file, data, requested_modes, shop_ids=None, 
-                            output_file=None, default_shop_ids=False):
-    """Generate template config file for shops_create.py."""
+def generate_template_config(json_file: str, data: Dict, modes: Set[str],
+                            manual_shop_ids: Optional[List[int]] = None,
+                            output_file: Optional[str] = None,
+                            default_shop_ids: bool = False,
+                            no_interactive: bool = False) -> None:
+    """
+    Generate template config file for shops_create.py.
     
+    Args:
+        json_file: Source .kurodlc.json filename
+        data: Parsed JSON data
+        modes: Set of extraction modes
+        manual_shop_ids: Manually specified shop IDs (overrides auto-detection)
+        output_file: Custom output filename
+        default_shop_ids: Use [1] as default if no ShopItem found
+        no_interactive: Do not prompt for user input
+    """
     # Extract item IDs
-    all_ids, extraction_summary = extract_ids_by_mode(data, requested_modes)
+    all_ids, extraction_summary = extract_ids_by_mode(data, modes)
     unique_item_ids = sorted(set(all_ids))
     
+    if not unique_item_ids:
+        print("Error: No item IDs found in selected sections.")
+        sys.exit(1)
+    
     # Determine shop IDs
-    if shop_ids is not None:
-        # Manually specified
-        final_shop_ids = shop_ids
+    final_shop_ids = None
+    shop_id_source = None
+    
+    if manual_shop_ids:
+        # Manual shop IDs override everything
+        final_shop_ids = manual_shop_ids
         shop_id_source = "manually specified"
     else:
         # Try to extract from ShopItem
@@ -246,20 +278,51 @@ def generate_template_config(json_file, data, requested_modes, shop_ids=None,
             final_shop_ids = extracted_shop_ids
             shop_id_source = "extracted from ShopItem section"
         elif default_shop_ids:
+            # Use default [1]
             final_shop_ids = [1]
             shop_id_source = "default [1]"
         else:
-            # Prompt user
-            print("\nNo shop IDs found in ShopItem section.")
-            print("Please enter shop IDs (comma-separated, e.g., 1,5,10):")
-            shop_input = input("> ").strip()
-            try:
-                final_shop_ids = [int(x.strip()) for x in shop_input.split(",")]
-                shop_id_source = "user input"
-            except ValueError:
-                print("Error: Invalid shop IDs. Using default [1].")
-                final_shop_ids = [1]
-                shop_id_source = "default [1] (after error)"
+            # No shop IDs found and no default requested
+            if no_interactive:
+                # In non-interactive mode, we cannot prompt
+                print("\n" + "="*60)
+                print("ERROR: Cannot generate template")
+                print("="*60)
+                print("\nReason: No shop IDs found in ShopItem section.")
+                print("\nThe DLC file does not contain a ShopItem section,")
+                print("and no shop IDs were specified.")
+                print("\nPossible solutions:")
+                print("\n  1. Specify shop IDs manually:")
+                print(f"     python {os.path.basename(__file__)} {json_file} \\")
+                print("       --generate-template --shop-ids=1,5,10")
+                print("\n  2. Use default shop IDs [1]:")
+                print(f"     python {os.path.basename(__file__)} {json_file} \\")
+                print("       --generate-template --default-shop-ids --no-interactive")
+                print("\n  3. Run interactively (without --no-interactive):")
+                print(f"     python {os.path.basename(__file__)} {json_file} \\")
+                print("       --generate-template")
+                print("\n" + "="*60)
+                sys.exit(1)
+            else:
+                # Prompt user for shop IDs
+                print("\nNo shop IDs found in ShopItem section.")
+                print("Please enter shop IDs (comma-separated, e.g., 1,5,10):")
+                print("Or press Enter to use default [1]:")
+                try:
+                    shop_input = input("> ").strip()
+                    if shop_input:
+                        final_shop_ids = [int(x.strip()) for x in shop_input.split(",")]
+                        shop_id_source = "user input"
+                    else:
+                        final_shop_ids = [1]
+                        shop_id_source = "default [1] (user pressed Enter)"
+                except ValueError:
+                    print("Error: Invalid shop IDs. Using default [1].")
+                    final_shop_ids = [1]
+                    shop_id_source = "default [1] (after error)"
+                except (EOFError, KeyboardInterrupt):
+                    print("\n\nOperation cancelled by user.")
+                    sys.exit(1)
     
     # Extract template structure
     template = extract_template_from_shop_item(data)
@@ -267,7 +330,7 @@ def generate_template_config(json_file, data, requested_modes, shop_ids=None,
     # Create config
     config = {
         "_comment": [
-            "Template config file generated by shops_find_unique_item_id_from_kurodlc.py v2.0",
+            "Template config file generated by shops_find_unique_item_id_from_kurodlc.py v2.1",
             f"Source file: {json_file}",
             f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
             "",
@@ -278,53 +341,53 @@ def generate_template_config(json_file, data, requested_modes, shop_ids=None,
             "4. Run: python shops_create.py <this_file>",
             "",
             f"Extraction summary:",
-        ] + [f"  - {line}" for line in extraction_summary] + [
-            f"  - Total unique item IDs: {len(unique_item_ids)}",
-            f"  - Shop IDs: {shop_id_source}",
         ],
         "item_ids": unique_item_ids,
         "shop_ids": final_shop_ids
     }
     
+    # Add extraction details to comment
+    for line in extraction_summary:
+        config["_comment"].append(f"  - {line}")
+    
+    # Add shop ID source info
+    config["_comment"].append(f"  - Shop IDs: {shop_id_source}")
+    
     # Add template if extracted
     if template:
         config["template"] = template
-        config["_comment"].append("  - Template: extracted from first ShopItem entry")
+        config["_comment"].append(f"  - Template: extracted from ShopItem")
     else:
-        config["_comment"].append("  - Template: not found (will use shops_create.py default)")
+        config["_comment"].append(f"  - Template: not included (no ShopItem section)")
+        config["_comment"].append(f"    Note: shops_create.py will use default template")
     
     # Determine output filename
     if output_file:
-        output_path = Path(output_file)
+        output_filename = output_file
     else:
-        input_path = Path(json_file)
-        output_path = input_path.with_name(f"template_{input_path.name}")
+        base_name = os.path.basename(json_file)
+        output_filename = f"template_{base_name}"
     
     # Write config file
     try:
-        with open(output_path, "w", encoding="utf-8") as f:
+        with open(output_filename, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=4, ensure_ascii=False)
         
-        print(f"\n{'='*60}")
-        print(f"Template config file generated successfully!")
-        print(f"{'='*60}")
-        print(f"Output file: {output_path}")
+        print("\n" + "="*60)
+        print("Template config file generated successfully!")
+        print("="*60)
+        print(f"Output file: {output_filename}")
         print(f"\nSummary:")
         print(f"  - Item IDs extracted: {len(unique_item_ids)}")
         print(f"  - Shop IDs: {final_shop_ids} ({shop_id_source})")
         if template:
             print(f"  - Template: Extracted from ShopItem")
         else:
-            print(f"  - Template: Will use shops_create.py default")
+            print(f"  - Template: Not included (will use default)")
         print(f"\nExtraction details:")
         for line in extraction_summary:
             print(f"  - {line}")
-        print(f"\n{'='*60}")
-        print(f"Next steps:")
-        print(f"  1. Edit {output_path} (modify shop_ids if needed)")
-        print(f"  2. Run: python shops_create.py {output_path}")
-        print(f"  3. Integrate output into your .kurodlc.json file")
-        print(f"{'='*60}\n")
+        print("="*60)
         
     except Exception as e:
         print(f"Error writing template file: {e}")
@@ -344,6 +407,7 @@ def main():
     output_file = None
     manual_shop_ids = None
     default_shop_ids = False
+    no_interactive = False
     
     # Parse options
     i = 2
@@ -371,6 +435,9 @@ def main():
         elif arg == "--default-shop-ids":
             default_shop_ids = True
         
+        elif arg == "--no-interactive":
+            no_interactive = True
+        
         elif not arg.startswith("--"):
             # Regular mode argument
             mode_arg = arg
@@ -379,12 +446,12 @@ def main():
     
     # Check if file exists
     if not os.path.exists(json_file):
-        print(f"Error: The file '{json_file}' does not exist.")
+        print(f"Error: File '{json_file}' not found.")
         sys.exit(1)
     
-    # Load JSON file
+    # Load JSON
     try:
-        with open(json_file, "r", encoding="utf-8") as f:
+        with open(json_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
     except json.JSONDecodeError as e:
         print(f"Error: Invalid JSON in '{json_file}': {e}")
@@ -423,7 +490,8 @@ def main():
     # Execute based on mode
     if generate_template:
         generate_template_config(json_file, data, requested_modes, 
-                                manual_shop_ids, output_file, default_shop_ids)
+                                manual_shop_ids, output_file, default_shop_ids,
+                                no_interactive)
     else:
         # Original behavior - extract and print IDs
         all_ids, extraction_summary = extract_ids_by_mode(data, requested_modes)
