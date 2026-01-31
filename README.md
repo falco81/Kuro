@@ -109,6 +109,8 @@ Quickly assign items to multiple shops without manual editing - **batch generate
 
 For enhanced functionality:
 
+[https://github.com/eArmada8/kuro_dlc_tool]
+
 ```bash
 # For colored terminal output (recommended for Windows)
 pip install colorama
@@ -116,7 +118,7 @@ pip install colorama
 # For P3A archive support (optional)
 # Requires custom libraries: p3a_lib, kurodlc_lib
 # Contact library maintainers or check documentation
-https://github.com/eArmada8/kuro_dlc_tool
+
 ```
 
 **Quick Install (Windows):**
@@ -1336,7 +1338,7 @@ kurodlc_schema.json
 
 - Game modding community
 - Contributors and testers
-- Library developers (p3a_lib, kurodlc_lib, colorama)
+- Library developers (p3a_lib, kurodlc_lib)
 - [https://github.com/eArmada8/kuro_dlc_tool]
   
 ---
