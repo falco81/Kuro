@@ -32,25 +32,61 @@ This section provides comprehensive, in-depth documentation for advanced users, 
 resolve_id_conflicts_in_kurodlc.py <mode> [options]
 
 MODES:
-  checkbydlc          Check all .kurodlc.json files for conflicts
-  checktbl            Check .tbl files for conflicts (requires kurodlc_lib.py)
+  checkbydlc          Check all .kurodlc.json files for conflicts (read-only)
+                      Shows [OK] for available IDs, [BAD] for conflicts
+                      
   repair              Interactive repair mode with conflict resolution
+                      Same as checkbydlc but generates repair plan for [BAD] IDs
+                      Uses smart algorithm to find IDs in range 1-5000
   
 OPTIONS:
-  --apply             Apply changes automatically (use with repair mode)
-  --export            Export ID mapping to JSON file
-  --import <file>     Import ID mapping from JSON file
-  --no-interactive    Skip interactive prompts (for automation)
+  --apply             Apply changes to DLC files immediately (automatic repair)
+                      Creates backups and detailed logs
+                      
+  --export            Export repair plan to id_mapping_TIMESTAMP.json
+                      Allows manual editing before applying changes
+                      
+  --export-name=NAME  Custom name for exported mapping file
+                      Examples:
+                        --export-name=DLC1  → creates id_mapping_DLC1.json
+                        --export-name=test  → creates id_mapping_test.json
+                      
+  --import            Import edited id_mapping.json and apply changes
+                      Shows interactive selection if multiple files exist
+                      
+  --mapping-file=FILE Specify which mapping file to import (full filename)
+                      Example: --mapping-file=id_mapping_DLC1.json
+                      Skips interactive menu
+                      
+  --source=TYPE       Force specific source type
+                      Available: json, tbl, original, p3a, zzz
+                      
+  --keep-extracted    Keep temporary extracted files (for debugging)
   
-SOURCES (for repair mode):
+  --no-interactive    Auto-select first source if multiple found
+                      Auto-select newest mapping file when using --import
+  
+SOURCES (automatically detected):
   JSON sources:
     - .kurodlc.json files in current directory
     - t_item.json (game item database)
     - t_costume.json (game costume database)
     
-  TBL sources (requires kurodlc_lib.py + optional dependencies):
+  TBL sources (requires kurodlc_lib.py):
     - t_item.tbl
-    - t_costume.tbl
+    - t_item.tbl.original
+    
+  P3A sources (requires kurodlc_lib.py + optional dependencies):
+    - script_en.p3a / script_eng.p3a
+    - zzz_combined_tables.p3a
+    (automatically extracts t_item.tbl.original.tmp)
+
+ALGORITHM (v2.7):
+  Smart ID assignment in range 1-5000:
+  1. Starts from middle (2500) for better distribution
+  2. Tries continuous blocks first (e.g., 4000-4049)
+  3. Falls back to scattered search if needed
+  4. Clear error if not enough IDs available
 ```
 
 #### Examples with Real Data
