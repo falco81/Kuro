@@ -256,8 +256,6 @@ def find_scattered_ids(used_ids, count_needed, min_id, max_id):
     
     return None
 
-    Fore=Style=Dummy()
-
 # -------------------------
 # Utilities
 # -------------------------
