@@ -6,6 +6,7 @@ A comprehensive Python toolkit for creating and managing DLC mods for games usin
 
 ## 📋 Table of Contents
 
+- [Why This Toolkit Exists](#-why-this-toolkit-exists)
 - [Features](#-features)
 - [Requirements](#-requirements)
 - [Installation](#-installation)
@@ -19,21 +20,79 @@ A comprehensive Python toolkit for creating and managing DLC mods for games usin
 - [Common Workflows](#-common-workflows)
 - [File Formats](#-file-formats)
 - [Troubleshooting](#-troubleshooting)
+- [Best Practices](#-best-practices)
+- [Version History](#-version-history)
 - [Contributing](#-contributing)
 - [License](#-license)
 
 ---
 
+## 🎯 Why This Toolkit Exists
+
+### The Problem
+
+When creating DLC mods for Kuro engine games, modders face two major challenges:
+
+**1. ID Conflicts (Primary Problem)**
+- DLC mods use item IDs that may conflict with existing game items
+- Manual ID conflict detection is tedious and error-prone
+- A single conflicting ID can break your entire mod
+- Game engine has a hard limit of 5000 IDs that cannot be expanded
+- Finding safe, available ID ranges manually is time-consuming
+
+**2. Shop Assignment Tedium (Secondary Problem)**
+- Adding items to shops requires editing hundreds of entries manually
+- Assigning 50 items to 10 shops = 500 manual entries
+- Copy-paste errors are common
+- No easy way to bulk-update shop assignments
+
+### The Solution
+
+This toolkit automates both problems:
+
+**Primary: Automatic ID Conflict Resolution**
+```bash
+# One command to detect and fix all conflicts
+python resolve_id_conflicts_in_kurodlc.py repair --apply
+```
+- Automatically finds safe IDs within the 5000 limit
+- Smart distribution algorithm for better ID organization
+- Detailed logging and automatic backups
+- Manual control option for complex mods
+
+**Secondary: Bulk Shop Assignment**
+```bash
+# Generate 500 shop assignments in seconds
+python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-template
+python shops_create.py template_my_mod.json
+```
+- Batch assign items to multiple shops
+- Customizable templates for different shop structures
+- 50 items × 10 shops = 500 entries generated instantly
+
+---
+
 ## ✨ Features
 
-- **🔍 Item Discovery**: Search and browse game items from JSON, TBL, and P3A sources
+### Primary Purpose: ID Conflict Resolution
+The main reason this toolkit was created - **automatic detection and resolution of item ID conflicts** between your DLC mods and game data. Never worry about conflicting IDs breaking your mods again!
+
 - **⚠️ Conflict Detection**: Automatically detect ID conflicts between DLC and game data
-- **🔧 Smart Resolution**: NEW  Intelligent ID assignment algorithm with 1-5000 range limit
+- **🔧 Smart Resolution v2.7**: Intelligent ID assignment algorithm with 1-5000 range limit
 - **🎯 Better Distribution**: IDs assigned from middle of range (2500) for optimal spacing
-- **🛒 Shop Integration**: Generate shop assignments for custom items in bulk
-- **📦 Multiple Formats**: Support for JSON, TBL, and P3A archive formats
-- **✅ Validation**: Comprehensive .kurodlc.json structure validation
 - **💾 Safety First**: Automatic backups and detailed logging for all modifications
+- **✅ Validation**: Comprehensive .kurodlc.json structure validation
+
+### Secondary Purpose: Bulk Shop Assignment
+Quickly assign items to multiple shops without manual editing - **batch generate shop assignments** for your entire item set with a single command!
+
+- **🛒 Shop Integration v2.0**: Generate shop assignments with customizable templates
+- **📦 Bulk Operations**: Assign hundreds of items to multiple shops instantly
+- **🎨 Custom Templates**: Define your own shop item structure
+
+### Additional Tools
+- **🔍 Item Discovery**: Search and browse game items from JSON, TBL, and P3A sources
+- **📋 Multiple Formats**: Support for JSON, TBL, and P3A archive formats
 - **🎨 User-Friendly**: Interactive menus and colored output (Windows CMD compatible)
 
 ---
@@ -57,6 +116,11 @@ pip install colorama
 # Contact library maintainers or check documentation
 ```
 
+**Quick Install (Windows):**
+```batch
+install_python_modules.bat
+```
+
 **Note**: The toolkit works fully without optional dependencies using JSON/TBL sources.
 
 ---
@@ -70,6 +134,9 @@ cd kurodlc-toolkit
 
 # Optional: Install colorama for colored output
 pip install colorama
+
+# Or use the included batch file (Windows)
+install_python_modules.bat
 
 # Verify installation
 python resolve_id_conflicts_in_kurodlc.py
@@ -86,7 +153,7 @@ python resolve_id_conflicts_in_kurodlc.py
 python resolve_id_conflicts_in_kurodlc.py checkbydlc
 ```
 
-### Automatic Conflict Resolution (NEW - Smart Algorithm!)
+### Automatic Conflict Resolution (NEW v2.7 - Smart Algorithm!)
 
 ```bash
 # Detect and fix conflicts automatically
@@ -95,13 +162,13 @@ python resolve_id_conflicts_in_kurodlc.py checkbydlc
 python resolve_id_conflicts_in_kurodlc.py repair --apply
 ```
 
-**What's New**
+**What's New in v2.7:**
 - ✅ IDs guaranteed to stay within 1-5000 range
 - ✅ Smart distribution starting from middle (2500)
 - ✅ Finds continuous blocks when possible
 - ✅ Clear errors if not enough IDs available
 
-### Manual Conflict Resolution (Recommended)
+### Manual Conflict Resolution (Recommended for Production)
 
 ```bash
 # Step 1: Export conflict report
@@ -113,20 +180,34 @@ python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=my_mod
 python resolve_id_conflicts_in_kurodlc.py repair --import --mapping-file=id_mapping_my_mod.json
 ```
 
+### Generate Shop Assignments (NEW v2.0)
+
+```bash
+# Step 1: Generate template config from your DLC
+python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-template
+
+# Step 2: (Optional) Edit template_my_mod.json to customize shop IDs
+
+# Step 3: Generate shop assignments
+python shops_create.py template_my_mod.json
+
+# Step 4: Copy ShopItem section into your .kurodlc.json file
+```
+
 ---
 
 ## 🛠️ Scripts Overview
 
-| Script | Purpose | Key Features |
-|--------|---------|--------------|
-| **`resolve_id_conflicts_in_kurodlc.py`** | **Main conflict resolver** | Auto/manual repair, validation, backups |
-| `find_all_items.py` | Search game items | ID/name search, auto-detect mode |
-| `find_all_shops.py` | Search game shops | Filter by shop name |
-| `find_unique_item_id_for_t_costumes.py` | Extract costume IDs | From CostumeParam section |
-| `find_unique_item_id_for_t_item_category.py` | Extract category IDs | Filter by item category |
-| `find_unique_item_id_from_kurodlc.py` | Extract DLC IDs | Multiple modes, conflict checking |
-| `shops_create.py` | Generate shop assignments | Batch item-shop combinations |
-| `shops_find_unique_item_id_from_kurodlc.py` | Extract shop item IDs | Section-specific extraction |
+| Script | Purpose | Version | Key Features |
+|--------|---------|---------|--------------|
+| **`resolve_id_conflicts_in_kurodlc.py`** | **Main conflict resolver** | v2.7.1 | Smart algorithm, auto/manual repair, validation, backups |
+| **`shops_find_unique_item_id_from_kurodlc.py`** | **Extract IDs & generate templates** | v2.0 | Template generation, flexible extraction, shop ID detection |
+| **`shops_create.py`** | **Generate shop assignments** | v2.0 | Custom templates, variable substitution |
+| `find_all_items.py` | Search game items | v1.0 | ID/name search, auto-detect mode |
+| `find_all_shops.py` | Search game shops | v1.0 | Filter by shop name |
+| `find_unique_item_id_for_t_costumes.py` | Extract costume IDs | v1.0 | From CostumeParam section |
+| `find_unique_item_id_for_t_item_category.py` | Extract category IDs | v1.0 | Filter by item category |
+| `find_unique_item_id_from_kurodlc.py` | Extract DLC IDs | v1.0 | Multiple modes, conflict checking |
 
 ---
 
@@ -215,130 +296,96 @@ python find_all_shops.py t_shop.json weapon
 
 ---
 
-#### `find_unique_item_id_for_t_costumes.py` - Costume ID Extractor
-
-Extract all unique item IDs from costume data.
-
-**Usage:**
-```bash
-python find_unique_item_id_for_t_costumes.py t_costume.json
-```
-
-**Sample Output:**
-```
-[100, 101, 102, 150, 151, 200, 201, 202, 250]
-```
-
-**Use Case:** Quickly identify costume-related items for mod integration.
-
----
-
-#### `find_unique_item_id_for_t_item_category.py` - Category ID Extractor
-
-Extract item IDs filtered by category number.
-
-**Usage:**
-```bash
-python find_unique_item_id_for_t_item_category.py t_item.json <category_number>
-```
-
-**Examples:**
-
-```bash
-# Get all items from category 5 (typically accessories)
-python find_unique_item_id_for_t_item_category.py t_item.json 5
-
-# Get all items from category 1 (typically weapons)
-python find_unique_item_id_for_t_item_category.py t_item.json 1
-```
-
-**Sample Output:**
-```
-[500, 501, 502, 550, 551, 600, 601]
-```
-
----
-
 ### ID Extraction Tools
 
-#### `find_unique_item_id_from_kurodlc.py` - DLC ID Analyzer
+#### `shops_find_unique_item_id_from_kurodlc.py` - DLC ID Analyzer & Template Generator (v2.0)
 
-Extract and validate item IDs from DLC files with conflict checking.
+Extract IDs and generate template configs for shops_create.py.
 
-**Usage:**
+**Basic Extraction (v1.0 compatible):**
 ```bash
-python find_unique_item_id_from_kurodlc.py <mode> [options]
+python shops_find_unique_item_id_from_kurodlc.py <file.kurodlc.json> [mode]
 ```
 
-**Modes:**
+**Extraction Modes:**
 
 | Mode | Description | Output |
 |------|-------------|--------|
-| `<file.kurodlc.json>` | Process single file | List of IDs |
-| `searchall` | All unique IDs from all files | Single sorted list |
-| `searchallbydlc` | IDs grouped by file | Per-file lists + unique total |
-| `searchallbydlcline` | IDs per file, one per line | Line-separated output |
-| `searchallline` | All unique IDs, one per line | Simple list |
-| **`check`** | **Check for conflicts** | **Conflict report with [OK]/[BAD]** |
+| `all` | All sections (default) | Complete ID list |
+| `shop` | ShopItem only | Shop assignments |
+| `costume` | CostumeParam only | Costume items |
+| `item` | ItemTableData only | Item definitions |
+| `dlc` | DLCTableData.items only | DLC pack contents |
+| `costume+item` | Combination modes | Custom selection |
 
 ---
 
-**Check Mode (Most Important):**
+**NEW in v2.0: Template Generation**
 
 ```bash
-# Interactive source selection
-python find_unique_item_id_from_kurodlc.py check
-
-# Force specific source
-python find_unique_item_id_from_kurodlc.py check --source=json
-
-# Non-interactive mode (for scripts)
-python find_unique_item_id_from_kurodlc.py check --no-interactive
-
-# Use P3A and keep extracted file
-python find_unique_item_id_from_kurodlc.py check --source=p3a --keep-extracted
+python shops_find_unique_item_id_from_kurodlc.py <file.kurodlc.json> --generate-template [source]
 ```
 
-**Check Mode Output:**
+**What it does:**
+1. Extracts item IDs from specified sections
+2. Extracts shop IDs from ShopItem section (if exists)
+3. Extracts template structure from first ShopItem entry
+4. Creates `template_<filename>.json` for shops_create.py
+
+**Template Generation Examples:**
+
+```bash
+# Generate from all sections
+python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-template
+
+# Generate from specific sections
+python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-template costume+item
+
+# With custom shop IDs
+python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-template --shop-ids=1,5,10,15
+
+# With custom output name
+python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-template --output=my_config.json
 ```
-3596 : Custom Outfit Alpha      [BAD]
-3605 : available                [OK]
-3606 : available                [OK]
-3607 : Custom Outfit Beta       [BAD]
-3608 : available                [OK]
 
-Summary:
-Total IDs : 5
-OK        : 3
-BAD       : 2
-
-Source used for check: t_item.json
+**Generated Template:**
+```json
+{
+    "_comment": [
+        "Template config file generated by shops_find_unique_item_id_from_kurodlc.py v2.0",
+        "Source file: my_mod.kurodlc.json",
+        "...",
+        "Extraction summary:",
+        "  - CostumeParam: 10 IDs",
+        "  - ItemTableData: 10 IDs",
+        "  - Total unique item IDs: 10"
+    ],
+    "item_ids": [5000, 5001, 5002, ...],
+    "shop_ids": [1, 5, 10],
+    "template": {
+        "shop_id": "${shop_id}",
+        "item_id": "${item_id}",
+        "unknown": 1,
+        "start_scena_flags": [],
+        "empty1": 0,
+        "end_scena_flags": [],
+        "int2": 0
+    }
+}
 ```
-
-**Legend:**
-- `[OK]` = ID available (safe to use)
-- `[BAD]` = ID conflicts with game data (needs fixing)
-
-**Options:**
-
-| Option | Description |
-|--------|-------------|
-| `--source=TYPE` | Force source type:<br>`json`, `tbl`, `original`, `p3a`, `zzz` |
-| `--no-interactive` | Skip prompts, auto-select first source |
-| `--keep-extracted` | Keep temporary P3A extraction file |
 
 ---
 
 ### Conflict Resolution
 
-#### `resolve_id_conflicts_in_kurodlc.py` - Main Conflict Resolver
+#### `resolve_id_conflicts_in_kurodlc.py` - Main Conflict Resolver (v2.7.1)
 
 The primary tool for detecting and resolving ID conflicts in DLC files.
 
 **Three Main Modes:**
 
 1. **`checkbydlc`** - Detect conflicts only (no changes)
-2. **`repair --apply`** - Automatic conflict resolution
+2. **`repair --apply`** - Automatic conflict resolution with smart algorithm
 3. **`repair --export/--import`** - Manual conflict resolution
 
 ---
@@ -388,7 +435,7 @@ Total unique IDs: 5
 
 ---
 
-#### Mode 2: Automatic Repair (NEW - Smart Algorithm!)
+#### Mode 2: Automatic Repair (NEW v2.7 - Smart Algorithm!)
 
 ```bash
 python resolve_id_conflicts_in_kurodlc.py repair --apply
@@ -404,7 +451,7 @@ python resolve_id_conflicts_in_kurodlc.py repair --apply
 7. Generates detailed logs
 8. Modifies files in place
 
-**Sample Output**
+**Sample Output (v2.7):**
 ```
 Processing: custom_items_mod.kurodlc.json
 ------------------------------------------------------------
@@ -438,7 +485,7 @@ Changes applied:
 [SUCCESS] All changes applied successfully with backups.
 ```
 
-**Key Improvements:**
+**Key Improvements in v2.7:**
 - ✅ IDs guaranteed within 1-5000 (safe range)
 - ✅ Better distribution (not clustered at end)
 - ✅ Shows ID range and type (continuous/scattered)
@@ -450,220 +497,7 @@ Changes applied:
 
 ---
 
-#### Mode 3: Manual Repair (Recommended for Important Mods)
-
-This three-step workflow gives you full control over ID assignments.
-
-**Step 1: Export Conflict Report**
-
-```bash
-# With auto-generated timestamp
-python resolve_id_conflicts_in_kurodlc.py repair --export
-
-# With custom name (recommended)
-python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=my_mod
-```
-
-**Creates: `id_mapping_my_mod.json`**
-
-```json
-{
-  "_comment": [
-    "ID Mapping File - Generated by resolve_id_conflicts_in_kurodlc.py",
-    "",
-    "INSTRUCTIONS:",
-    "1. Review each mapping below",
-    "2. Edit 'new_id' values as needed (must be unique)",
-    "3. Save this file",
-    "4. Run: python resolve_id_conflicts_in_kurodlc.py repair --import",
-    "",
-    "IMPORTANT:",
-    "- Do NOT change 'old_id' values!",
-    "- Do NOT change 'occurrences' values!",
-    "- Do NOT change 'files' list!",
-    "- You CAN change 'new_id' values",
-    "- Do NOT manually edit .kurodlc.json files between export and import!",
-    "",
-    "Generated: 2026-01-31 15:45:23"
-  ],
-  "source": {
-    "type": "json",
-    "path": "t_item.json"
-  },
-  "mappings": [
-    {
-      "old_id": 3596,
-      "new_id": 4001,
-      "conflict_name": "Custom Outfit Alpha",
-      "occurrences": 3,
-      "files": ["custom_items_mod.kurodlc.json"]
-    },
-    {
-      "old_id": 3607,
-      "new_id": 4002,
-      "conflict_name": "Custom Outfit Beta",
-      "occurrences": 3,
-      "files": ["custom_items_mod.kurodlc.json"]
-    }
-  ]
-}
-```
-
-**Step 2: Edit Mapping File**
-
-Open `id_mapping_my_mod.json` in your text editor and change `new_id` values:
-
-```json
-{
-  "old_id": 3596,
-  "new_id": 5000,  // Changed from 4001 to your preferred ID
-  "conflict_name": "Custom Outfit Alpha",
-  "occurrences": 3,
-  "files": ["custom_items_mod.kurodlc.json"]
-}
-```
-
-**Important Notes:**
-- ✅ **DO** change `new_id` values
-- ❌ **DON'T** change `old_id`, `occurrences`, or `files`
-- ❌ **DON'T** manually edit `.kurodlc.json` files between export and import
-
-**Step 3: Import and Apply**
-
-```bash
-# Interactive selection (if multiple mapping files exist)
-python resolve_id_conflicts_in_kurodlc.py repair --import
-
-# Or specify exact file
-python resolve_id_conflicts_in_kurodlc.py repair --import --mapping-file=id_mapping_my_mod.json
-```
-
-**Validation Output:**
-```
-============================================================
-MODE: Import ID mapping from file
-============================================================
-
-Step 1: Loading mapping file...
-Found single mapping file: id_mapping_my_mod.json
-
-Step 2: Loading item source from mapping file...
-Source type: json
-Source path: t_item.json
-
-Step 3: Validating ID mappings...
-============================================================
-
-[OK] 3596 -> 5000 ('Custom Outfit Alpha')
-[OK] 3607 -> 5001 ('Custom Outfit Beta')
-
-============================================================
-
-[SUCCESS] Validation PASSED!
-All 2 ID mappings verified successfully.
-Ready to modify 1 file(s).
-============================================================
-
-Step 4: Applying imported ID mappings...
-
-File       : custom_items_mod.kurodlc.json
-Backup     : custom_items_mod.kurodlc.json.bak_20260131_160123.json
-Verbose log: custom_items_mod.kurodlc.json.repair_verbose_20260131_160123.txt
-------------------------------------------------------------
-
-[SUCCESS] All changes from imported mapping applied successfully with backups.
-```
-
----
-
-#### Advanced Validation Features
-
-The import process performs comprehensive validation:
-
-**1. Structure Validation**
-- Checks JSON format
-- Verifies required fields exist
-- Validates data types
-
-**2. ID Existence Check**
-- Confirms old IDs still exist in files
-- Detects if files were manually edited
-
-**3. Occurrence Validation** ⭐ **New!**
-- Verifies ID appears same number of times as during export
-- Prevents partial modifications
-
-**4. Conflict Check**
-- Ensures new IDs don't conflict with game data
-- Checks against existing DLC IDs
-
-**5. Duplicate Prevention**
-- Prevents assigning same new ID multiple times
-
-**Sample Validation Error:**
-
-```
-============================================================
-[ERROR] VALIDATION FAILED - Found 1 issue(s)
-============================================================
-
-Cannot proceed with import due to inconsistencies between
-mapping file and current state of .kurodlc.json files.
-
-Details:
-------------------------------------------------------------
-
-Issue #1:
-  ID 3596: Number of occurrences changed!
-      File: custom_items_mod.kurodlc.json
-      Expected: 3 occurrence(s)
-      Found: 2 occurrence(s)
-      Current sections: ItemTableData, DLCTableData
-      
-      Possible cause: Manual changes to file - ID removed from some sections.
-      Solution: Either restore ALL occurrences or create a new export.
-
-============================================================
-POSSIBLE CAUSES:
-  1. Files were manually edited between export and import
-  2. IDs were changed or removed in .kurodlc.json files
-  3. Wrong mapping file selected
-
-RECOMMENDED SOLUTIONS:
-  1. Restore original .kurodlc.json files from backup
-  2. Create a new export with current file state:
-     python resolve_id_conflicts_in_kurodlc.py repair --export
-  3. Manually fix the IDs mentioned above
-============================================================
-```
-
----
-
-#### Command-Line Options
-
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--apply` | Apply changes immediately (automatic mode) | `repair --apply` |
-| `--export` | Export repair plan to mapping file | `repair --export` |
-| `--export-name=NAME` | Custom export filename<br>(auto-adds prefix/suffix) | `--export-name=my_mod`<br>→ `id_mapping_my_mod.json` |
-| `--import` | Import and apply edited mapping | `repair --import` |
-| `--mapping-file=PATH` | Specify mapping file to import | `--mapping-file=id_mapping_my_mod.json` |
-| `--source=TYPE` | Force source type | `--source=json` |
-| `--no-interactive` | Skip all prompts | `checkbydlc --no-interactive` |
-| `--keep-extracted` | Keep temporary P3A extractions | `repair --source=p3a --keep-extracted` |
-
-**Source Types:**
-- `json` - t_item.json
-- `tbl` - t_item.tbl
-- `original` - t_item.tbl.original
-- `p3a` - script_en.p3a / script_eng.p3a
-- `zzz` - zzz_combined_tables.p3a
-
----
-
-#### Smart ID Assignment Algorithm (NEW)
-
-The automatic repair mode now uses an intelligent algorithm to assign new IDs.
+#### Smart ID Assignment Algorithm (v2.7)
 
 **How It Works:**
 
@@ -671,9 +505,13 @@ The automatic repair mode now uses an intelligent algorithm to assign new IDs.
 ```
 All assigned IDs are guaranteed to be between 1 and 5000
 ```
-- ✅ Safe limit that avoids extremely high IDs
+- ✅ **Kuro Engine Limit**: This is a hard limit imposed by the Kuro game engine
+- ✅ **Cannot be expanded**: The 5000 ID limit is built into the game engine and cannot be modified
+- ✅ Safe limit that avoids engine limitations
 - ✅ Better compatibility with game systems
 - ✅ Professional ID scheme
+
+**Important**: The 1-5000 range is not arbitrary - it's determined by the Kuro engine's internal limitations. While you can technically use IDs above 5000 with manual assignment, this may cause unpredictable behavior or conflicts with the game engine.
 
 **2. Middle-Out Search Strategy**
 ```
@@ -712,12 +550,16 @@ If not enough IDs available in range 1-5000:
       Requested: 200
       Available: 150
       Used in range: 4850
-      Suggestion: Increase max_id or remove some items
+      Suggestion: Remove some items or use manual assignment
 
 Cannot proceed with repair. Please choose one of these options:
   1. Remove some items from your DLC mod
   2. Use manual ID assignment (--export/--import)
+     WARNING: IDs above 5000 exceed Kuro engine limits
   3. Contact for help if you need assistance
+
+NOTE: The 5000 ID limit is a hard constraint of the Kuro game engine
+and cannot be expanded or modified.
 ```
 
 **Algorithm Examples:**
@@ -762,23 +604,9 @@ Algorithm:
 Result: Efficiently uses available gaps ✓
 ```
 
-**Example 4: Not Enough Space**
-```
-Game IDs: 1-4950
-Conflicts: 100 IDs need replacement
-Available in 1-5000: Only 50 IDs
-
-Algorithm:
-  1. Attempts to find 100 IDs
-  2. Only finds 50 available
-  3. Returns clear error
-
-Result: Clear message with solutions ✓
-```
-
 **Benefits Over Old Algorithm:**
 
-| Aspect | Old Algorithm | New Algorithm |
+| Aspect | Old Algorithm | New Algorithm (v2.7) |
 |--------|---------------|----------------------|
 | Range | Unlimited (could go 10000+) | **Limited to 1-5000** ✓ |
 | Start | From highest ID | **From middle (2500)** ✓ |
@@ -787,23 +615,126 @@ Result: Clear message with solutions ✓
 | Errors | Silent failures | **Clear messages** ✓ |
 | Speed | O(n) sequential | O(log n) for blocks ✓ |
 
-**When to Use Manual Assignment:**
+---
 
-While the smart algorithm works great for most cases, use manual assignment (--export/--import) when:
-- You need IDs > 5000 (rare)
-- You want specific ID numbers (e.g., 6000, 6100, 6200...)
-- You have a custom ID scheme for your mod
-- You're working on a very large mod (200+ items)
+#### Mode 3: Manual Repair (Recommended for Important Mods)
+
+This three-step workflow gives you full control over ID assignments.
+
+**Step 1: Export Conflict Report**
+
+```bash
+# With auto-generated timestamp
+python resolve_id_conflicts_in_kurodlc.py repair --export
+
+# With custom name (recommended)
+python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=my_mod
+```
+
+**Creates: `id_mapping_my_mod.json`**
+
+```json
+{
+  "_comment": [
+    "ID Mapping File - Generated by resolve_id_conflicts_in_kurodlc.py",
+    "",
+    "INSTRUCTIONS:",
+    "1. Review each mapping below",
+    "2. Edit 'new_id' values as needed (must be unique)",
+    "3. Save this file",
+    "4. Run: python resolve_id_conflicts_in_kurodlc.py repair --import",
+    "",
+    "Generated: 2026-01-31 15:45:23"
+  ],
+  "source": {
+    "type": "json",
+    "path": "t_item.json"
+  },
+  "mappings": [
+    {
+      "old_id": 3596,
+      "new_id": 4001,
+      "conflict_name": "Custom Outfit Alpha",
+      "occurrences": 3,
+      "files": ["custom_items_mod.kurodlc.json"]
+    },
+    {
+      "old_id": 3607,
+      "new_id": 4002,
+      "conflict_name": "Custom Outfit Beta",
+      "occurrences": 3,
+      "files": ["custom_items_mod.kurodlc.json"]
+    }
+  ]
+}
+```
+
+**Step 2: Edit Mapping File**
+
+Open `id_mapping_my_mod.json` and change `new_id` values:
+
+```json
+{
+  "old_id": 3596,
+  "new_id": 5000,  // Changed from 4001 to your preferred ID
+  "conflict_name": "Custom Outfit Alpha",
+  "occurrences": 3,
+  "files": ["custom_items_mod.kurodlc.json"]
+}
+```
+
+**Important Notes:**
+- ✅ **DO** change `new_id` values
+- ❌ **DON'T** change `old_id`, `occurrences`, or `files`
+- ❌ **DON'T** manually edit `.kurodlc.json` files between export and import
+
+**Step 3: Import and Apply**
+
+```bash
+# Interactive selection (if multiple mapping files exist)
+python resolve_id_conflicts_in_kurodlc.py repair --import
+
+# Or specify exact file
+python resolve_id_conflicts_in_kurodlc.py repair --import --mapping-file=id_mapping_my_mod.json
+```
+
+---
+
+#### Command-Line Options
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `--apply` | Apply changes immediately (automatic mode) | `repair --apply` |
+| `--export` | Export repair plan to mapping file | `repair --export` |
+| `--export-name=NAME` | Custom export filename<br>(auto-adds prefix/suffix) | `--export-name=my_mod`<br>→ `id_mapping_my_mod.json` |
+| `--import` | Import and apply edited mapping | `repair --import` |
+| `--mapping-file=PATH` | Specify mapping file to import | `--mapping-file=id_mapping_my_mod.json` |
+| `--source=TYPE` | Force source type | `--source=json` |
+| `--no-interactive` | Skip all prompts | `checkbydlc --no-interactive` |
+| `--keep-extracted` | Keep temporary P3A extractions | `repair --source=p3a --keep-extracted` |
+
+**Source Types:**
+- `json` - t_item.json
+- `tbl` - t_item.tbl
+- `original` - t_item.tbl.original
+- `p3a` - script_en.p3a / script_eng.p3a
+- `zzz` - zzz_combined_tables.p3a
 
 ---
 
 ### Shop Management
 
-#### `shops_create.py` - Shop Assignment Generator
+#### `shops_create.py` - Shop Assignment Generator (v2.0)
 
-Generate shop item assignments from configuration file.
+Generate shop item assignments from configuration with customizable templates.
 
-**Usage:**
+**NEW in v2.0:**
+- Custom template support
+- Variable substitution (`${shop_id}`, `${item_id}`, `${index}`, `${count}`)
+- Custom output section names
+- Backward compatible with v1.0
+
+**Basic Usage (v1.0 compatible):**
 ```bash
 python shops_create.py config.json
 ```
@@ -811,14 +742,10 @@ python shops_create.py config.json
 **Input: `config.json`**
 ```json
 {
-  "item_ids": [100, 101, 102],
-  "shop_ids": [1, 5, 10, 15]
+    "item_ids": [5000, 5001, 5002],
+    "shop_ids": [1, 5, 10, 15]
 }
 ```
-
-**What it does:**
-- Creates all combinations of items × shops
-- Generates properly formatted ShopItem entries
 
 **Output: `output_config.json`**
 ```json
@@ -826,7 +753,7 @@ python shops_create.py config.json
   "ShopItem": [
     {
       "shop_id": 1,
-      "item_id": 100,
+      "item_id": 5000,
       "unknown": 1,
       "start_scena_flags": [],
       "empty1": 0,
@@ -838,84 +765,80 @@ python shops_create.py config.json
 }
 ```
 
-**Console Output:**
-```
-Success: File 'output_config.json' was created successfully.
-Generated 12 shop item entries:
-  - 3 items
-  - 4 shops
-  - Total combinations: 3 × 4 = 12
-```
+---
 
-**Next Steps:**
-1. Review `output_config.json`
-2. Copy `ShopItem` section into your `.kurodlc.json` file
-3. Adjust shop IDs/flags if needed
+**Advanced Usage (v2.0 - Custom Templates):**
 
-**Example Config Template:**
+**Input: `custom_config.json`**
 ```json
 {
-  "item_ids": [5000, 5001, 5002, 5003],
-  "shop_ids": [1, 5, 10]
+    "item_ids": [5000, 5001, 5002],
+    "shop_ids": [1, 5, 10],
+    "output_section": "CustomShopItems",
+    "template": {
+        "shop_id": "${shop_id}",
+        "item_id": "${item_id}",
+        "price": 1000,
+        "stock": 99,
+        "discount": 0,
+        "required_level": 1,
+        "metadata": {
+            "description": "Item ${item_id} in shop ${shop_id}",
+            "entry_number": "${index}"
+        }
+    }
 }
 ```
 
----
-
-#### `shops_find_unique_item_id_from_kurodlc.py` - Shop ID Extractor
-
-Extract item IDs from specific sections of DLC files.
-
-**Usage:**
-```bash
-python shops_find_unique_item_id_from_kurodlc.py <file.kurodlc.json> [mode]
+**Output:**
+```json
+{
+  "CustomShopItems": [
+    {
+      "shop_id": 1,
+      "item_id": 5000,
+      "price": 1000,
+      "stock": 99,
+      "discount": 0,
+      "required_level": 1,
+      "metadata": {
+        "description": "Item 5000 in shop 1",
+        "entry_number": 0
+      }
+    },
+    // ... 8 more entries
+  ]
+}
 ```
 
-**Modes:**
+**Console Output:**
+```
+Using custom template from config file.
 
-| Mode | Sections Extracted | Use Case |
-|------|-------------------|----------|
-| `all` | All sections (default) | Complete ID inventory |
-| `shop` | ShopItem only | Shop assignments |
-| `costume` | CostumeParam only | Costume items |
-| `item` | ItemTableData only | Item definitions |
-| `dlc` | DLCTableData.items only | DLC pack contents |
+Generating shop items...
 
-**Combination Modes (use `+`):**
-- `shop+costume` - Shop items + costumes
-- `costume+item` - Costumes + item data
-- `item+dlc` - Item data + DLC packs
-- `shop+item+dlc` - Custom combinations
-
-**Examples:**
-
-```bash
-# Extract from all sections
-python shops_find_unique_item_id_from_kurodlc.py custom_mod.kurodlc.json
-
-# Extract only shop assignments
-python shops_find_unique_item_id_from_kurodlc.py custom_mod.kurodlc.json shop
-
-# Extract costumes and items
-python shops_find_unique_item_id_from_kurodlc.py custom_mod.kurodlc.json costume+item
-
-# Extract shop and DLC data
-python shops_find_unique_item_id_from_kurodlc.py custom_mod.kurodlc.json shop+dlc
+============================================================
+Success: File 'output_custom_config.json' was created successfully.
+============================================================
+Generated 9 shop item entries:
+  - 3 items
+  - 3 shops
+  - Total combinations: 3 × 3 = 9
+  - Output section: 'CustomShopItems'
+  - Template: Custom
+============================================================
 ```
 
-**Sample Output:**
-```
-# Extraction summary:
-#   ShopItem: 12 IDs
-#   CostumeParam: 8 IDs
-#   ItemTableData: 8 IDs
-#   DLCTableData.items: 8 IDs
-#   Total unique IDs: 15
+**Template Variables:**
 
-[100, 101, 102, 103, 104, 105, 106, 107, 200, 201, 202, 203, 204, 205, 206]
-```
+| Variable | Description | Example Value |
+|----------|-------------|---------------|
+| `${shop_id}` | Current shop ID | `1`, `5`, `10` |
+| `${item_id}` | Current item ID | `5000`, `5001` |
+| `${index}` | Entry index (0-based) | `0`, `1`, `2` |
+| `${count}` | Total number of entries | `9` (3×3) |
 
-**Pro Tip:** Use this to verify your shop assignments are correct before testing.
+**See `example_config_*.json` files for more examples.**
 
 ---
 
@@ -938,14 +861,16 @@ python find_unique_item_id_from_kurodlc.py check
 python resolve_id_conflicts_in_kurodlc.py repair --apply
 
 # 5. Generate shop assignments (optional)
-# Create shop_config.json with your IDs
-python shops_create.py shop_config.json
+python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-template
 
-# 6. Integrate shop data
-# Copy ShopItem section from output_shop_config.json
-# into your .kurodlc.json file
+# 6. Create shop assignments
+python shops_create.py template_my_mod.json
 
-# 7. Final validation
+# 7. Integrate shop data
+# Copy ShopItem section from output_template_my_mod.json
+# into your my_mod.kurodlc.json file
+
+# 8. Final validation
 python find_unique_item_id_from_kurodlc.py check
 ```
 
@@ -977,7 +902,30 @@ python find_unique_item_id_from_kurodlc.py check
 
 ---
 
-### Workflow 3: Batch Processing Multiple DLCs
+### Workflow 3: Adding Items to Shops (NEW v2.0)
+
+```bash
+# 1. Generate template from your DLC
+python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-template costume
+
+# 2. (Optional) Edit template_my_mod.json
+# - Review item_ids (auto-extracted)
+# - Modify shop_ids as needed
+# - Customize template structure
+
+# 3. Generate shop assignments
+python shops_create.py template_my_mod.json
+
+# 4. Copy ShopItem section
+# From: output_template_my_mod.json
+# To: my_mod.kurodlc.json
+
+# 5. Test in game
+```
+
+---
+
+### Workflow 4: Batch Processing Multiple DLCs
 
 ```bash
 # 1. Place all .kurodlc.json files in same directory
@@ -1000,41 +948,64 @@ python find_unique_item_id_from_kurodlc.py check
 
 ---
 
-### Workflow 4: Migrating from Another Mod Format
-
-```bash
-# 1. Extract IDs from your existing mod files
-python find_unique_item_id_from_kurodlc.py my_old_mod.kurodlc.json > old_ids.txt
-
-# 2. Check which IDs conflict
-python find_unique_item_id_from_kurodlc.py check
-
-# 3. Use manual workflow for control
-python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=migration
-
-# 4. Plan new ID scheme
-# Edit id_mapping_migration.json
-# Use sequential IDs like 6000-6999
-
-# 5. Apply migration
-python resolve_id_conflicts_in_kurodlc.py repair --import --mapping-file=id_mapping_migration.json
-
-# 6. Update documentation with new ID ranges
-```
-
----
-
 ## 📄 File Formats
 
-### Mapping File Structure
-
-The mapping file created during export:
+### .kurodlc.json Structure
 
 ```json
 {
-  "_comment": [
-    "Instructions for editing..."
-  ],
+    "CostumeParam": [
+        {
+            "item_id": 5000,
+            "mdl_name": "custom_costume_01",
+            "char_restrict": 1,
+            "type": 0
+        }
+    ],
+    "ItemTableData": [
+        {
+            "id": 5000,
+            "name": "Custom Costume",
+            "category": 17,
+            "subcategory": 15
+        }
+    ],
+    "DLCTableData": [
+        {
+            "id": 1,
+            "name": "Custom Costume Pack",
+            "items": [5000, 5001, 5002]
+        }
+    ],
+    "ShopItem": [
+        {
+            "shop_id": 1,
+            "item_id": 5000,
+            "unknown": 1,
+            "start_scena_flags": [],
+            "empty1": 0,
+            "end_scena_flags": [],
+            "int2": 0
+        }
+    ]
+}
+```
+
+**Required Sections:**
+- `CostumeParam` - Costume definitions
+- `DLCTableData` - DLC pack definitions
+
+**Optional Sections:**
+- `ItemTableData` - Item metadata
+- `ShopItem` - Shop assignments
+
+---
+
+### Mapping File Structure
+
+```json
+{
+  "_comment": ["Instructions..."],
   "source": {
     "type": "json",
     "path": "t_item.json"
@@ -1051,46 +1022,40 @@ The mapping file created during export:
 }
 ```
 
-**Field Descriptions:**
+**Editable Fields:**
+- ✅ `new_id` - New ID to assign
 
-| Field | Type | Editable? | Description |
-|-------|------|-----------|-------------|
-| `old_id` | Integer | ❌ No | Conflicting ID from your mod |
-| `new_id` | Integer | ✅ **Yes** | **New ID to assign** |
-| `conflict_name` | String | ❌ No | Item name from game data |
-| `occurrences` | Integer | ❌ No | Number of times ID appears |
-| `files` | Array | ❌ No | Files containing this ID |
-
-**Validation Rules for `new_id`:**
-- Must be an integer
-- Must not conflict with game data
-- Must not duplicate other new IDs in mapping
-- Must be unique across all your mods
+**Do NOT Edit:**
+- ❌ `old_id` - Original conflicting ID
+- ❌ `occurrences` - Number of times ID appears
+- ❌ `files` - Files containing this ID
 
 ---
 
-### Shop Config File Format
-
-Simple configuration for bulk shop assignment:
+### Shop Config File Format (v2.0)
 
 ```json
 {
-  "item_ids": [5000, 5001, 5002],
-  "shop_ids": [1, 5, 10]
+    "item_ids": [5000, 5001, 5002],
+    "shop_ids": [1, 5, 10],
+    "output_section": "ShopItem",
+    "template": {
+        "shop_id": "${shop_id}",
+        "item_id": "${item_id}",
+        "unknown": 1,
+        "start_scena_flags": [],
+        "empty1": 0,
+        "end_scena_flags": [],
+        "int2": 0
+    }
 }
 ```
 
-**Field Descriptions:**
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| `item_ids` | Array of integers | Item IDs to add to shops | `[5000, 5001]` |
-| `shop_ids` | Array of integers | Shop IDs where items appear | `[1, 5, 10]` |
-
-**Result:** Every item appears in every shop (Cartesian product)
-
-**Example:** 
-- 3 items × 4 shops = 12 shop entries generated
+**Fields:**
+- `item_ids` - List of item IDs to add to shops
+- `shop_ids` - List of shop IDs where items appear
+- `output_section` - Output section name (default: "ShopItem")
+- `template` - Template structure with variable substitution
 
 ---
 
@@ -1135,22 +1100,67 @@ Ensure you have at least one of these files in the current directory:
    - Trailing commas (not allowed in JSON)
    - Unescaped quotes in strings
 
-**Common mistakes:**
-```json
-// WRONG - trailing comma
-{"items": [100, 101,]}
+---
 
-// CORRECT
-{"items": [100, 101]}
+#### Issue: "Not enough IDs available" (NEW in v2.7)
 
-// WRONG - missing comma
-{"id": 100
- "name": "Item"}
-
-// CORRECT
-{"id": 100,
- "name": "Item"}
+**Error:**
 ```
+[ERROR] Not enough available IDs in range [1, 5000].
+      Requested: 200
+      Available: 150
+      Used in range: 4850
+```
+
+**Cause:** Your mod has more conflicts than available IDs in the 1-5000 range.
+
+**Why this happens:**
+The Kuro game engine has a **hard-coded limit of 5000 item IDs**. This is a fundamental engine limitation that cannot be expanded or modified. If:
+- Game uses IDs 1-3500
+- Other DLCs use 3501-4850
+- You need 200 new IDs
+- Only 150 IDs available (4851-5000)
+- **The 5000 limit cannot be increased** - it's built into the engine
+
+**Solutions:**
+
+**Option 1: Remove some items (Recommended)**
+```bash
+# Edit your .kurodlc.json and remove least important items
+# This is the safest approach
+python resolve_id_conflicts_in_kurodlc.py repair --apply
+```
+
+**Option 2: Use manual assignment with IDs > 5000 (⚠️ NOT RECOMMENDED)**
+```bash
+# WARNING: IDs above 5000 exceed Kuro engine design limits
+# This may cause crashes, errors, or save corruption
+# Only use if you understand and accept the risks
+
+# Export and manually assign IDs in higher range
+python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=custom
+# Edit id_mapping_custom.json with higher IDs (e.g., 6000-6199)
+python resolve_id_conflicts_in_kurodlc.py repair --import --mapping-file=id_mapping_custom.json
+
+# ⚠️ TEST THOROUGHLY before releasing to users
+```
+
+**Option 3: Split into multiple DLC files**
+```bash
+# Divide items across multiple .kurodlc.json files
+# Each file gets separate ID allocation within the 5000 limit
+my_mod_part1.kurodlc.json  # Gets IDs 3800-3899
+my_mod_part2.kurodlc.json  # Gets IDs 3900-3999
+```
+
+**Prevention:**
+- Plan your ID usage before creating large mods
+- Use ID ranges strategically (e.g., 3800-3999 for costumes)
+- Check available space first:
+  ```bash
+  python find_unique_item_id_from_kurodlc.py check
+  ```
+- Remember: **5000 is a hard limit** - design your mods accordingly
 
 ---
 
@@ -1164,9 +1174,6 @@ ID 3596: Number of occurrences changed!
 ```
 
 **Cause:** .kurodlc.json file was manually edited between export and import.
-
-**Why this happens:**
-IDs typically appear in multiple sections (CostumeParam, ItemTableData, DLCTableData). If you manually edited one section but not others, the count changes.
 
 **Solution:**
 
@@ -1184,244 +1191,18 @@ python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=fresh
 
 ---
 
-#### Issue: P3A extraction fails
-
-**Error:**
-```
-Error: Required library missing: No module named 'p3a_lib'
-```
-
-**Cause:** Missing optional P3A libraries.
-
-**Solution:**
-
-**Option 1:** Use JSON source instead
-```bash
-python resolve_id_conflicts_in_kurodlc.py repair --source=json
-```
-
-**Option 2:** Install P3A libraries (if available)
-```bash
-# Contact library maintainers for installation instructions
-pip install p3a_lib kurodlc_lib
-```
-
----
-
-#### Issue: "Not enough IDs available" (NEW)
-
-**Error:**
-```
-[ERROR] Not enough available IDs in range [1, 5000].
-      Requested: 200
-      Available: 150
-      Used in range: 4850
-      Suggestion: Increase max_id or remove some items
-```
-
-**Cause:** Your mod has more conflicts than available IDs in the 1-5000 range.
-
-**Why this happens:**
-The smart algorithm constrains IDs to the safe range of 1-5000. If:
-- Game uses IDs 1-3500
-- Other DLCs use 3501-4850
-- You need 200 new IDs
-- Only 150 IDs available (4851-5000)
-
-**Solutions:**
-
-**Option 1: Remove some items (Recommended)**
-```bash
-# Edit your .kurodlc.json and remove least important items
-# Then retry
-python resolve_id_conflicts_in_kurodlc.py repair --apply
-```
-
-**Option 2: Use manual assignment with custom range**
-```bash
-# Step 1: Export
-python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=custom
-
-# Step 2: Edit id_mapping_custom.json
-# Manually assign IDs in higher range (e.g., 6000-6199)
-
-# Step 3: Import
-python resolve_id_conflicts_in_kurodlc.py repair --import --mapping-file=id_mapping_custom.json
-```
-
-**Option 3: Split into multiple DLC files**
-```bash
-# Divide your items across multiple .kurodlc.json files
-# Each file gets separate ID allocation
-my_mod_part1.kurodlc.json  # Gets IDs 4000-4099
-my_mod_part2.kurodlc.json  # Gets IDs 4100-4199
-```
-
-**Prevention:**
-- Plan your ID usage before creating large mods
-- Use ID ranges strategically (e.g., 4000-4999 for costumes)
-- Check available space first:
-  ```bash
-  python find_unique_item_id_from_kurodlc.py check
-  ```
-
----
-
-#### Issue: "File does not have valid kurodlc structure"
-
-**Error:**
-```
-Error: JSON file 'my_mod.kurodlc.json' does not have a valid kurodlc structure.
-```
-
-**Cause:** Missing required sections or fields.
-
-**Solution:**
-
-Ensure your file has:
-
-**Required Sections:**
-```json
-{
-  "CostumeParam": [...],  // Required
-  "DLCTableData": [...]   // Required
-}
-```
-
-**Required Fields:**
-```json
-{
-  "CostumeParam": [
-    {
-      "item_id": 100,  // Must be integer
-      "mdl_name": "..." // Must exist
-    }
-  ],
-  "DLCTableData": [
-    {
-      "id": 1,          // Must be integer
-      "items": [100]    // Must be array of integers
-    }
-  ]
-}
-```
-
----
-
-#### Issue: Conflicts still appear after repair
-
-**Symptom:** IDs still show `[BAD]` after running repair.
-
-**Possible Causes:**
-1. Repair was not applied (only exported)
-2. Wrong source file
-3. Multiple DLC files with same IDs
-
-**Debug Steps:**
-
-```bash
-# 1. Check if backup exists (proves repair was applied)
-ls -la *.bak_*.json
-
-# 2. Verify source file used
-python find_unique_item_id_from_kurodlc.py check
-# Check "Source used for check" line
-
-# 3. Check all DLC files
-python find_unique_item_id_from_kurodlc.py searchallbydlc
-
-# 4. Re-run check after repair
-python resolve_id_conflicts_in_kurodlc.py repair --apply
-python find_unique_item_id_from_kurodlc.py check
-```
-
----
-
-### Debug Information
-
-For detailed troubleshooting, examine these files:
-
-**1. Backup Files**
-```
-custom_mod.kurodlc.json.bak_20260131_154523.json
-```
-- Original file before changes
-- Use to restore if something goes wrong
-
-**2. Verbose Logs**
-```
-custom_mod.kurodlc.json.repair_verbose_20260131_154523.txt
-```
-- Detailed change log
-- Lists every ID change
-- Shows which sections were modified
-
-**Sample verbose log:**
-```
-=== REPAIR LOG ===
-File: custom_mod.kurodlc.json
-Timestamp: 2026-01-31 15:45:23
-
-OLD_ID -> NEW_ID : NAME
-3596   -> 5000   : Custom Outfit Alpha
-
-Sections modified:
-  - CostumeParam[0]: item_id changed from 3596 to 5000
-  - ItemTableData[0]: id changed from 3596 to 5000
-  - DLCTableData[0]: items array updated (3596 -> 5000)
-```
-
-**3. Mapping Files**
-```
-id_mapping_my_mod.json
-```
-- Shows intended changes
-- Compare with actual results
-- Verify `new_id` values were correctly applied
-
----
-
-### Getting Help
-
-If issues persist:
-
-1. **Check file structure:**
-   ```bash
-   python -m json.tool custom_mod.kurodlc.json > /dev/null
-   ```
-
-2. **Validate against schema:**
-   ```bash
-   pip install jsonschema
-   python -m jsonschema -i custom_mod.kurodlc.json kurodlc_schema.json
-   ```
-
-3. **Generate debug report:**
-   ```bash
-   python find_unique_item_id_from_kurodlc.py searchallbydlc > debug_report.txt
-   python find_unique_item_id_from_kurodlc.py check >> debug_report.txt
-   ```
-
-4. **Create issue on GitHub** with:
-   - Error messages (full text)
-   - Debug report
-   - Sample mapping file (anonymize IDs if needed)
-   - Python version: `python --version`
-
----
-
 ## 🎯 Best Practices
 
-### ID Management
+### ID Management (Updated for v2.7)
 
 ✅ **DO:**
-- **Let the algorithm choose IDs** - smart algorithm handles distribution
+- **Let the algorithm choose IDs** - v2.7's smart algorithm handles distribution
 - Use ID ranges appropriate for your mod size:
   - Small mods (< 50 items): Let automatic repair handle it
   - Medium mods (50-200 items): Review suggested IDs via export first
   - Large mods (200+ items): Use manual assignment with custom ranges
 - **Start high when manually assigning** - Use 4000+ to avoid game data
-- Document your ID schemes (e.g., 4000-4099 = Costumes)
+- Document your ID schemes (e.g., 4000-4099 = Costumes, 4100-4199 = Weapons)
 - Use sequential IDs for related items
 - Export mapping files before making changes
 - Keep mapping files in version control
@@ -1434,18 +1215,31 @@ If issues persist:
 - Reuse IDs across different mods without checking conflicts
 - Ignore the 1-5000 range limit warnings
 
-**NEW: Understanding the Range Limit**
+**NEW in v2.7: Understanding the Range Limit**
 
 The automatic algorithm uses 1-5000 range because:
+- ✅ **Kuro Engine Hard Limit**: The game engine has a built-in limit of 5000 IDs
+- ✅ **Cannot be expanded**: This limitation is part of the Kuro engine architecture and cannot be modified or extended
 - ✅ Provides ~1500-2000 IDs for mods (assuming game uses 1-3500)
 - ✅ Safe buffer from game data
 - ✅ Professional ID scheme
-- ✅ Compatible with most game systems
 
-If you need > 5000, use manual assignment:
+**⚠️ Warning about IDs > 5000:**
+While the toolkit allows manual assignment of IDs above 5000 (via export/import), this exceeds the Kuro engine's design limits and may cause:
+- Unpredictable game behavior
+- Potential crashes or errors
+- Conflicts with engine internals
+- Save file corruption
+
+**Only use IDs > 5000 if:**
+- You absolutely cannot fit within the limit
+- You understand and accept the risks
+- You've tested thoroughly
+
+If you need IDs > 5000 (not recommended), use manual assignment:
 ```bash
 python resolve_id_conflicts_in_kurodlc.py repair --export
-# Edit mapping to use higher IDs (6000+)
+# Edit mapping to use higher IDs (6000+) - AT YOUR OWN RISK
 python resolve_id_conflicts_in_kurodlc.py repair --import
 ```
 
@@ -1490,6 +1284,8 @@ my_mod/
 │   └── *.bak_*.json                 # Auto-generated backups
 ├── logs/
 │   └── *.repair_verbose_*.txt       # Repair logs
+├── templates/
+│   └── template_my_mod.json         # Shop config template
 └── config/
     └── shop_config.json             # Shop assignments
 ```
@@ -1522,6 +1318,9 @@ output_*.json
 # Mapping files (important!)
 id_mapping_*.json
 
+# Template files
+template_*.json
+
 # Config files
 *_config.json
 
@@ -1531,24 +1330,10 @@ kurodlc_schema.json
 
 ---
 
-
-
-## 📚 Additional Resources
-
-- **JSON Format Guide:** [json.org](https://www.json.org)
-- **JSON Validator:** [jsonlint.com](https://jsonlint.com)
-- **Python Documentation:** [python.org/docs](https://docs.python.org/3/)
-- **KuroDLC Format Specification:** See `kurodlc_schema.json`
-
----
-
-- Existing mods with IDs < 5000: No changes needed
-- Existing mods with IDs > 5000: Can continue as-is or migrate
-- New automatic repairs: Use smart algorithm automatically
-
-
----
+<p align="center">
+  <strong>Made with ❤️ by the modding community</strong>
+</p>
 
 <p align="center">
-  Made with ❤️ by the modding community
+  <a href="#kurodlc-modding-toolkit">Back to Top ↑</a>
 </p>
