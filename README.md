@@ -196,11 +196,14 @@ python shops_create.py template_my_mod.kurodlc.json
 
 ### 3. Browse Game Items
 ```bash
-# Search for items
-python find_all_items.py t_item.json sepith
+# Search for items (auto-detects t_item.json, t_item.tbl, or P3A archives)
+python find_all_items.py sepith
 
-# Browse all shops
-python find_all_shops.py t_shop.json
+# Browse all shops (auto-detects sources)
+python find_all_shops.py
+
+# Force specific source if needed
+python find_all_items.py sepith --source=json
 ```
 
 ---
@@ -217,13 +220,13 @@ python find_all_shops.py t_shop.json
 
 ### Utility Scripts
 
-| Script | Purpose |
-|--------|---------|
-| **`find_all_items.py`** | Search and browse game items |
-| **`find_all_shops.py`** | List all shops from game data |
-| **`find_unique_item_id_for_t_costumes.py`** | Extract costume IDs |
-| **`find_unique_item_id_for_t_item_category.py`** | Extract category IDs |
-| **`find_unique_item_id_from_kurodlc.py`** | Check DLC IDs against game data |
+| Script | Version | Purpose |
+|--------|---------|---------|
+| **`find_all_items.py`** | v2.0 | Search and browse game items (multi-source support) |
+| **`find_all_shops.py`** | v2.0 | List all shops from game data (multi-source support) |
+| **`find_unique_item_id_for_t_costumes.py`** | v2.0 | Extract costume IDs (multi-source support) |
+| **`find_unique_item_id_for_t_item_category.py`** | v2.0 | Extract category IDs (multi-source support) |
+| **`find_unique_item_id_from_kurodlc.py`** | v1.0 | Check DLC IDs against game data |
 
 ### Installation Helper
 
@@ -787,6 +790,7 @@ See **[ADVANCED_DOCUMENTATION.md](ADVANCED_DOCUMENTATION.md)** ⭐
 ## 📧 Support
 
 - **Issues:** [GitHub Issues](https://github.com/falco81/KuroDLCTools/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/falco81/KuroDLCTools/discussions)
 
 ---
 
