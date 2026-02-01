@@ -116,13 +116,14 @@ KURO_ENGINE_MAX_ID = 5000
 # Enhanced data loading functions
 # -------------------------
 
-def extract_enhanced_data_from_items(items):
+def extract_enhanced_data_from_items(items, itemhelp_data=None):
     """
     Extract enhanced data from already loaded items list.
     Works with any source format (JSON, TBL, P3A) since it processes the items directly.
     
     Args:
         items: List of item dictionaries
+        itemhelp_data: Optional item help data with category names (REQUIRED for category names)
         
     Returns:
         dict: Enhanced data structure with items, categories, etc.
@@ -172,15 +173,14 @@ def extract_enhanced_data_from_items(items):
         subcat = item_data.get('subcategory', 0)
         category_counts[cat][subcat] += 1
     
-    # Create category names based on common patterns
-    category_names = {
-        0: 'Sepith/Materials',
-        1: 'Quest Items',
-        2: 'Books/Documents',
-        17: 'Costumes',
-        30: 'Consumables/Currency'
-    }
+    # Load category names from itemhelp data (FULLY DYNAMIC - NO STATIC FALLBACK)
+    if itemhelp_data and itemhelp_data.get('categories'):
+        category_names = dict(itemhelp_data['categories'])
+    else:
+        # NO itemhelp data - use generic names for all categories
+        category_names = {}
     
+    # Add generic names for categories found in data but not in itemhelp
     for cat in category_counts.keys():
         if cat not in category_names:
             category_names[cat] = f'Category {cat}'
@@ -188,6 +188,7 @@ def extract_enhanced_data_from_items(items):
     enhanced_data['categories'] = category_names
     
     # Character names mapping (common character IDs)
+    # TODO: Could be extracted from costume names or loaded from t_name.tbl
     enhanced_data['character_names'] = {
         0: 'Van',
         1: 'Agnès',
@@ -260,6 +261,258 @@ def load_costume_data(project_dir='.'):
         pass  # Silently fail
     
     return costumes
+
+
+def load_shop_data_from_json(json_file='t_shop.json'):
+    """
+    Load shop data from JSON file.
+    Returns dict with shop info and item-to-shops mapping.
+    """
+    shop_data = {
+        'shops': {},  # {shop_id: shop_name}
+        'item_shops': {}  # {item_id: [shop_ids]}
+    }
+    
+    try:
+        if not os.path.exists(json_file):
+            return shop_data
+        
+        with open(json_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # Extract ShopInfo - shop names
+        for section in data.get('data', []):
+            if section.get('name') == 'ShopInfo':
+                for shop in section.get('data', []):
+                    shop_id = shop.get('id')
+                    shop_name = shop.get('shop_name', f'Shop {shop_id}')
+                    if shop_id is not None:
+                        shop_data['shops'][shop_id] = shop_name
+        
+        # Extract ShopItem - which items are in which shops
+        for section in data.get('data', []):
+            if section.get('name') == 'ShopItem':
+                for entry in section.get('data', []):
+                    shop_id = entry.get('shop_id')
+                    item_id = entry.get('item_id')
+                    if shop_id is not None and item_id is not None:
+                        if item_id not in shop_data['item_shops']:
+                            shop_data['item_shops'][item_id] = []
+                        if shop_id not in shop_data['item_shops'][item_id]:
+                            shop_data['item_shops'][item_id].append(shop_id)
+        
+        return shop_data
+    
+    except Exception as e:
+        print(f"{Fore.YELLOW}Warning: Could not load shop data from {json_file}: {e}{Style.RESET_ALL}")
+        return shop_data
+
+
+def load_shop_data_from_tbl(tbl_file='t_shop.tbl'):
+    """
+    Load shop data from TBL file.
+    Returns dict with shop info and item-to-shops mapping.
+    """
+    shop_data = {
+        'shops': {},  # {shop_id: shop_name}
+        'item_shops': {}  # {item_id: [shop_ids]}
+    }
+    
+    if not HAS_LIBS:
+        return shop_data
+    
+    try:
+        if not os.path.exists(tbl_file):
+            return shop_data
+        
+        kt = kuro_tables()
+        tables = kt.read_table(tbl_file)
+        
+        # Extract ShopInfo
+        if 'ShopInfo' in tables:
+            for shop in tables['ShopInfo']:
+                shop_id = shop.get('id')
+                shop_name = shop.get('shop_name', f'Shop {shop_id}')
+                if shop_id is not None:
+                    shop_data['shops'][shop_id] = shop_name
+        
+        # Extract ShopItem
+        if 'ShopItem' in tables:
+            for entry in tables['ShopItem']:
+                shop_id = entry.get('shop_id')
+                item_id = entry.get('item_id')
+                if shop_id is not None and item_id is not None:
+                    if item_id not in shop_data['item_shops']:
+                        shop_data['item_shops'][item_id] = []
+                    if shop_id not in shop_data['item_shops'][item_id]:
+                        shop_data['item_shops'][item_id].append(shop_id)
+        
+        return shop_data
+    
+    except Exception as e:
+        print(f"{Fore.YELLOW}Warning: Could not load shop data from {tbl_file}: {e}{Style.RESET_ALL}")
+        return shop_data
+
+
+def load_shop_data(source_type, source_file=None):
+    """
+    Load shop data based on source type.
+    
+    Args:
+        source_type: 'json', 'tbl', 'original', or 'p3a'
+        source_file: Path to the source file (for P3A)
+    
+    Returns:
+        dict: Shop data or None if not available
+    """
+    if source_type == 'json':
+        return load_shop_data_from_json('t_shop.json')
+    
+    elif source_type == 'tbl':
+        shop_data = load_shop_data_from_tbl('t_shop.tbl')
+        if not shop_data['shops'] and os.path.exists('t_shop.tbl.tmp'):
+            # Try temp file from P3A extraction
+            shop_data = load_shop_data_from_tbl('t_shop.tbl.tmp')
+        return shop_data
+    
+    elif source_type == 'original':
+        return load_shop_data_from_tbl('t_shop.tbl.original')
+    
+    elif source_type in ('p3a', 'zzz'):
+        # Shop data will be in t_shop.tbl.tmp after P3A extraction
+        if os.path.exists('t_shop.tbl.tmp'):
+            return load_shop_data_from_tbl('t_shop.tbl.tmp')
+        return {'shops': {}, 'item_shops': {}}
+    
+    return None
+
+
+def load_itemhelp_data_from_json(json_file='t_itemhelp.json'):
+    """
+    Load item help data (category names, etc.) from JSON file.
+    
+    Returns:
+        dict: {'categories': {id: name}, 'subcategories': {...}}
+    """
+    try:
+        if not os.path.exists(json_file):
+            return {'categories': {}, 'subcategories': {}}
+        
+        with open(json_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        categories = {}
+        subcategories = {}
+        
+        # Extract from ItemKindHelpData
+        for section in data.get('data', []):
+            if section.get('name') == 'ItemKindHelpData':
+                for item in section.get('data', []):
+                    cat_id = item.get('category_id')
+                    subcat_id = item.get('subcategory_id')
+                    name = item.get('text2', '')
+                    
+                    # Category mapping (use first found name)
+                    if cat_id is not None and cat_id not in categories:
+                        categories[cat_id] = name
+                    
+                    # Subcategory mapping
+                    if cat_id is not None and subcat_id is not None:
+                        key = (cat_id, subcat_id)
+                        if key not in subcategories:
+                            subcategories[key] = name
+        
+        return {
+            'categories': categories,
+            'subcategories': subcategories
+        }
+    
+    except Exception as e:
+        print(f"{Fore.YELLOW}Warning: Could not load {json_file}: {e}{Style.RESET_ALL}")
+        return {'categories': {}, 'subcategories': {}}
+
+
+def load_itemhelp_data_from_tbl(tbl_file='t_itemhelp.tbl'):
+    """
+    Load item help data from TBL file.
+    
+    Returns:
+        dict: {'categories': {id: name}, 'subcategories': {...}}
+    """
+    if not HAS_LIBS:
+        return {'categories': {}, 'subcategories': {}}
+    
+    try:
+        if not os.path.exists(tbl_file):
+            return {'categories': {}, 'subcategories': {}}
+        
+        kt = kuro_tables()
+        table = kt.read_table(tbl_file)
+        
+        if not isinstance(table, dict):
+            return {'categories': {}, 'subcategories': {}}
+        
+        categories = {}
+        subcategories = {}
+        
+        # Extract from ItemKindHelpData
+        if 'ItemKindHelpData' in table:
+            for item in table['ItemKindHelpData']:
+                cat_id = item.get('category_id')
+                subcat_id = item.get('subcategory_id')
+                name = item.get('text2', '')
+                
+                # Category mapping (use first found name)
+                if cat_id is not None and cat_id not in categories:
+                    categories[cat_id] = name
+                
+                # Subcategory mapping
+                if cat_id is not None and subcat_id is not None:
+                    key = (cat_id, subcat_id)
+                    if key not in subcategories:
+                        subcategories[key] = name
+        
+        return {
+            'categories': categories,
+            'subcategories': subcategories
+        }
+    
+    except Exception as e:
+        print(f"{Fore.YELLOW}Warning: Could not load {tbl_file}: {e}{Style.RESET_ALL}")
+        return {'categories': {}, 'subcategories': {}}
+
+
+def load_itemhelp_data(source_type, source_file=None):
+    """
+    Load item help data based on source type.
+    
+    Args:
+        source_type: 'json', 'tbl', 'original', or 'p3a'/'zzz'
+        source_file: Path to the source file
+    
+    Returns:
+        dict: Item help data or empty dict if not available
+    """
+    if source_type == 'json':
+        return load_itemhelp_data_from_json('t_itemhelp.json')
+    
+    elif source_type == 'tbl':
+        itemhelp_data = load_itemhelp_data_from_tbl('t_itemhelp.tbl')
+        if not itemhelp_data['categories'] and os.path.exists('t_itemhelp.tbl.tmp'):
+            # Try temp file from P3A extraction
+            itemhelp_data = load_itemhelp_data_from_tbl('t_itemhelp.tbl.tmp')
+        return itemhelp_data
+    
+    elif source_type == 'original':
+        return load_itemhelp_data_from_tbl('t_itemhelp.tbl.original')
+    
+    elif source_type in ('p3a', 'zzz'):
+        # Itemhelp data will be in t_itemhelp.tbl.tmp after P3A extraction
+        if os.path.exists('t_itemhelp.tbl.tmp'):
+            return load_itemhelp_data_from_tbl('t_itemhelp.tbl.tmp')
+        return {'categories': {}, 'subcategories': {}}
+    
+    return {'categories': {}, 'subcategories': {}}
 
 
 def load_all_json_data(project_dir='.'):
@@ -390,36 +643,111 @@ def load_all_json_data(project_dir='.'):
 # -------------------------
 
 def detect_sources(base_name='t_item'):
-    """Detect available data sources for items."""
+    """
+    Detect available data sources for items, shops, and itemhelp.
+    
+    Returns:
+        List of tuples: (source_type, item_path, shop_path_or_none, has_shop, itemhelp_path_or_none, has_itemhelp)
+    """
     sources = []
     json_file = f"{base_name}.json"
     tbl_original = f"{base_name}.tbl.original"
     tbl_file = f"{base_name}.tbl"
     
+    # Helper function to check for corresponding shop and itemhelp files
+    def check_companion_files(source_type):
+        # Check shop file
+        has_shop = False
+        shop_path = None
+        if source_type == 'json':
+            has_shop = os.path.exists('t_shop.json')
+            shop_path = 't_shop.json' if has_shop else None
+        elif source_type == 'tbl':
+            has_shop = os.path.exists('t_shop.tbl')
+            shop_path = 't_shop.tbl' if has_shop else None
+        elif source_type == 'original':
+            has_shop = os.path.exists('t_shop.tbl.original')
+            shop_path = 't_shop.tbl.original' if has_shop else None
+        elif source_type in ('p3a', 'zzz'):
+            has_shop = True
+            shop_path = 'p3a_internal'
+        
+        # Check itemhelp file
+        has_itemhelp = False
+        itemhelp_path = None
+        if source_type == 'json':
+            has_itemhelp = os.path.exists('t_itemhelp.json')
+            itemhelp_path = 't_itemhelp.json' if has_itemhelp else None
+        elif source_type == 'tbl':
+            has_itemhelp = os.path.exists('t_itemhelp.tbl')
+            itemhelp_path = 't_itemhelp.tbl' if has_itemhelp else None
+        elif source_type == 'original':
+            has_itemhelp = os.path.exists('t_itemhelp.tbl.original')
+            itemhelp_path = 't_itemhelp.tbl.original' if has_itemhelp else None
+        elif source_type in ('p3a', 'zzz'):
+            has_itemhelp = True
+            itemhelp_path = 'p3a_internal'
+        
+        return has_shop, shop_path, has_itemhelp, itemhelp_path
+    
+    # Check JSON
     if os.path.exists(json_file):
-        sources.append(('json', json_file))
+        has_shop, shop_path, has_itemhelp, itemhelp_path = check_companion_files('json')
+        sources.append(('json', json_file, shop_path, has_shop, itemhelp_path, has_itemhelp))
+    
+    # Check TBL.original
     if os.path.exists(tbl_original):
-        sources.append(('original', tbl_original))
+        has_shop, shop_path, has_itemhelp, itemhelp_path = check_companion_files('original')
+        sources.append(('original', tbl_original, shop_path, has_shop, itemhelp_path, has_itemhelp))
+    
+    # Check TBL
     if os.path.exists(tbl_file):
-        sources.append(('tbl', tbl_file))
+        has_shop, shop_path, has_itemhelp, itemhelp_path = check_companion_files('tbl')
+        sources.append(('tbl', tbl_file, shop_path, has_shop, itemhelp_path, has_itemhelp))
+    
+    # Check P3A files (always have shop and itemhelp data)
     if os.path.exists("script_en.p3a"):
-        sources.append(('p3a', 'script_en.p3a'))
+        sources.append(('p3a', 'script_en.p3a', 'p3a_internal', True, 'p3a_internal', True))
     if os.path.exists("script_eng.p3a"):
-        sources.append(('p3a', 'script_eng.p3a'))
+        sources.append(('p3a', 'script_eng.p3a', 'p3a_internal', True, 'p3a_internal', True))
     if os.path.exists("zzz_combined_tables.p3a"):
-        sources.append(('zzz', 'zzz_combined_tables.p3a'))
+        sources.append(('zzz', 'zzz_combined_tables.p3a', 'p3a_internal', True, 'p3a_internal', True))
     
     return sources
 
 
 def select_source_interactive(sources):
-    """Let user select a source interactively."""
+    """Let user select a source interactively with shop and itemhelp data info."""
     print(f"\n{Fore.CYAN}Multiple data sources detected. Select source to use:{Style.RESET_ALL}")
-    for i, (stype, path) in enumerate(sources, 1):
+    
+    for i, (stype, path, shop_path, has_shop, itemhelp_path, has_itemhelp) in enumerate(sources, 1):
+        # Build display string
         if stype in ('p3a', 'zzz'):
-            print(f"  {Fore.YELLOW}{i}{Style.RESET_ALL}) {path} (extract t_item.tbl)")
+            display = f"{path} (extract t_item.tbl, t_shop.tbl, t_itemhelp.tbl)"
+            info = f"{Fore.GREEN}[item + shop + category data in report]{Style.RESET_ALL}"
         else:
-            print(f"  {Fore.YELLOW}{i}{Style.RESET_ALL}) {path}")
+            display_parts = [path]
+            if has_shop and shop_path:
+                display_parts.append(shop_path)
+            if has_itemhelp and itemhelp_path:
+                display_parts.append(itemhelp_path)
+            display = ", ".join(display_parts)
+            
+            # Build info string
+            data_types = ['item']
+            if has_shop:
+                data_types.append('shop')
+            if has_itemhelp:
+                data_types.append('category')
+            
+            if len(data_types) == 3:
+                info = f"{Fore.GREEN}[item + shop + category data in report]{Style.RESET_ALL}"
+            elif len(data_types) == 2:
+                info = f"{Fore.CYAN}[{' + '.join(data_types)} data in report]{Style.RESET_ALL}"
+            else:
+                info = f"{Fore.YELLOW}[only item data in report]{Style.RESET_ALL}"
+        
+        print(f"  {Fore.YELLOW}{i}{Style.RESET_ALL}) {display} {info}")
     
     while True:
         try:
@@ -467,6 +795,62 @@ def extract_from_p3a(p3a_file, table_name='t_item.tbl', out_file='t_item.tbl.tmp
     except Exception as e:
         print(f"{Fore.RED}Error extracting from P3A: {e}{Style.RESET_ALL}")
         return False
+
+
+def extract_multiple_from_p3a(p3a_file, tables_to_extract):
+    """
+    Extract multiple TBL files from a P3A archive.
+    
+    Args:
+        p3a_file: Path to P3A archive
+        tables_to_extract: List of tuples (table_name, out_file)
+                          e.g., [('t_item.tbl', 't_item.tbl.tmp'), ('t_shop.tbl', 't_shop.tbl.tmp')]
+    
+    Returns:
+        dict: {table_name: success_boolean}
+    """
+    if not HAS_LIBS:
+        print(f"{Fore.RED}Error: Required library missing: {MISSING_LIB}{Style.RESET_ALL}")
+        print("P3A extraction requires p3a_lib module.")
+        return {table_name: False for table_name, _ in tables_to_extract}
+    
+    results = {}
+    
+    try:
+        if not os.path.exists(p3a_file):
+            print(f"{Fore.RED}Error: P3A file not found: {p3a_file}{Style.RESET_ALL}")
+            return {table_name: False for table_name, _ in tables_to_extract}
+        
+        p3a = p3a_class()
+        
+        with open(p3a_file, 'rb') as p3a.f:
+            headers, entries, p3a_dict = p3a.read_p3a_toc()
+            
+            # Build lookup dict for entries
+            entry_dict = {os.path.basename(entry['name']): entry for entry in entries}
+            
+            # Extract each requested table
+            for table_name, out_file in tables_to_extract:
+                if table_name in entry_dict:
+                    try:
+                        print(f"{Fore.CYAN}Extracting {table_name} from {p3a_file}...{Style.RESET_ALL}")
+                        data = p3a.read_file(entry_dict[table_name], p3a_dict)
+                        with open(out_file, 'wb') as f:
+                            f.write(data)
+                        print(f"{Fore.GREEN}  ✓ Extracted to {out_file}{Style.RESET_ALL}")
+                        results[table_name] = True
+                    except Exception as e:
+                        print(f"{Fore.RED}  ✗ Failed to extract {table_name}: {e}{Style.RESET_ALL}")
+                        results[table_name] = False
+                else:
+                    print(f"{Fore.YELLOW}  ⚠ {table_name} not found in archive{Style.RESET_ALL}")
+                    results[table_name] = False
+        
+        return results
+    
+    except Exception as e:
+        print(f"{Fore.RED}Error extracting from P3A: {e}{Style.RESET_ALL}")
+        return {table_name: False for table_name, _ in tables_to_extract}
 
 
 def load_items_from_json(json_file='t_item.json'):
@@ -553,11 +937,13 @@ def load_items_from_tbl(tbl_file):
 def load_items(force_source=None, no_interactive=False, keep_extracted=False):
     """
     Load item data from any supported source format.
+    Also detects and loads corresponding shop and itemhelp data if available.
     
     Returns:
         Tuple of (items_list, source_info) or (None, None) on error
+        source_info contains: {'type', 'path', 'has_shop', 'shop_path', 'has_itemhelp', 'itemhelp_path'}
     """
-    # Detect available sources
+    # Detect available sources (now includes shop and itemhelp info)
     sources = detect_sources('t_item')
     
     if not sources:
@@ -572,38 +958,99 @@ def load_items(force_source=None, no_interactive=False, keep_extracted=False):
     
     # Filter by forced source if specified
     if force_source:
-        sources = [(t, p) for t, p in sources if t == force_source]
+        sources = [(t, p, sp, hs, ip, hi) for t, p, sp, hs, ip, hi in sources if t == force_source]
         if not sources:
             print(f"{Fore.RED}Error: No sources found matching type '{force_source}'{Style.RESET_ALL}")
             return None, None
     
     # Select source
     if len(sources) == 1 or no_interactive:
-        stype, path = sources[0]
-        print(f"{Fore.CYAN}Using source: {path}{Style.RESET_ALL}")
+        stype, path, shop_path, has_shop, itemhelp_path, has_itemhelp = sources[0]
+        # Build display message
+        display_parts = [path]
+        if has_shop and shop_path and shop_path != 'p3a_internal':
+            display_parts.append(shop_path)
+        if has_itemhelp and itemhelp_path and itemhelp_path != 'p3a_internal':
+            display_parts.append(itemhelp_path)
+        print(f"{Fore.CYAN}Using source: {', '.join(display_parts)}{Style.RESET_ALL}")
     else:
-        stype, path = select_source_interactive(sources)
+        stype, path, shop_path, has_shop, itemhelp_path, has_itemhelp = select_source_interactive(sources)
     
     # Load data based on source type
-    temp_file = None
+    temp_files = []
     extracted_temp = False
     
     try:
         if stype == 'json':
             items = load_items_from_json(path)
-            source_info = {'type': 'json', 'path': path}
+            # Build display path including shop and itemhelp files if available
+            display_parts = [path]
+            if has_shop and shop_path:
+                display_parts.append(shop_path)
+            if has_itemhelp and itemhelp_path:
+                display_parts.append(itemhelp_path)
+            display_path = ", ".join(display_parts)
+            
+            source_info = {
+                'type': 'json',
+                'path': display_path,
+                'has_shop': has_shop,
+                'shop_path': shop_path,
+                'has_itemhelp': has_itemhelp,
+                'itemhelp_path': itemhelp_path
+            }
         
         elif stype in ('tbl', 'original'):
             items = load_items_from_tbl(path)
-            source_info = {'type': stype, 'path': path}
+            # Build display path including shop and itemhelp files if available
+            display_parts = [path]
+            if has_shop and shop_path:
+                display_parts.append(shop_path)
+            if has_itemhelp and itemhelp_path:
+                display_parts.append(itemhelp_path)
+            display_path = ", ".join(display_parts)
+            
+            source_info = {
+                'type': stype,
+                'path': display_path,
+                'has_shop': has_shop,
+                'shop_path': shop_path,
+                'has_itemhelp': has_itemhelp,
+                'itemhelp_path': itemhelp_path
+            }
         
         elif stype in ('p3a', 'zzz'):
-            # Extract TBL from P3A
-            temp_file = 't_item.tbl.tmp'
-            if extract_from_p3a(path, 't_item.tbl', temp_file):
+            # Extract t_item.tbl, t_shop.tbl, and t_itemhelp.tbl from P3A
+            tables_to_extract = [
+                ('t_item.tbl', 't_item.tbl.tmp'),
+                ('t_shop.tbl', 't_shop.tbl.tmp'),
+                ('t_itemhelp.tbl', 't_itemhelp.tbl.tmp')
+            ]
+            
+            results = extract_multiple_from_p3a(path, tables_to_extract)
+            
+            if results.get('t_item.tbl', False):
                 extracted_temp = True
-                items = load_items_from_tbl(temp_file)
-                source_info = {'type': stype, 'path': f"{path} -> {temp_file}"}
+                temp_files = ['t_item.tbl.tmp', 't_shop.tbl.tmp', 't_itemhelp.tbl.tmp']
+                items = load_items_from_tbl('t_item.tbl.tmp')
+                
+                # Build source info path
+                extracted_files = []
+                if results.get('t_item.tbl'):
+                    extracted_files.append('t_item.tbl.tmp')
+                if results.get('t_shop.tbl'):
+                    extracted_files.append('t_shop.tbl.tmp')
+                if results.get('t_itemhelp.tbl'):
+                    extracted_files.append('t_itemhelp.tbl.tmp')
+                
+                source_info = {
+                    'type': stype,
+                    'path': f"{path} -> {', '.join(extracted_files)}",
+                    'has_shop': results.get('t_shop.tbl', False),
+                    'shop_path': 't_shop.tbl.tmp' if results.get('t_shop.tbl') else None,
+                    'has_itemhelp': results.get('t_itemhelp.tbl', False),
+                    'itemhelp_path': 't_itemhelp.tbl.tmp' if results.get('t_itemhelp.tbl') else None
+                }
             else:
                 print(f"{Fore.RED}Failed to extract t_item.tbl from {path}{Style.RESET_ALL}")
                 return None, None
@@ -613,22 +1060,34 @@ def load_items(force_source=None, no_interactive=False, keep_extracted=False):
             return None, None
         
         # Cleanup temporary files
-        if extracted_temp and temp_file and not keep_extracted:
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
-                print(f"{Fore.CYAN}Cleaned up temporary file: {temp_file}{Style.RESET_ALL}")
+        # If we have shop or itemhelp data to load, defer cleanup until after data is loaded
+        if extracted_temp and not keep_extracted:
+            if has_shop or has_itemhelp:
+                # Defer cleanup - will be done in main() after loading all data
+                source_info['temp_files'] = temp_files
+                print(f"{Fore.CYAN}Temporary files will be cleaned up after loading companion data{Style.RESET_ALL}")
+            else:
+                # No companion data - cleanup now
+                for temp_file in temp_files:
+                    if os.path.exists(temp_file):
+                        os.remove(temp_file)
+                        print(f"{Fore.CYAN}Cleaned up temporary file: {temp_file}{Style.RESET_ALL}")
         
         return items, source_info
     
     except Exception as e:
         print(f"{Fore.RED}Error during data loading: {e}{Style.RESET_ALL}")
+        import traceback
+        traceback.print_exc()
         
         # Cleanup on error
-        if extracted_temp and temp_file and os.path.exists(temp_file):
-            try:
-                os.remove(temp_file)
-            except:
-                pass
+        if extracted_temp:
+            for temp_file in temp_files:
+                if os.path.exists(temp_file):
+                    try:
+                        os.remove(temp_file)
+                    except:
+                        pass
         
         return None, None
 
@@ -1067,6 +1526,104 @@ def generate_html_report(analysis, output_file='id_allocation_map.html', source_
             gap: 15px;
             align-items: center;
             max-width: 800px;
+            position: relative;
+        }}
+        
+        .search-help-icon {{
+            cursor: pointer;
+            font-size: 1.2em;
+            color: #667eea;
+            padding: 8px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #667eea;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            transition: all 0.3s;
+            user-select: none;
+        }}
+        
+        .search-help-icon:hover {{
+            background: #667eea;
+            color: white;
+            transform: scale(1.1);
+        }}
+        
+        .search-help-popup {{
+            display: none;
+            position: absolute;
+            top: 60px;
+            left: 0;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 12px;
+            padding: 0;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            z-index: 1001;
+            min-width: 450px;
+            max-width: 600px;
+        }}
+        
+        .search-help-popup.visible {{
+            display: block;
+            animation: fadeIn 0.3s ease-in-out;
+        }}
+        
+        @keyframes fadeIn {{
+            from {{
+                opacity: 0;
+                transform: translateY(-10px);
+            }}
+            to {{
+                opacity: 1;
+                transform: translateY(0);
+            }}
+        }}
+        
+        .search-help-header {{
+            background: #667eea;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px 10px 0 0;
+            font-weight: bold;
+            font-size: 1.1em;
+        }}
+        
+        .search-help-content {{
+            padding: 20px;
+        }}
+        
+        .search-help-section {{
+            margin-bottom: 20px;
+        }}
+        
+        .search-help-section:last-child {{
+            margin-bottom: 0;
+        }}
+        
+        .search-help-section strong {{
+            color: #667eea;
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }}
+        
+        .search-help-examples {{
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.8;
+            color: #555;
+        }}
+        
+        .search-help-examples code {{
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #e91e63;
+            font-weight: bold;
         }}
         
         .search-input {{
@@ -1257,9 +1814,42 @@ def generate_html_report(analysis, output_file='id_allocation_map.html', source_
         
         <div class="search-container">
             <div class="search-box">
-                <input type="text" id="search-input" class="search-input" placeholder="Search by ID, name, description, category...">
+                <input type="text" id="search-input" class="search-input" placeholder="Search: Try 'n:sword' or 's:shop' or just '100'">
                 <button onclick="performSearch()" class="search-btn">🔍 Search</button>
                 <button onclick="clearSearch()" class="clear-btn">✕ Clear</button>
+                <span class="search-help-icon" id="search-help">❓</span>
+            </div>
+            <div id="search-help-popup" class="search-help-popup">
+                <div class="search-help-header">🔍 Search Guide</div>
+                <div class="search-help-content">
+                    <div class="search-help-section">
+                        <strong>Prefix Search:</strong>
+                        <div class="search-help-examples">
+                            <code>id:100</code> - Search by exact ID<br>
+                            <code>n:sword</code> or <code>name:sword</code> - Search in item names<br>
+                            <code>d:heal</code> or <code>desc:heal</code> - Search in descriptions<br>
+                            <code>c:sepith</code> or <code>cat:sepith</code> - Search in categories<br>
+                            <code>s:shop</code> or <code>shop:shop</code> - Search in shop names<br>
+                            <code>char:agnès</code> - Search by character/costume
+                        </div>
+                    </div>
+                    <div class="search-help-section">
+                        <strong>Auto-detect:</strong>
+                        <div class="search-help-examples">
+                            <code>100</code> - Numbers → ID search (auto)<br>
+                            <code>sword</code> - Text → search everywhere
+                        </div>
+                    </div>
+                    <div class="search-help-section">
+                        <strong>Examples:</strong>
+                        <div class="search-help-examples">
+                            <code>310</code> → Finds ID 310 (Earth Sepith)<br>
+                            <code>n:100</code> → Finds items with "100" in name<br>
+                            <code>d:healing</code> → Finds items that heal<br>
+                            <code>s:item shop</code> → Finds items sold in Item Shop
+                        </div>
+                    </div>
+                </div>
             </div>
             <div id="search-results" class="search-results"></div>
         </div>
@@ -1325,6 +1915,18 @@ def generate_html_report(analysis, output_file='id_allocation_map.html', source_
                         char_name = enhanced_data.get('character_names', {}).get(char_id, f'Character {char_id}')
                         data_attrs += f' data-costume="{costume_name}"'
                         data_attrs += f' data-character="{escape_attr(char_name)}"'
+                    
+                    # Check for shop info
+                    shop_data = enhanced_data.get('shop_data')
+                    if shop_data:
+                        shop_ids = shop_data.get('item_shops', {}).get(id_val, [])
+                        if shop_ids:
+                            # Get shop names
+                            shop_names = []
+                            for shop_id in shop_ids:
+                                shop_name = shop_data.get('shops', {}).get(shop_id, f'Shop {shop_id}')
+                                shop_names.append(f"{shop_name} (ID:{shop_id})")
+                            data_attrs += f' data-shops="{escape_attr(" | ".join(shop_names))}"'
             
             html_content += f'                <div class="id-cell {cell_class}" {data_attrs}></div>\n'
         
@@ -1364,6 +1966,30 @@ def generate_html_report(analysis, output_file='id_allocation_map.html', source_
     <div class="tooltip" id="tooltip"></div>
     
     <script>
+        // ===================================================================
+        // TOOLTIP POSITIONING CONFIGURATION
+        // Adjust these values to control tooltip positioning behavior
+        // ===================================================================
+        
+        // Distance from cursor to tooltip (in pixels)
+        const TOOLTIP_OFFSET = 15;
+        
+        // How far from viewport edge to start switching tooltip side (in pixels)
+        // Increase this value to switch sides more aggressively (earlier)
+        // Example: 200 means switch when within 200px of right edge
+        const TOOLTIP_EDGE_MARGIN = 150;
+        
+        // Minimum margin from viewport edges (in pixels)
+        const TOOLTIP_MIN_MARGIN = 10;
+        
+        // Additional safety margin for width calculation
+        // Increase if tooltips still overflow on right edge
+        const TOOLTIP_SAFETY_MARGIN = 50;
+        
+        // ===================================================================
+        // END CONFIGURATION
+        // ===================================================================
+        
         // Enhanced tooltip handling
         const tooltip = document.getElementById('tooltip');
         const cells = document.querySelectorAll('.id-cell');
@@ -1380,27 +2006,43 @@ def generate_html_report(analysis, output_file='id_allocation_map.html', source_
             const viewportHeight = window.innerHeight;
             
             // Calculate initial position (right and below cursor)
-            let left = e.pageX + 15;
-            let top = e.pageY + 15;
+            let left = e.pageX + TOOLTIP_OFFSET;
+            let top = e.pageY + TOOLTIP_OFFSET;
             
-            // Check right edge - if tooltip would overflow, show it to the left of cursor
-            if (e.clientX + tooltipWidth + 15 > viewportWidth) {
-                left = e.pageX - tooltipWidth - 15;
+            // AGGRESSIVE RIGHT EDGE DETECTION
+            // Switch to left side if we're close to the right edge
+            const spaceOnRight = viewportWidth - e.clientX;
+            const neededSpaceRight = tooltipWidth + TOOLTIP_OFFSET + TOOLTIP_SAFETY_MARGIN;
+            
+            if (spaceOnRight < neededSpaceRight || 
+                (viewportWidth - e.clientX) < TOOLTIP_EDGE_MARGIN) {
+                // Not enough space on right, or too close to edge - show on left
+                left = e.pageX - tooltipWidth - TOOLTIP_OFFSET;
             }
             
-            // Check bottom edge - if tooltip would overflow, show it above cursor
-            if (e.clientY + tooltipHeight + 15 > viewportHeight) {
-                top = e.pageY - tooltipHeight - 15;
+            // AGGRESSIVE BOTTOM EDGE DETECTION
+            // Switch to above cursor if we're close to the bottom edge
+            const spaceBelow = viewportHeight - e.clientY;
+            const neededSpaceBelow = tooltipHeight + TOOLTIP_OFFSET + TOOLTIP_SAFETY_MARGIN;
+            
+            if (spaceBelow < neededSpaceBelow ||
+                (viewportHeight - e.clientY) < TOOLTIP_EDGE_MARGIN) {
+                // Not enough space below, or too close to edge - show above
+                top = e.pageY - tooltipHeight - TOOLTIP_OFFSET;
             }
             
-            // Make sure tooltip doesn't go off the left edge
-            if (left < 0) {
-                left = 10;
+            // Ensure minimum margins from all edges
+            if (left < TOOLTIP_MIN_MARGIN) {
+                left = TOOLTIP_MIN_MARGIN;
+            }
+            if (top < TOOLTIP_MIN_MARGIN) {
+                top = TOOLTIP_MIN_MARGIN;
             }
             
-            // Make sure tooltip doesn't go off the top edge
-            if (top < 0) {
-                top = 10;
+            // Prevent overflow on right (emergency fallback)
+            const maxLeft = viewportWidth - tooltipWidth - TOOLTIP_MIN_MARGIN;
+            if (left > maxLeft) {
+                left = maxLeft;
             }
             
             tooltip.style.left = left + 'px';
@@ -1421,6 +2063,7 @@ def generate_html_report(analysis, output_file='id_allocation_map.html', source_
                 const stats = cell.getAttribute('data-stats');
                 const costume = cell.getAttribute('data-costume');
                 const character = cell.getAttribute('data-character');
+                const shops = cell.getAttribute('data-shops');
                 
                 // Build tooltip content
                 let content = '<div class="tooltip-header">ID ' + id;
@@ -1487,6 +2130,16 @@ def generate_html_report(analysis, output_file='id_allocation_map.html', source_
                     content += '</div>';
                 }
                 
+                if (shops) {
+                    content += '<div class="tooltip-section">';
+                    content += '<div class="tooltip-label">💰 Sold In</div>';
+                    const shopList = shops.split(' | ');
+                    shopList.forEach(shop => {
+                        content += '<div class="tooltip-value" style="font-size: 0.85em; margin: 2px 0;">• ' + shop + '</div>';
+                    });
+                    content += '</div>';
+                }
+                
                 if (status === 'Available') {
                     content += '<div class="tooltip-section" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2);">';
                     content += '<div style="color: #4caf50; font-weight: bold;">✓ This ID is available for use</div>';
@@ -1511,16 +2164,53 @@ def generate_html_report(analysis, output_file='id_allocation_map.html', source_
         });
         
         // Search functionality
+        // Search functionality with intelligent prefix support
         function performSearch() {
-            const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
+            const searchInput = document.getElementById('search-input').value.trim();
             const cells = document.querySelectorAll('.id-cell');
             const resultsDiv = document.getElementById('search-results');
             
             // Clear previous highlights
             clearSearch();
             
-            if (!searchTerm) {
+            if (!searchInput) {
                 resultsDiv.textContent = 'Please enter a search term.';
+                resultsDiv.classList.add('visible');
+                return;
+            }
+            
+            // Parse search input for prefixes
+            let searchTerm = searchInput.toLowerCase();
+            let searchMode = 'all';  // all, id, name, desc, category, shop, character
+            
+            // Check for prefixes
+            if (searchTerm.startsWith('id:')) {
+                searchMode = 'id';
+                searchTerm = searchTerm.substring(3).trim();
+            } else if (searchTerm.startsWith('n:') || searchTerm.startsWith('name:')) {
+                searchMode = 'name';
+                searchTerm = searchTerm.startsWith('n:') ? searchTerm.substring(2).trim() : searchTerm.substring(5).trim();
+            } else if (searchTerm.startsWith('d:') || searchTerm.startsWith('desc:')) {
+                searchMode = 'desc';
+                searchTerm = searchTerm.startsWith('d:') ? searchTerm.substring(2).trim() : searchTerm.substring(5).trim();
+            } else if (searchTerm.startsWith('c:') || searchTerm.startsWith('cat:')) {
+                searchMode = 'category';
+                searchTerm = searchTerm.startsWith('c:') ? searchTerm.substring(2).trim() : searchTerm.substring(4).trim();
+            } else if (searchTerm.startsWith('s:') || searchTerm.startsWith('shop:')) {
+                searchMode = 'shop';
+                searchTerm = searchTerm.startsWith('s:') ? searchTerm.substring(2).trim() : searchTerm.substring(5).trim();
+            } else if (searchTerm.startsWith('char:')) {
+                searchMode = 'character';
+                searchTerm = searchTerm.substring(5).trim();
+            } else {
+                // Auto-detect: if it's only digits, search by ID
+                if (/^\\d+$/.test(searchTerm)) {
+                    searchMode = 'id';
+                }
+            }
+            
+            if (!searchTerm) {
+                resultsDiv.innerHTML = '<span style="color: #ff9800;">Please enter a value after the prefix.</span>';
                 resultsDiv.classList.add('visible');
                 return;
             }
@@ -1534,15 +2224,35 @@ def generate_html_report(analysis, output_file='id_allocation_map.html', source_
                 const categoryName = (cell.getAttribute('data-category-name') || '').toLowerCase();
                 const character = (cell.getAttribute('data-character') || '').toLowerCase();
                 const costume = (cell.getAttribute('data-costume') || '').toLowerCase();
+                const shops = (cell.getAttribute('data-shops') || '').toLowerCase();
                 
-                // Check if search term matches any attribute
-                if (id.includes(searchTerm) || 
-                    name.includes(searchTerm) || 
-                    description.includes(searchTerm) || 
-                    categoryName.includes(searchTerm) ||
-                    character.includes(searchTerm) ||
-                    costume.includes(searchTerm)) {
-                    
+                let isMatch = false;
+                
+                // Check based on search mode
+                if (searchMode === 'id') {
+                    isMatch = id === searchTerm || id.includes(searchTerm);
+                } else if (searchMode === 'name') {
+                    isMatch = name.includes(searchTerm);
+                } else if (searchMode === 'desc') {
+                    isMatch = description.includes(searchTerm);
+                } else if (searchMode === 'category') {
+                    isMatch = categoryName.includes(searchTerm);
+                } else if (searchMode === 'shop') {
+                    isMatch = shops.includes(searchTerm);
+                } else if (searchMode === 'character') {
+                    isMatch = character.includes(searchTerm) || costume.includes(searchTerm);
+                } else {
+                    // 'all' mode - search everywhere
+                    isMatch = id.includes(searchTerm) || 
+                              name.includes(searchTerm) || 
+                              description.includes(searchTerm) || 
+                              categoryName.includes(searchTerm) ||
+                              character.includes(searchTerm) ||
+                              costume.includes(searchTerm) ||
+                              shops.includes(searchTerm);
+                }
+                
+                if (isMatch) {
                     cell.classList.add('highlighted');
                     matches.push({
                         id: id,
@@ -1554,9 +2264,14 @@ def generate_html_report(analysis, output_file='id_allocation_map.html', source_
             
             // Display results
             if (matches.length === 0) {
-                resultsDiv.innerHTML = '<span style="color: #999;">No matches found for "' + searchTerm + '"</span>';
+                let modeText = searchMode === 'all' ? 'anywhere' : 'in ' + searchMode;
+                resultsDiv.innerHTML = '<span style="color: #999;">No matches found for "' + searchTerm + '" ' + modeText + '</span>';
             } else {
-                let html = '<strong style="color: #667eea;">Found ' + matches.length + ' match(es):</strong> ';
+                let html = '<strong style="color: #667eea;">Found ' + matches.length + ' match(es)</strong>';
+                if (searchMode !== 'all') {
+                    html += ' <span style="color: #999;">(searching in: ' + searchMode + ')</span>';
+                }
+                html += ': ';
                 
                 if (matches.length <= 10) {
                     // Show all matches if 10 or fewer
@@ -1600,6 +2315,27 @@ def generate_html_report(analysis, output_file='id_allocation_map.html', source_
             if (e.key === 'Enter') {
                 performSearch();
             }
+        });
+        
+        // Help popup toggle
+        const helpIcon = document.getElementById('search-help');
+        const helpPopup = document.getElementById('search-help-popup');
+        
+        helpIcon.addEventListener('click', function(e) {
+            e.stopPropagation();
+            helpPopup.classList.toggle('visible');
+        });
+        
+        // Close help popup when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!helpPopup.contains(e.target) && e.target !== helpIcon) {
+                helpPopup.classList.remove('visible');
+            }
+        });
+        
+        // Prevent closing when clicking inside popup
+        helpPopup.addEventListener('click', function(e) {
+            e.stopPropagation();
         });
     </script>
 </body>
@@ -1700,23 +2436,54 @@ def main():
     
     print(f"\n{Fore.GREEN}Loaded {len(items)} items{Style.RESET_ALL}\n")
     
+    # Load item help data (category names, etc.) if available
+    itemhelp_data = None
+    if source_info.get('has_itemhelp'):
+        print(f"{Fore.CYAN}Loading item metadata (categories)...{Style.RESET_ALL}")
+        itemhelp_data = load_itemhelp_data(source_info['type'], source_info.get('itemhelp_path'))
+        if itemhelp_data and itemhelp_data.get('categories'):
+            categories_loaded = len(itemhelp_data['categories'])
+            print(f"  {Fore.GREEN}✓{Style.RESET_ALL} Category names: {categories_loaded} categories from t_itemhelp")
+    
     # Extract enhanced data from loaded items (works with any source: JSON, TBL, P3A)
     print(f"{Fore.CYAN}Extracting enhanced data from items...{Style.RESET_ALL}")
-    enhanced_data = extract_enhanced_data_from_items(items)
+    enhanced_data = extract_enhanced_data_from_items(items, itemhelp_data)
     
     # Load costume data from available sources
     costume_data = load_costume_data('.')
     enhanced_data['costumes'] = costume_data
+    
+    # Load shop data if available
+    shop_data = None
+    if source_info.get('has_shop'):
+        print(f"{Fore.CYAN}Loading shop data...{Style.RESET_ALL}")
+        shop_data = load_shop_data(source_info['type'], source_info.get('shop_path'))
+        if shop_data and shop_data.get('shops'):
+            enhanced_data['shop_data'] = shop_data
+    
+    # Cleanup temporary files if they were deferred
+    if 'temp_files' in source_info:
+        for temp_file in source_info['temp_files']:
+            if os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                    print(f"{Fore.CYAN}Cleaned up temporary file: {temp_file}{Style.RESET_ALL}")
+                except Exception as e:
+                    print(f"{Fore.YELLOW}Warning: Could not remove {temp_file}: {e}{Style.RESET_ALL}")
     
     # Report what was loaded
     if enhanced_data:
         items_count = len(enhanced_data.get('items', {}))
         costumes_count = len(enhanced_data.get('costumes', {}))
         categories_count = len(enhanced_data.get('categories', {}))
+        shops_count = len(enhanced_data.get('shop_data', {}).get('shops', {}))
+        items_in_shops_count = len(enhanced_data.get('shop_data', {}).get('item_shops', {}))
         
         print(f"  {Fore.GREEN}✓{Style.RESET_ALL} Item details: {items_count} items")
         if costumes_count > 0:
             print(f"  {Fore.GREEN}✓{Style.RESET_ALL} Costume info: {costumes_count} costumes")
+        if shops_count > 0:
+            print(f"  {Fore.GREEN}✓{Style.RESET_ALL} Shop data: {shops_count} shops ({items_in_shops_count} items sold)")
         print(f"  {Fore.GREEN}✓{Style.RESET_ALL} Categories: {categories_count} categories")
         print()
     
