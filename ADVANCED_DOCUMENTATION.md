@@ -67,19 +67,22 @@ OPTIONS:
                       Auto-select newest mapping file when using --import
   
 SOURCES (automatically detected):
+
+Game Database Sources (for conflict detection):
   JSON sources:
-    - .kurodlc.json files in current directory
-    - t_item.json (game item database)
-    - t_costume.json (game costume database)
+    - t_item.json
     
   TBL sources (requires kurodlc_lib.py):
     - t_item.tbl
     - t_item.tbl.original
     
-  P3A sources (requires kurodlc_lib.py + optional dependencies):
+  P3A sources (requires kurodlc_lib.py + dependencies):
     - script_en.p3a / script_eng.p3a
     - zzz_combined_tables.p3a
     (automatically extracts t_item.tbl.original.tmp)
+
+DLC Files to Check:
+  - All .kurodlc.json files in current directory
 
 ALGORITHM (v2.7):
   Smart ID assignment in range 1-5000:
