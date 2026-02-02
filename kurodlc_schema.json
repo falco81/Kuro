@@ -505,33 +505,53 @@
         }
     },
     {
-        "info_comment": "AutoGen",
+        "info_comment": "Kuro 2",
         "table_header": "NameTableData",
         "schema_length": 104,
         "schema": {
-            "schema": "<IQQQQIQIQIQQQIIII",
+            "schema": "<13Q",
+            "sch_len": 104,
+            "keys": [
+                "char_id",
+                "name",
+                "model",
+                "face",
+                "texture",
+                "unk0",
+                "unk_txt0",
+                "unk1",
+                "unk_txt1",
+                "unk2",
+                "unk_txt2",
+                "unk_txt3",
+                "unk_txt4"
+            ],
+            "values": "nttttntntnttt"
+        }
+    },
+    {
+        "info_comment": "Kai",
+        "table_header": "NameTableData",
+        "schema_length": 104,
+        "schema": {
+            "schema": "<13Q",
             "sch_len": 104,
             "keys": [
                 "character_id",
                 "name",
                 "model",
                 "face",
-                "script",
-                "long1",
-                "text1",
-                "long2",
-                "text2",
-                "long3",
-                "text3",
-                "full_name",
-                "full_name_en",
-                "reserved0",
-                "reserved1",
-                "reserved2",
-                "reserved3"
+                "texture",
+                "unk0",
+                "unk_txt0",
+                "unk1",
+                "unk_txt1",
+                "unk2",
+                "unk_txt2",
+                "unk_txt3",
+                "unk_txt4"
             ],
-            "values": "nttttntntntttnnnn",
-            "primary_key": "character_id"
+            "values": "nttttntntnttt"
         }
     },
     {
@@ -788,25 +808,25 @@
         "table_header": "CharaArrange",
         "schema_length": 64,
         "schema": {
-            "schema": "<2I2Q4fQ4f",
-            "sch_len": 64,
-            "keys": [
-                "int0",
-                "int1",
-                "text0",
-                "text1",
-                "float0",
-                "float1",
-                "float2",
-                "float3",
-                "text2",
-                "float4",
-                "float5",
-                "float6",
-                "float7"
-            ],
-            "values": "nnttnnnntnnnn"
-        }
+			"schema": "<2I2Q4fQ4f",
+			"sch_len": 64,
+			"keys": [
+				"int0",
+				"int1",
+				"text0",
+				"text1",
+				"float0",
+				"float1",
+				"float2",
+				"float3",
+				"text2",
+				"float4",
+				"float5",
+				"float6",
+				"float7"
+			],
+			"values": "nnttnnnntnnnn"
+		}
     },
     {
         "info_comment": "Ys X",
@@ -911,10 +931,10 @@
             ],
             "values": "nnntnnnntnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnntttt",
             "primary_key": [
-                "id",
-                "character_restriction",
-                "category"
-            ]
+				"id",
+				"character_restriction",
+				"category"
+			]
         }
     },
     {
@@ -1012,251 +1032,7 @@
                 "subtitle"
             ],
             "values": "nntnnnnt",
-            "primary_key": "id"
-        }
-    },
-    {
-        "info_comment": "AutoGen",
-        "table_header": "ConditionHelpData",
-        "schema_length": 40,
-        "schema": {
-            "schema": "<IQQQQI",
-            "sch_len": 40,
-            "keys": [
-                "id",
-                "text1",
-                "text2",
-                "text3",
-                "text4",
-                "reserved0"
-            ],
-            "values": "nttttn",
-            "primary_key": "id"
-        }
-    },
-    {
-        "info_comment": "AutoGen",
-        "table_header": "SkillEffectTypeHelpData",
-        "schema_length": 24,
-        "schema": {
-            "schema": "<IQQI",
-            "sch_len": 24,
-            "keys": [
-                "id",
-                "skill_type_name",
-                "text",
-                "reserved0"
-            ],
-            "values": "nttn",
-            "primary_key": "id"
-        }
-    },
-    {
-        "info_comment": "AutoGen",
-        "table_header": "SkillEffectHelpData",
-        "schema_length": 88,
-        "schema": {
-            "schema": "<IQQIIQQQQIIQQI",
-            "sch_len": 88,
-            "keys": [
-                "effect_id",
-                "text1",
-                "array",
-                "int1",
-                "text2",
-                "text3",
-                "text4",
-                "text5",
-                "int2",
-                "int3",
-                "text6",
-                "text7",
-                "reserved0"
-            ],
-            "values": "ntanttttnnttn",
-            "primary_key": "effect_id"
-        }
-    },
-    {
-        "info_comment": "AutoGen",
-        "table_header": "AttrTypeHelpData",
-        "schema_length": 24,
-        "schema": {
-            "schema": "<IQIII",
-            "sch_len": 24,
-            "keys": [
-                "id",
-                "element_name",
-                "long",
-                "reserved0",
-                "reserved1"
-            ],
-            "values": "ntnnn",
-            "primary_key": "id"
-        }
-    },
-    {
-        "info_comment": "AutoGen",
-        "table_header": "SkillTypeHelpData",
-        "schema_length": 24,
-        "schema": {
-            "schema": "<IQQI",
-            "sch_len": 24,
-            "keys": [
-                "id",
-                "text1",
-                "text2",
-                "reserved0"
-            ],
-            "values": "nttn",
-            "primary_key": "id"
-        }
-    },
-    {
-        "info_comment": "AutoGen",
-        "table_header": "SkillRangeHelpData",
-        "schema_length": 40,
-        "schema": {
-            "schema": "<IQIQQII",
-            "sch_len": 40,
-            "keys": [
-                "id",
-                "text1",
-                "icon",
-                "text2",
-                "text3",
-                "reserved0",
-                "reserved1"
-            ],
-            "values": "ntnttnn",
-            "primary_key": "id"
-        }
-    },
-    {
-        "info_comment": "AutoGen",
-        "table_header": "ItemKindHelpData",
-        "schema_length": 32,
-        "schema": {
-            "schema": "<IIHHQIQ",
-            "sch_len": 32,
-            "keys": [
-                "category_id",
-                "subcategory_id",
-                "short1",
-                "short2",
-                "text1",
-                "long",
-                "text2"
-            ],
-            "values": "nnnntnt"
-        }
-    },
-    {
-        "info_comment": "AutoGen",
-        "table_header": "SkillItemStatusData",
-        "schema_length": 48,
-        "schema": {
-            "schema": "<IQQQIQII",
-            "sch_len": 48,
-            "keys": [
-                "id",
-                "text1",
-                "text2",
-                "text3",
-                "long",
-                "text4",
-                "reserved0",
-                "reserved1"
-            ],
-            "values": "ntttntnn",
-            "primary_key": "id"
-        }
-    },
-    {
-        "info_comment": "AutoGen",
-        "table_header": "EquipLineHelpData",
-        "schema_length": 40,
-        "schema": {
-            "schema": "<IQQQQI",
-            "sch_len": 40,
-            "keys": [
-                "id",
-                "text1",
-                "text2",
-                "text3",
-                "text4",
-                "reserved0"
-            ],
-            "values": "nttttn",
-            "primary_key": "id"
-        }
-    },
-    {
-        "info_comment": "AutoGen",
-        "table_header": "SkillConnectListData",
-        "schema_length": 24,
-        "schema": {
-            "schema": "<IQIII",
-            "sch_len": 24,
-            "keys": [
-                "id",
-                "array",
-                "int",
-                "reserved0"
-            ],
-            "values": "nann",
-            "primary_key": "id"
-        }
-    },
-    {
-        "info_comment": "AutoGen",
-        "table_header": "SkillTextArrayData",
-        "schema_length": 24,
-        "schema": {
-            "schema": "<IQQI",
-            "sch_len": 24,
-            "keys": [
-                "id",
-                "text1",
-                "text2",
-                "reserved0"
-            ],
-            "values": "nttn",
-            "primary_key": "id"
-        }
-    },
-    {
-        "info_comment": "AutoGen",
-        "table_header": "SkillRangeData",
-        "schema_length": 20,
-        "schema": {
-            "schema": "<Iffff",
-            "sch_len": 20,
-            "keys": [
-                "int",
-                "float1",
-                "float2",
-                "float3",
-                "float4"
-            ],
-            "values": "nnnnn"
-        }
-    },
-    {
-        "info_comment": "AutoGen",
-        "table_header": "SkillLevelHelpData",
-        "schema_length": 24,
-        "schema": {
-            "schema": "<IQQI",
-            "sch_len": 24,
-            "keys": [
-                "id",
-                "text1",
-                "text2",
-                "reserved0"
-            ],
-            "values": "nttn",
-            "primary_key": "id"
+            "primary_key": "id"	
         }
     }
 ]
