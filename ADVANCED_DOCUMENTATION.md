@@ -2833,3 +2833,524 @@ python shops_create.py template_large_costume_pack.kurodlc.json
 **End of Advanced Documentation**
 
 This advanced documentation covers all scripts, parameters, real data examples, and workflows. For basic usage, see the main README sections.
+
+---
+
+## New Analysis Tools (v1.0) ⭐
+
+### visualize_id_allocation.py
+
+**Version:** v1.0  
+**Purpose:** Analyze and visualize ID allocation patterns to identify free ID ranges and fragmentation
+
+#### All Parameters
+
+```
+visualize_id_allocation.py [options]
+
+OPTIONS:
+  --source=TYPE         Force specific source type
+                        Available: json, tbl, original, p3a, zzz
+                        Default: Auto-detect from available sources
+                        
+  --no-interactive      Auto-select first source if multiple found
+                        Useful for automated scripts
+                        
+  --keep-extracted      Keep temporary extracted files from P3A
+                        Default: Delete after use
+                        
+  --format=FORMAT       Output format selection
+                        Available: console, html, both
+                        Default: both
+                        
+  --block-size=N        Block size for console visualization
+                        Default: 50 (recommended: 25-100)
+                        Larger blocks = better overview
+                        Smaller blocks = more detail
+                        
+  --output=FILE         Custom HTML output filename
+                        Default: id_allocation_map.html
+                        Example: --output=my_report.html
+                        
+  --help                Show help message and exit
+
+SOURCES (automatically detected):
+  JSON sources:
+    - t_item.json
+    
+  TBL sources (requires kurodlc_lib.py):
+    - t_item.tbl
+    - t_item.tbl.original
+    
+  P3A sources (requires kurodlc_lib.py + dependencies):
+    - script_en.p3a / script_eng.p3a
+    - zzz_combined_tables.p3a
+    (automatically extracts t_item.tbl)
+
+OUTPUT:
+  Console Format:
+    - Color-coded block visualization
+    - Statistics table
+    - Gap analysis
+    - Fragmentation metrics
+    
+  HTML Format:
+    - Interactive grid map (100 columns)
+    - Hover tooltips with ID numbers
+    - Search functionality
+    - Free blocks table (sortable)
+    - Full statistics dashboard
+    - Responsive design
+
+STATISTICS PROVIDED:
+  - Engine Range (1-5000)
+  - Highest Used ID
+  - Occupied/Free ID counts and percentages
+  - Average Gap Size
+  - Fragmentation Index (0.0-1.0)
+  - Largest Free Block (start-end range)
+  - Total Free Blocks count
+```
+
+#### Examples
+
+**Example 1: Basic Analysis**
+
+```bash
+python visualize_id_allocation.py
+
+# Output:
+# Loading item data...
+# Loaded 2116 items from: t_item.json
+#
+# Statistics:
+#   Engine Range:       1 - 5000
+#   Highest Used ID:    4921
+#   Occupied IDs:       2116 / 5000  (42.3%)
+#   Free IDs:           2884 / 5000  (57.7%)
+#   Fragmentation:      0.73 (High)
+#   Largest Free Block: 79 IDs (4922-5000)
+#
+# HTML report generated: id_allocation_map.html
+```
+
+**Example 2: Console Only (CI/CD)**
+
+```bash
+python visualize_id_allocation.py --format=console
+
+# Generates only console output, no HTML file
+# Useful for automated builds where HTML isn't needed
+```
+
+**Example 3: Custom HTML Report**
+
+```bash
+python visualize_id_allocation.py --format=html --output=project_allocation.html
+
+# Generates only HTML report with custom filename
+# Good for sharing with team
+```
+
+**Example 4: Larger Blocks for Overview**
+
+```bash
+python visualize_id_allocation.py --block-size=100
+
+# Each block represents 100 IDs instead of 50
+# Better for seeing overall patterns
+```
+
+**Example 5: Force Specific Source**
+
+```bash
+python visualize_id_allocation.py --source=json
+
+# Forces use of t_item.json
+# Skips other sources even if available
+```
+
+#### Real Data Example
+
+**Input:** t_item.json with 2116 items spread across IDs 1-4921
+
+**Console Output:**
+```
+ID Allocation Map (Block Size: 50)
+═══════════════════════════════════════════════════════════
+
+    0: ████████████████████████████████████████████████ [  0 -  49]  100.0%
+   50: ████████████████████████████████████████████████ [ 50 -  99]  100.0%
+  100: ████████████████████████████████████████████████ [100 - 149]  100.0%
+  150: ███████████████████████████████████░░░░░░░░░░░░░ [150 - 199]   76.0%
+  200: ████████████████████████████████████████████████ [200 - 249]  100.0%
+  250: ████████████████████████████████████████████████ [250 - 299]  100.0%
+  300: ████████████████████████████████████████████████ [300 - 349]  100.0%
+  350: ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ [350 - 399]    0.0%  ✨
+  400: ██████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ [400 - 449]   28.0%
+  ...
+ 3500: ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ [3500-3549]    0.0%  ✨
+ 3550: ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ [3550-3599]    0.0%  ✨
+ 3600: ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ [3600-3649]    0.0%  ✨
+  ...
+ 4950: ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ [4950-4999]   12.0%
+
+Legend: █ Occupied  ░ Free  ✨ Large free block detected
+```
+
+**HTML Output Features:**
+- Interactive 100×50 grid (5000 cells total)
+- Green cells for occupied IDs
+- Gray cells for free IDs
+- Hover shows exact ID number
+- Search box to jump to specific IDs
+- Sortable free blocks table
+
+#### Use Cases
+
+**1. Pre-Mod Planning:**
+```bash
+# Before creating a new mod
+python visualize_id_allocation.py
+
+# Review HTML report to find suitable ID ranges
+# Example findings:
+# - IDs 3500-3650: 151 free IDs (perfect for large weapon pack)
+# - IDs 1200-1245: 46 free IDs (good for armor set)
+```
+
+**2. Team Coordination:**
+```bash
+# Generate report for team
+python visualize_id_allocation.py --output=team_allocation.html
+
+# Share HTML file
+# Team members coordinate ID usage:
+# - Modder A: 3500-3599 (weapons)
+# - Modder B: 3600-3699 (armor)
+# - Modder C: 3700-3799 (accessories)
+```
+
+**3. Fragmentation Analysis:**
+```bash
+# Check fragmentation before major update
+python visualize_id_allocation.py
+
+# Fragmentation Index:
+# - 0.0-0.3: Low (few large gaps) - Ideal
+# - 0.4-0.6: Medium (mixed) - Acceptable
+# - 0.7-1.0: High (many small gaps) - Problematic
+```
+
+**4. CI/CD Integration:**
+```bash
+# Automated build script
+python visualize_id_allocation.py --format=console --no-interactive > allocation_report.txt
+
+# Parse output for available ID count
+# Fail build if insufficient free IDs
+```
+
+---
+
+### find_all_names.py
+
+**Version:** v1.0  
+**Purpose:** Search and browse character names from game data with intelligent filtering
+
+#### All Parameters
+
+```
+find_all_names.py [search_query] [options]
+
+ARGUMENTS:
+  search_query          Optional search query with modes:
+  
+  AUTO-DETECT MODE (no prefix):
+    123                 Number → searches by character ID
+    van                 Text → searches in character names
+    
+  EXPLICIT MODES (with prefix):
+    id:123              Search by exact character ID
+    name:van            Search in character names
+    name:123            Search "123" in names (not as ID!)
+    full_name:arkride   Search in full names
+    model:chr0100       Search in model names
+
+OPTIONS:
+  --source=TYPE         Force specific source type
+                        Available: json, tbl, original, p3a, zzz
+                        Default: Auto-detect from available sources
+                        
+  --no-interactive      Auto-select first source if multiple found
+                        
+  --keep-extracted      Keep temporary extracted files from P3A
+                        
+  --show-full           Show full names in output
+                        Adds full_name column to results
+                        
+  --show-model          Show model names in output
+                        Adds model column to results
+                        
+  --help                Show help message and exit
+
+SOURCES (automatically detected):
+  JSON sources:
+    - t_name.json
+    
+  TBL sources (requires kurodlc_lib.py):
+    - t_name.tbl
+    - t_name.tbl.original
+    
+  P3A sources (requires kurodlc_lib.py + dependencies):
+    - script_en.p3a / script_eng.p3a
+    - zzz_combined_tables.p3a
+    (automatically extracts t_name.tbl)
+
+OUTPUT FIELDS:
+  ID                    Character ID number
+  Name                  Character display name
+  Full Name             Complete name (with --show-full)
+  Model                 3D model identifier (with --show-model)
+```
+
+#### Examples
+
+**Example 1: List All Characters**
+
+```bash
+python find_all_names.py
+
+# Output:
+# Loading character name data...
+# Loaded 500 characters from: t_name.json
+#
+#   0 : （なし）
+#   1 : ヴァン
+#   2 : アニエス
+#   3 : フェリ
+#   ...
+#
+# Total: 500 character(s)
+```
+
+**Example 2: Search by Name (Auto-Detect)**
+
+```bash
+python find_all_names.py van
+
+# Output:
+# # Auto-detected name search for 'van'
+#
+# Loading character name data...
+# Loaded 500 characters from: t_name.json
+#
+# 100 : ヴァン
+# 101 : ヴァン・アークライド
+# 225 : ヴァンダール
+#
+# Total: 3 character(s)
+```
+
+**Example 3: Search by ID (Auto-Detect)**
+
+```bash
+python find_all_names.py 100
+
+# Output:
+# # Auto-detected ID search for '100'
+# # Use 'name:100' to search for '100' in character names instead
+#
+# Loading character name data...
+# Loaded 500 characters from: t_name.json
+#
+# 100 : ヴァン
+#
+# Total: 1 character(s)
+```
+
+**Example 4: Explicit Name Search (for numbers)**
+
+```bash
+python find_all_names.py name:100
+
+# Searches for "100" in character names
+# Useful when character names contain numbers
+```
+
+**Example 5: Search with Full Names and Models**
+
+```bash
+python find_all_names.py van --show-full --show-model
+
+# Output:
+# 100 : ヴァン              | Van Arkride           | chr0100_01
+# 101 : ヴァン・アークライド | Van Arkride (Full)    | chr0100_02
+# 225 : ヴァンダール        | Vandaal               | chr0225
+#
+# Total: 3 character(s)
+```
+
+**Example 6: Search by Model**
+
+```bash
+python find_all_names.py model:chr0100
+
+# Output:
+# 100 : ヴァン              | chr0100_01
+# 101 : ヴァン・アークライド | chr0100_02
+#
+# Total: 2 character(s)
+```
+
+**Example 7: Search in Full Names**
+
+```bash
+python find_all_names.py full_name:arkride
+
+# Searches in full_name field
+# Finds all characters with "arkride" in their full name
+```
+
+**Example 8: Force Specific Source**
+
+```bash
+python find_all_names.py van --source=json
+
+# Forces use of t_name.json
+# Ignores TBL/P3A sources
+```
+
+#### Real Data Example
+
+**Input:** t_name.json with character data
+
+```json
+{
+  "data": [
+    {
+      "name": "NameTableData",
+      "data": [
+        {
+          "character_id": 100,
+          "name": "ヴァン",
+          "full_name": "Van Arkride",
+          "model": "chr0100_01"
+        },
+        {
+          "character_id": 101,
+          "name": "アニエス",
+          "full_name": "Agnes Claudel",
+          "model": "chr0101"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Query 1: Find Van**
+```bash
+$ python find_all_names.py van
+
+100 : ヴァン
+
+Total: 1 character(s)
+```
+
+**Query 2: Find with Details**
+```bash
+$ python find_all_names.py van --show-full --show-model
+
+100 : ヴァン | Van Arkride | chr0100_01
+
+Total: 1 character(s)
+```
+
+**Query 3: Find by ID**
+```bash
+$ python find_all_names.py 101 --show-full
+
+101 : アニエス | Agnes Claudel
+
+Total: 1 character(s)
+```
+
+#### Use Cases
+
+**1. Character ID Lookup for Scripting:**
+```bash
+# Need character ID for event script
+python find_all_names.py "ヴァン"
+
+# Output: 100 : ヴァン
+# Use ID 100 in your script
+```
+
+**2. Model Reference for 3D Work:**
+```bash
+# Check which model a character uses
+python find_all_names.py id:100 --show-model
+
+# Output: 100 : ヴァン | chr0100_01
+# Use chr0100_01 for custom model edits
+```
+
+**3. Character Database Export:**
+```bash
+# Export full character list
+python find_all_names.py --show-full --show-model > characters.txt
+
+# Creates complete character reference file
+```
+
+**4. Find All Variants:**
+```bash
+# Find all variations of a character
+python find_all_names.py model:chr0100
+
+# Shows all entries using chr0100 models
+# Useful for finding costume variants
+```
+
+**5. Multi-Language Name Lookup:**
+```bash
+# Find character by localized name
+python find_all_names.py full_name:arkride
+
+# Works across different name fields
+```
+
+#### Important Notes
+
+**Auto-Detection Behavior:**
+- Pure numbers (e.g., `100`) → ID search
+- Text or mixed (e.g., `van`, `chr100`) → Name search
+- Use explicit prefixes to override auto-detection
+
+**Search Tips:**
+- Searches are case-insensitive
+- Partial matches work (e.g., `van` finds `ヴァン`, `ヴァンダール`)
+- Use `--show-full` and `--show-model` for complete information
+- Combine with grep/findstr for advanced filtering
+
+**Output Format:**
+- Aligned columns for clean display
+- Sorted by character ID (ascending)
+- Non-numeric IDs sorted last
+
+---
+
+## Visual Guides
+
+For detailed visual examples of the ID allocation map, see:
+- **VISUALIZATION_GUIDE.md** - Complete visual guide with examples
+- **example_id_allocation_map.html** - Real HTML output example
+
+These guides include:
+- Statistics dashboard layout
+- Visual ID map examples
+- Free blocks table format
+- Search functionality examples
+- Usage tips and best practices
+
