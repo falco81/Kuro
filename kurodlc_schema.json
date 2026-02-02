@@ -1034,5 +1034,24 @@
             "values": "nntnnnnt",
             "primary_key": "id"	
         }
+    },
+    {
+        "info_comment": "Kuro 1 / 2 / Kai",
+        "table_header": "ItemKindHelpData",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<4H3Q",
+            "sch_len": 32,
+            "keys": [
+                "category_id",
+                "subcategory_id",
+                "short1",
+                "short2",
+                "text1",
+                "long",
+                "text2"
+            ],
+            "values": "nnnntnt"
+        }
     }
 ]
