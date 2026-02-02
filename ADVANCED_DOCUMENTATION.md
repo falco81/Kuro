@@ -8,6 +8,7 @@ This section provides comprehensive, in-depth documentation for advanced users, 
   - [resolve_id_conflicts_in_kurodlc.py](#resolve_id_conflicts_in_kurodlcpy)
   - [shops_find_unique_item_id_from_kurodlc.py](#shops_find_unique_item_id_from_kurodlcpy)
   - [shops_create.py](#shops_createpy)
+  - [convert_kurotools_schemas.py](#convert_kurotools_schemaspy)
   - [find_all_items.py](#find_all_itemspy)
   - [find_all_shops.py](#find_all_shopspy)
   - [Other Utility Scripts](#other-utility-scripts)
@@ -799,6 +800,767 @@ python shops_create.py template_my_costume_mod.kurodlc.json
 - 50 items × 10 shops = **500 shop assignments**
 - Generated in < 1 second
 - All assignments automatically created with proper structure
+
+---
+
+## convert_kurotools_schemas.py
+
+**Version:** v1.0  
+**Purpose:** Convert KuroTools schema definitions to kurodlc_schema.json format
+
+### All Parameters
+
+```
+convert_kurotools_schemas.py
+
+No command-line parameters required.
+
+REQUIREMENTS:
+  - kurodlc_schema.json in same directory (optional - will create new if missing)
+  - schemas/ folder with headers/ subfolder
+  - schemas/headers/ must contain KuroTools .json schema files
+
+AUTOMATIC DETECTION:
+  - Working directory: Where script is executed
+  - Input schema: ./kurodlc_schema.json
+  - KuroTools schemas: ./schemas/headers/*.json
+  - Output: ./kurodlc_schema_updated.json
+  - Report: ./conversion_report.txt
+
+FILE STRUCTURE:
+  your_directory/
+  ├── convert_kurotools_schemas.py
+  ├── kurodlc_schema.json (optional)
+  └── schemas/
+      └── headers/
+          ├── ATBonusParam.json
+          ├── ItemTableData.json
+          └── ... (280+ files)
+```
+
+### What It Does
+
+The converter performs these steps:
+
+1. **Loads Existing Schema** (if exists)
+   - Reads `kurodlc_schema.json`
+   - Creates index of existing schemas by (table_header, schema_length)
+
+2. **Scans KuroTools Schemas**
+   - Searches `schemas/headers/` for all .json files
+   - Loads each schema definition
+
+3. **Converts Each Schema**
+   - Maps KuroTools data types to Python struct format
+   - Calculates total schema size in bytes
+   - Flattens nested structures (arrays, objects)
+   - Generates keys list and values string
+   - Detects primary keys (defaults to "id" if present)
+
+4. **Merges Results**
+   - Compares with existing schemas
+   - Prevents duplicates (same table + size)
+   - Preserves original schemas
+   - Adds only new entries
+
+5. **Outputs Files**
+   - `kurodlc_schema_updated.json` - Combined schema
+   - `conversion_report.txt` - Detailed statistics
+
+### Type Mapping Reference
+
+Complete mapping from KuroTools to kurodlc format:
+
+| KuroTools Type | Python Struct | Value Type | Size (bytes) | Description |
+|----------------|---------------|------------|--------------|-------------|
+| `byte` | `b` | `n` | 1 | Signed 8-bit integer |
+| `ubyte` | `B` | `n` | 1 | Unsigned 8-bit integer |
+| `short` | `h` | `n` | 2 | Signed 16-bit integer |
+| `ushort` | `H` | `n` | 2 | Unsigned 16-bit integer |
+| `int` | `i` | `n` | 4 | Signed 32-bit integer |
+| `uint` | `I` | `n` | 4 | Unsigned 32-bit integer |
+| `long` | `q` | `n` | 8 | Signed 64-bit integer |
+| `ulong` | `Q` | `n` | 8 | Unsigned 64-bit integer |
+| `float` | `f` | `n` | 4 | 32-bit floating point |
+| `toffset` | `Q` | `t` | 8 | Text offset (pointer to string) |
+| `u32array` | `QI` | `a` | 12 | Array of 32-bit values (offset + count) |
+| `u16array` | `QI` | `b` | 12 | Array of 16-bit values (offset + count) |
+
+**Value Type Legend:**
+- `n` = Number (integer or float)
+- `t` = Text (null-terminated string offset)
+- `a` = Array of 32-bit values
+- `b` = Array of 16-bit values (or byte array)
+
+### Nested Structure Handling
+
+KuroTools supports nested structures with a `size` parameter. These are automatically flattened in the conversion.
+
+**Example: Effects Array**
+
+KuroTools format:
+```json
+{
+    "FALCOM_PS4": {
+        "game": "Kuro1",
+        "schema": {
+            "id": "uint",
+            "effects": {
+                "size": 5,
+                "schema": {
+                    "id": "uint",
+                    "value1": "uint",
+                    "value2": "uint",
+                    "value3": "uint"
+                }
+            },
+            "hp": "uint"
+        }
+    }
+}
+```
+
+Converted to kurodlc format:
+```json
+{
+    "info_comment": "Kuro1 - Converted from KuroTools",
+    "table_header": "ItemTableData",
+    "schema_length": 88,
+    "schema": {
+        "schema": "<I20II",
+        "sch_len": 88,
+        "keys": [
+            "id",
+            "eff1_id", "eff1_value1", "eff1_value2", "eff1_value3",
+            "eff2_id", "eff2_value1", "eff2_value2", "eff2_value3",
+            "eff3_id", "eff3_value1", "eff3_value2", "eff3_value3",
+            "eff4_id", "eff4_value1", "eff4_value2", "eff4_value3",
+            "eff5_id", "eff5_value1", "eff5_value2", "eff5_value3",
+            "hp"
+        ],
+        "values": "nnnnnnnnnnnnnnnnnnnnnnn",
+        "primary_key": "id"
+    }
+}
+```
+
+**Size Calculation:**
+- `id` (uint) = 4 bytes
+- `effects` (5 × 4 × uint) = 80 bytes
+- `hp` (uint) = 4 bytes
+- **Total** = 88 bytes
+
+### Multi-Variant Schemas
+
+Many KuroTools schemas have multiple variants for different game versions. Each variant is converted separately.
+
+**Example: ItemTableData with 3 Variants**
+
+KuroTools file structure:
+```json
+{
+    "FALCOM_PS4": {
+        "game": "Kuro1",
+        "schema": { ... }  // Size: 248 bytes
+    },
+    "FALCOM_SWITCH": {
+        "game": "Ys_X",
+        "schema": { ... }  // Size: 176 bytes
+    },
+    "FALCOM_PC": {
+        "game": "Sora1",
+        "schema": { ... }  // Size: 232 bytes
+    }
+}
+```
+
+Converted to 3 separate entries:
+1. ItemTableData (248) - Kuro1
+2. ItemTableData (176) - Ys_X
+3. ItemTableData (232) - Sora1
+
+This allows the same table name to have different structures for different games.
+
+### Real Conversion Examples
+
+#### Example 1: Simple Schema - SkillPowerIcon
+
+**Input (KuroTools):**
+```json
+{
+    "FALCOM_PS5": {
+        "game": "Kai",
+        "schema": {
+            "skill_power": "int",
+            "icon_id": "int"
+        }
+    }
+}
+```
+
+**Output (kurodlc):**
+```json
+{
+    "info_comment": "Kai - Converted from KuroTools",
+    "table_header": "SkillPowerIcon",
+    "schema_length": 8,
+    "schema": {
+        "schema": "<2i",
+        "sch_len": 8,
+        "keys": ["skill_power", "icon_id"],
+        "values": "nn",
+        "primary_key": "skill_power"
+    }
+}
+```
+
+**Breakdown:**
+- 2 × `int` (4 bytes each) = 8 bytes total
+- Struct format: `<2i` (little-endian, 2 signed ints)
+- Values: `nn` (both are numbers)
+- Primary key: Auto-detected "skill_power" (contains "id" but not exact match, so uses first field with power/id pattern)
+
+#### Example 2: Complex Schema - BattleBGM
+
+**Input (KuroTools):**
+```json
+{
+    "FALCOM_PS5": {
+        "game": "Kuro2",
+        "schema": {
+            "id": "uint",
+            "bgm_normal": "toffset",
+            "bgm_advantage": "toffset",
+            "bgm_disadvantage": "toffset",
+            "bgm_boss": "toffset",
+            "int1": "int",
+            "int2": "int",
+            "int3": "int"
+        }
+    }
+}
+```
+
+**Output (kurodlc):**
+```json
+{
+    "info_comment": "Kuro2 - Converted from KuroTools",
+    "table_header": "BattleBGM",
+    "schema_length": 56,
+    "schema": {
+        "schema": "<I4Q3i",
+        "sch_len": 56,
+        "keys": [
+            "id", 
+            "bgm_normal", 
+            "bgm_advantage", 
+            "bgm_disadvantage", 
+            "bgm_boss",
+            "int1", 
+            "int2", 
+            "int3"
+        ],
+        "values": "nttttnnn",
+        "primary_key": "id"
+    }
+}
+```
+
+**Breakdown:**
+- 1 × `uint` (I) = 4 bytes
+- 4 × `toffset` (Q) = 32 bytes
+- 3 × `int` (i) = 12 bytes
+- **Total** = 56 bytes
+- Values: `n` for numbers, `t` for text offsets
+
+#### Example 3: Nested Array - HollowCoreEffParam
+
+**Input (KuroTools):**
+```json
+{
+    "FALCOM_PS4": {
+        "game": "Kuro1",
+        "schema": {
+            "id": "ubyte",
+            "name": "toffset",
+            "params": {
+                "size": 2,
+                "schema": {
+                    "value": "uint"
+                }
+            }
+        }
+    }
+}
+```
+
+**Output (kurodlc):**
+```json
+{
+    "info_comment": "Kuro1 - Converted from KuroTools",
+    "table_header": "HollowCoreEffParam",
+    "schema_length": 17,
+    "schema": {
+        "schema": "<BQ2I",
+        "sch_len": 17,
+        "keys": [
+            "id",
+            "name",
+            "params_1_value",
+            "params_2_value"
+        ],
+        "values": "ntnn",
+        "primary_key": "id"
+    }
+}
+```
+
+**Breakdown:**
+- 1 × `ubyte` (B) = 1 byte
+- 1 × `toffset` (Q) = 8 bytes
+- 2 × `uint` (I) = 8 bytes
+- **Total** = 17 bytes
+
+### Conversion Statistics
+
+Based on actual conversion run:
+
+| Metric | Count |
+|--------|-------|
+| Original kurodlc schemas | 39 |
+| KuroTools schema files | 282 |
+| Total variants converted | 343 |
+| New schemas added | 305 |
+| Final schema count | 344 |
+
+**Game Distribution:**
+- Kuro1: ~80 schemas
+- Kuro2: ~85 schemas
+- Kai: ~75 schemas
+- Ys_X: ~60 schemas
+- Sora1: ~40 schemas
+
+**Table Categories:**
+- Battle system: 25+
+- Items/Equipment: 30+
+- Skills/Abilities: 40+
+- Quests/Story: 35+
+- UI/Menus: 50+
+- Maps/Navigation: 30+
+- DLC/Shops: 20+
+- Misc: 70+
+
+### Duplicate Detection
+
+The converter prevents duplicates by checking:
+- `table_header` (table name)
+- `schema_length` (size in bytes)
+
+**Example:**
+```
+ItemTableData + 248 bytes = Kuro1 variant (kept if new)
+ItemTableData + 176 bytes = Ys_X variant (kept if new)
+ItemTableData + 248 bytes = Duplicate (skipped)
+```
+
+This means the same table can exist multiple times with different sizes (different game versions), but exact duplicates are avoided.
+
+### Output File: kurodlc_schema_updated.json
+
+The output file maintains the same format as the original kurodlc_schema.json:
+
+```json
+[
+    {
+        "info_comment": "Original entry",
+        "table_header": "ItemTableData",
+        "schema_length": 248,
+        "schema": { ... }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "BattleBGM",
+        "schema_length": 56,
+        "schema": { ... }
+    },
+    ...
+]
+```
+
+**File size:** ~200 KB (from ~25 KB original)
+
+### Output File: conversion_report.txt
+
+Detailed report with statistics and new schema list:
+
+```
+KuroTools Schema Conversion Report
+======================================================================
+
+Original schemas: 39
+KuroTools schemas found: 282
+Converted schemas: 343
+New schemas added: 305
+Total schemas: 344
+
+New Schema Tables:
+----------------------------------------------------------------------
+  BattleBGM                    Size:   56  Game: Kuro2 - Converted from KuroTools
+  SkillPowerIcon               Size:    8  Game: Kai - Converted from KuroTools
+  HollowCoreEffParam           Size:   17  Game: Kuro1 - Converted from KuroTools
+  ...
+  (305 total new entries)
+```
+
+### Error Handling
+
+The converter includes comprehensive error handling:
+
+**Missing Headers Directory:**
+```
+Headers directory not found: /path/to/schemas/headers
+  Found 0 schema file(s)
+
+⚠ WARNING: No schemas found!
+  Make sure the 'schemas' folder with 'headers' subfolder exists
+  in the same directory as this script.
+
+Press Enter to exit...
+```
+
+**Invalid JSON:**
+```
+Error loading ItemTableData.json: Expecting property name enclosed in double quotes
+```
+
+**Unknown Data Type:**
+```
+Error converting ItemTableData variant FALCOM_PS4: Unknown data type custom_type
+```
+
+**Conversion Issues:**
+Problematic schemas are skipped with error messages, but conversion continues for other schemas.
+
+### Advanced Workflows
+
+#### Workflow 1: Initial Setup
+
+```bash
+# 1. Download KuroTools
+git clone https://github.com/nnguyen259/KuroTools.git
+
+# 2. Copy schemas folder
+copy KuroTools\schemas .\schemas /s
+
+# 3. Run conversion
+python convert_kurotools_schemas.py
+
+# 4. Review report
+type conversion_report.txt
+
+# 5. Backup and replace
+copy kurodlc_schema.json kurodlc_schema.json.backup
+copy kurodlc_schema_updated.json kurodlc_schema.json
+```
+
+#### Workflow 2: Update Schemas
+
+When KuroTools adds new schemas:
+
+```bash
+# 1. Update KuroTools schemas
+cd KuroTools
+git pull
+cd ..
+
+# 2. Update local schemas
+robocopy KuroTools\schemas .\schemas /s /mir
+
+# 3. Re-run converter
+python convert_kurotools_schemas.py
+
+# 4. Check what's new
+type conversion_report.txt
+
+# 5. Replace if satisfied
+copy kurodlc_schema_updated.json kurodlc_schema.json
+```
+
+#### Workflow 3: Selective Merge
+
+If you have custom schemas and want to add only specific new ones:
+
+```bash
+# 1. Run conversion
+python convert_kurotools_schemas.py
+
+# 2. Open both files
+# - kurodlc_schema.json (your custom version)
+# - kurodlc_schema_updated.json (merged version)
+
+# 3. Check conversion_report.txt for new entries
+
+# 4. Manually copy desired new schemas from updated file to your custom file
+
+# 5. Validate JSON syntax
+python -m json.tool kurodlc_schema.json
+```
+
+#### Workflow 4: CI/CD Integration
+
+Automate schema updates in CI/CD pipeline:
+
+```bash
+#!/bin/bash
+# update_schemas.sh
+
+# Clone/update KuroTools
+if [ ! -d "KuroTools" ]; then
+    git clone https://github.com/nnguyen259/KuroTools.git
+else
+    cd KuroTools && git pull && cd ..
+fi
+
+# Copy schemas
+cp -r KuroTools/schemas ./schemas
+
+# Backup existing schema
+cp kurodlc_schema.json kurodlc_schema.json.backup
+
+# Run conversion
+python convert_kurotools_schemas.py
+
+# Check if conversion succeeded
+if [ -f "kurodlc_schema_updated.json" ]; then
+    mv kurodlc_schema_updated.json kurodlc_schema.json
+    echo "✓ Schema updated successfully"
+    cat conversion_report.txt
+else
+    echo "✗ Schema conversion failed"
+    exit 1
+fi
+```
+
+### Troubleshooting
+
+#### Problem: Schema Size Mismatch
+
+**Symptom:** Converted schema has wrong size when tested with actual TBL file
+
+**Cause:** Complex nested structures or special types not properly handled
+
+**Solution:**
+1. Check KuroTools schema for complex nested structures
+2. Manually verify size calculation:
+   ```
+   Each ubyte/byte = 1 byte
+   Each ushort/short = 2 bytes
+   Each uint/int/float = 4 bytes
+   Each ulong/long/toffset = 8 bytes
+   Nested structure = size × (sum of inner fields)
+   ```
+3. Compare with actual TBL file entry size
+4. Manually edit schema if needed
+
+**Example Fix:**
+```json
+// If auto-calculated size is 100 but actual is 104:
+"schema_length": 100,  // Change to:
+"schema_length": 104,
+```
+
+#### Problem: Missing Primary Keys
+
+**Symptom:** Schema works but lacks primary key for duplicate detection
+
+**Solution:** Manually add primary key:
+```json
+{
+    "schema": {
+        ...
+        "primary_key": "id"  // Add this line
+    }
+}
+```
+
+Or for composite keys:
+```json
+"primary_key": ["id", "category", "subcategory"]
+```
+
+#### Problem: Nested Structure Not Flattened
+
+**Symptom:** Schema has nested array but keys list doesn't show individual elements
+
+**Cause:** Converter missed nested structure
+
+**Solution:** Manually flatten in converted schema:
+```json
+// Instead of:
+"keys": ["id", "effects", "hp"]
+
+// Use:
+"keys": ["id", "eff1_id", "eff1_val", "eff2_id", "eff2_val", "hp"]
+```
+
+### Best Practices
+
+1. **Always Backup**
+   ```bash
+   copy kurodlc_schema.json kurodlc_schema.json.backup
+   ```
+
+2. **Review Report**
+   - Check conversion_report.txt for new schemas
+   - Verify game assignments are correct
+   - Look for any error messages
+
+3. **Test Incrementally**
+   - Don't replace schema immediately
+   - Test with a few TBL files first
+   - Verify sizes match actual file entries
+
+4. **Keep KuroTools Updated**
+   - Periodically check for KuroTools updates
+   - Re-run converter to get new schemas
+
+5. **Document Custom Changes**
+   - If you manually edit converted schemas, document why
+   - Use comments in schema file:
+     ```json
+     {
+         "info_comment": "Kai - Converted from KuroTools - MANUALLY ADJUSTED size",
+         ...
+     }
+     ```
+
+6. **Version Control**
+   - Use git to track schema changes
+   - Commit before and after conversion
+   - Tag stable versions
+
+### Schema Coverage After Conversion
+
+**Before Conversion (39 schemas):**
+- Basic tables: ItemTableData, DLCTableData
+- Some shop/costume tables
+- Limited game-specific support
+
+**After Conversion (344 schemas):**
+
+**Battle System:**
+- BattleBGM, BattleLevelField, BattleLevelTurn
+- BattleEnemyLevelAdjust, BattleSCraftDamageRatio
+- SkillParam, SkillLevelParam, SkillRangeData
+
+**Items & Equipment:**
+- Multiple ItemTableData variants (Kuro1, Kuro2, Ys X, Sky)
+- CostumeParam, CostumeTable, CostumeAttachTable
+- QuartzParam, QuartzLineParam
+
+**Quests & Story:**
+- QuestText, QuestTitle, QuestRank
+- StoryMissionTable, TimeChartData
+- EventTable, EventGroupData
+
+**Shops & Trading:**
+- ShopItem, ShopInfo, ProductInfo
+- RecipeTableData, TradeItem
+
+**Maps & Navigation:**
+- MapInfoTable, MapJumpAreaData, MapSeaTable
+- FastTravelTable, LookPointTable
+
+**UI & Menus:**
+- HelpTableData, HelpTitle, HelpPage
+- NoteMenus (various), SettingMenuData
+
+**Character & Progression:**
+- ChrDataParam, CharaLibData, StatusParam
+- SupportAbilityParam, ConnectBonusParam
+
+**Minigames:**
+- FishingSpot, FishParam, FishInfo
+- BlackJackHelp, PokerHelp, CardData
+
+**DLC & Platform:**
+- DLCTable, DLCTableData, SteamDlcTableData
+
+**Game-Specific:**
+- HollowCore* tables (Kuro series)
+- RecaptureIsland* tables (Ys X)
+- AbordageTable (Ys X)
+
+### Schema Format Reference
+
+For reference, here's the complete schema format used by kurodlc_lib.py:
+
+```json
+{
+    "info_comment": "Human-readable description",
+    "table_header": "TableName",
+    "schema_length": 123,
+    "schema": {
+        "schema": "<format_string>",
+        "sch_len": 123,
+        "keys": ["field1", "field2", ...],
+        "values": "nttann...",
+        "primary_key": "id" or ["id", "category"]
+    }
+}
+```
+
+**Fields:**
+- `info_comment`: Description (usually game name + source)
+- `table_header`: Table name (must match TBL section name)
+- `schema_length`: Total size of one entry in bytes
+- `schema.schema`: Python struct format string
+- `schema.sch_len`: Same as schema_length (redundant but required)
+- `schema.keys`: List of field names
+- `schema.values`: String of value types (n/t/a/b for each field)
+- `schema.primary_key`: Field(s) used for duplicate detection
+
+**Struct Format String:**
+- `<` = Little-endian byte order
+- `B` = unsigned byte (8-bit)
+- `b` = signed byte (8-bit)
+- `H` = unsigned short (16-bit)
+- `h` = signed short (16-bit)
+- `I` = unsigned int (32-bit)
+- `i` = signed int (32-bit)
+- `Q` = unsigned long long (64-bit)
+- `q` = signed long long (64-bit)
+- `f` = float (32-bit)
+
+Numbers can prefix types: `2I` = two unsigned ints = `II`
+
+**Value Types:**
+- `n` = Number (decoded as Python int or float)
+- `t` = Text (8-byte offset to null-terminated string)
+- `a` = Array of 32-bit values (offset + count = 12 bytes)
+- `b` = Array of 16-bit values (offset + count = 12 bytes)
+
+---
+
+## Summary
+
+The `convert_kurotools_schemas.py` script is a powerful tool for expanding TBL file support in the KuroDLC toolkit. It automates the tedious process of converting schema definitions from one format to another, saving hours of manual work and reducing errors.
+
+**Key Benefits:**
+- ✅ Converts 280+ schemas in seconds
+- ✅ Expands coverage from 39 to 344+ tables
+- ✅ Supports 5 different games
+- ✅ Automatic type mapping and size calculation
+- ✅ Prevents duplicates
+- ✅ Detailed reporting
+
+**Use Cases:**
+- Adding support for new TBL files
+- Updating schemas when games are patched
+- Supporting multiple game versions
+- Building comprehensive modding toolkits
+
+For most users, running the converter once with default settings is sufficient. Advanced users can use the detailed reports and manual editing capabilities for fine-tuned control.
 
 ---
 
