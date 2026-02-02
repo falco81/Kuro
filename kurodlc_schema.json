@@ -808,25 +808,25 @@
         "table_header": "CharaArrange",
         "schema_length": 64,
         "schema": {
-			"schema": "<2I2Q4fQ4f",
-			"sch_len": 64,
-			"keys": [
-				"int0",
-				"int1",
-				"text0",
-				"text1",
-				"float0",
-				"float1",
-				"float2",
-				"float3",
-				"text2",
-				"float4",
-				"float5",
-				"float6",
-				"float7"
-			],
-			"values": "nnttnnnntnnnn"
-		}
+            "schema": "<2I2Q4fQ4f",
+            "sch_len": 64,
+            "keys": [
+                "int0",
+                "int1",
+                "text0",
+                "text1",
+                "float0",
+                "float1",
+                "float2",
+                "float3",
+                "text2",
+                "float4",
+                "float5",
+                "float6",
+                "float7"
+            ],
+            "values": "nnttnnnntnnnn"
+        }
     },
     {
         "info_comment": "Ys X",
@@ -931,10 +931,10 @@
             ],
             "values": "nnntnnnntnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnntttt",
             "primary_key": [
-				"id",
-				"character_restriction",
-				"category"
-			]
+                "id",
+                "character_restriction",
+                "category"
+            ]
         }
     },
     {
@@ -1032,15 +1032,803 @@
                 "subtitle"
             ],
             "values": "nntnnnnt",
-            "primary_key": "id"	
+            "primary_key": "id"
         }
     },
     {
-        "info_comment": "Kuro 1 / 2 / Kai",
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "RecaptureIslandSkillParamBuffTable",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<QQIIQIIIIQ",
+            "sch_len": 56,
+            "keys": [
+                "id",
+                "arr1",
+                "uint1",
+                "arr2",
+                "uint2",
+                "uint3",
+                "uint4",
+                "ulong"
+            ],
+            "values": "nanannnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "BooksCategory",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<qQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "category_name",
+                "unused"
+            ],
+            "values": "ntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "BattleBGM",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<qQIiQIiiiii",
+            "sch_len": 56,
+            "keys": [
+                "id",
+                "arr1",
+                "empty1",
+                "arr2",
+                "int1",
+                "int2",
+                "int3",
+                "int4",
+                "int5"
+            ],
+            "values": "nbnbnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "AttrTypeHelpData",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<qQq",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "element_name",
+                "long"
+            ],
+            "values": "ntn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "SupportAbilityParam",
+        "schema_length": 64,
+        "schema": {
+            "schema": "<BBBBiiiiiiiQQQQ",
+            "sch_len": 64,
+            "keys": [
+                "ability_id",
+                "upgrade_id",
+                "byte1",
+                "byte2",
+                "param_1",
+                "param_2",
+                "empty1",
+                "activation_chance",
+                "activation_chance_overdrive",
+                "int3",
+                "empty2",
+                "flag",
+                "animation",
+                "name",
+                "description"
+            ],
+            "values": "nnnnnnnnnnntttt"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "StoryMissionTable",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<IIQQQII",
+            "sch_len": 40,
+            "keys": [
+                "uint1",
+                "uint2",
+                "id",
+                "text",
+                "arr",
+                "uint3"
+            ],
+            "values": "nnntan",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "RecaptureIslandMissionTypeTable",
+        "schema_length": 64,
+        "schema": {
+            "schema": "<QQQQQIIQII",
+            "sch_len": 64,
+            "keys": [
+                "id",
+                "text1",
+                "text2",
+                "ulong",
+                "arr1",
+                "uint1",
+                "arr2",
+                "uint2"
+            ],
+            "values": "nttnanan",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "ShipTensionLevelBonusTable",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<QQIfIfQ",
+            "sch_len": 40,
+            "keys": [
+                "id",
+                "text",
+                "uint1",
+                "float1",
+                "uint2",
+                "float2",
+                "ulong"
+            ],
+            "values": "ntnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "GourmetParam",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<hihQq",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "int1",
+                "empty1",
+                "description",
+                "long1"
+            ],
+            "values": "nnntn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "GourmetParam",
+        "schema_length": 72,
+        "schema": {
+            "schema": "<hhiQqQqQQIIq",
+            "sch_len": 72,
+            "keys": [
+                "id",
+                "short",
+                "int1",
+                "description",
+                "long1",
+                "text1",
+                "long2",
+                "text2",
+                "text3",
+                "uint1",
+                "uint2",
+                "long3"
+            ],
+            "values": "nnntntnttnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "QuestReportVoice",
+        "schema_length": 88,
+        "schema": {
+            "schema": "<qQIiQIiQIiQIiQIi",
+            "sch_len": 88,
+            "keys": [
+                "id",
+                "arr1",
+                "int1",
+                "arr2",
+                "int2",
+                "arr3",
+                "int3",
+                "arr4",
+                "int4",
+                "arr5",
+                "int5"
+            ],
+            "values": "nananananan",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SkillRangeData",
+        "schema_length": 20,
+        "schema": {
+            "schema": "<Iffff",
+            "sch_len": 20,
+            "keys": [
+                "int",
+                "float1",
+                "float2",
+                "float3",
+                "float4"
+            ],
+            "values": "nnnnn"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "LogList",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<qQQIi",
+            "sch_len": 32,
+            "keys": [
+                "id",
+                "text",
+                "arr",
+                "int"
+            ],
+            "values": "ntbn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "NoteCookCategory",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<qQQQ",
+            "sch_len": 32,
+            "keys": [
+                "id",
+                "note_text1",
+                "note_text2",
+                "note_text3"
+            ],
+            "values": "nttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "TBoxParam",
+        "schema_length": 72,
+        "schema": {
+            "schema": "<QQQqQIiqQIi",
+            "sch_len": 72,
+            "keys": [
+                "scena",
+                "name",
+                "flag",
+                "hack_box_id",
+                "item_list",
+                "empty1",
+                "hack_box_thing_1",
+                "hack_box_thing_2",
+                "empty2"
+            ],
+            "values": "tttnbnnbn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "TBoxParam",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<QQQQIi",
+            "sch_len": 40,
+            "keys": [
+                "scena",
+                "name",
+                "flag",
+                "item_list",
+                "empty"
+            ],
+            "values": "tttbn"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "NoteChapterMenu",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<HHBBBBQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "short1",
+                "byte1",
+                "byte2",
+                "byte3",
+                "byte4",
+                "note_text"
+            ],
+            "values": "nnnnnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "DriverBaseTableData",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IHHHHHH",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "short1",
+                "short2",
+                "short3",
+                "short4",
+                "short5",
+                "short6"
+            ],
+            "values": "nnnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "RealTimeHelpTableData",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<IIQfI",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "uint1",
+                "text",
+                "float",
+                "uint2"
+            ],
+            "values": "nntnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "RealTimeHelpTableData",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<IIQfI",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "uint1",
+                "text",
+                "float",
+                "uint2"
+            ],
+            "values": "nntnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "NoteCategoryTab",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<HHiQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "short1",
+                "int1",
+                "note_text"
+            ],
+            "values": "nnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "NoteGourmetMenu",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<qQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "note_text"
+            ],
+            "values": "nt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "SkillLevelSkillSetting",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<HHHHQQ",
+            "sch_len": 24,
+            "keys": [
+                "chr_id",
+                "skill_id",
+                "empty1",
+                "empty2",
+                "toffset1",
+                "toffset2"
+            ],
+            "values": "nnnntt"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "DriverArtsTableData",
+        "schema_length": 12,
+        "schema": {
+            "schema": "<Iii",
+            "sch_len": 12,
+            "keys": [
+                "id",
+                "int1",
+                "int2"
+            ],
+            "values": "nnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "NoteMainCategory",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<qQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "note_text1",
+                "note_text2"
+            ],
+            "values": "ntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "MonsLibData",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<QQIIQQIIII",
+            "sch_len": 56,
+            "keys": [
+                "ulong",
+                "text1",
+                "uint1",
+                "uint2",
+                "toffset",
+                "text2",
+                "uint3",
+                "uint4",
+                "uint5",
+                "uint6"
+            ],
+            "values": "ntnnttnnnn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "ConditionTypeParam",
+        "schema_length": 8,
+        "schema": {
+            "schema": "<II",
+            "sch_len": 8,
+            "keys": [
+                "id",
+                "value"
+            ],
+            "values": "nn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "ConditionTypeParam",
+        "schema_length": 8,
+        "schema": {
+            "schema": "<II",
+            "sch_len": 8,
+            "keys": [
+                "id",
+                "value"
+            ],
+            "values": "nn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "NoteMonsRecordData",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<QQiHHQ",
+            "sch_len": 32,
+            "keys": [
+                "text1",
+                "text2",
+                "id",
+                "short1",
+                "short2",
+                "text3"
+            ],
+            "values": "ttnnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "NoteMonsRecordData",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<QIIqQQ",
+            "sch_len": 40,
+            "keys": [
+                "text1",
+                "int1",
+                "int2",
+                "region",
+                "text2",
+                "text3"
+            ],
+            "values": "tnnntt"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "NoteCookBonusChara",
+        "schema_length": 2,
+        "schema": {
+            "schema": "<H",
+            "sch_len": 2,
+            "keys": [
+                "id"
+            ],
+            "values": "n",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "MapInfoTable",
+        "schema_length": 12,
+        "schema": {
+            "schema": "<III",
+            "sch_len": 12,
+            "keys": [
+                "region_id",
+                "island_id",
+                "area_id"
+            ],
+            "values": "nnn"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "HelpController",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<HHIQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "id2",
+                "uint",
+                "text"
+            ],
+            "values": "nnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "AdvLogRecord",
+        "schema_length": 72,
+        "schema": {
+            "schema": "<IIQQQQQQIIQ",
+            "sch_len": 72,
+            "keys": [
+                "uint1",
+                "uint2",
+                "text1",
+                "ulong1",
+                "text2",
+                "text3",
+                "ulong2",
+                "arr",
+                "uint3",
+                "ulong3"
+            ],
+            "values": "nntnttnann"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "ChapterParam",
+        "schema_length": 112,
+        "schema": {
+            "schema": "<IiiiQQQQQQQQqQIIQ",
+            "sch_len": 112,
+            "keys": [
+                "id",
+                "int1",
+                "int2",
+                "int3",
+                "flag",
+                "text1",
+                "text2",
+                "text3",
+                "text4",
+                "text5",
+                "text6",
+                "text7",
+                "long1",
+                "arr2",
+                "empty2",
+                "text8"
+            ],
+            "values": "nnnnttttttttnant",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "ChapterParam",
+        "schema_length": 152,
+        "schema": {
+            "schema": "<IiiiqqQQQQQQQQqQIIQIIQQ",
+            "sch_len": 152,
+            "keys": [
+                "id",
+                "int1",
+                "int2",
+                "int3",
+                "long1",
+                "long2",
+                "text1",
+                "text2",
+                "text3",
+                "text4",
+                "text5",
+                "text6",
+                "text7",
+                "text8",
+                "long3",
+                "arr",
+                "empty1",
+                "arr2",
+                "empty2",
+                "text9",
+                "text10"
+            ],
+            "values": "nnnnnnttttttttnanantt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "ChapterParam",
+        "schema_length": 88,
+        "schema": {
+            "schema": "<IiiiQQQQQqQIiQ",
+            "sch_len": 88,
+            "keys": [
+                "id",
+                "int1",
+                "int2",
+                "int3",
+                "text1",
+                "text2",
+                "text3",
+                "text4",
+                "empty1",
+                "long",
+                "arr",
+                "int4",
+                "empty2"
+            ],
+            "values": "nnnntttttnant",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "CharactorContents",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<QQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "text"
+            ],
+            "values": "nt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "CharactorContents",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<QQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "text1",
+                "text2"
+            ],
+            "values": "ntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "LinkBonusTableData",
+        "schema_length": 120,
+        "schema": {
+            "schema": "<IIIIQQQQQQIffffffffffIQ",
+            "sch_len": 120,
+            "keys": [
+                "unk_u32_1",
+                "unk_u32_2",
+                "ability_icon",
+                "unk_u32_3",
+                "ability_name",
+                "ability_name_alt",
+                "detailed_desc",
+                "detailed_desc_alt",
+                "simple_desc",
+                "simple_desc_alt",
+                "ability_id",
+                "level_1_value",
+                "level_2_value",
+                "level_3_value",
+                "level_4_value",
+                "level_5_value",
+                "level_6_value",
+                "level_7_value",
+                "level_8_value",
+                "level_9_value",
+                "level_10_value",
+                "unk_u32_4",
+                "text"
+            ],
+            "values": "nnnnttttttnnnnnnnnnnnnt"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
         "table_header": "ItemKindHelpData",
         "schema_length": 32,
         "schema": {
-            "schema": "<4H3Q",
+            "schema": "<HHHHQqQ",
             "sch_len": 32,
             "keys": [
                 "category_id",
@@ -1052,6 +1840,6061 @@
                 "text2"
             ],
             "values": "nnnntnt"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "PreStorySelect",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IIQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "uint1",
+                "text"
+            ],
+            "values": "nnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "ConstantValue",
+        "schema_length": 12,
+        "schema": {
+            "schema": "<III",
+            "sch_len": 12,
+            "keys": [
+                "id",
+                "value1",
+                "value2"
+            ],
+            "values": "nnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "ConnectChrParam",
+        "schema_length": 64,
+        "schema": {
+            "schema": "<QQQQQQQbbbbbbbb",
+            "sch_len": 64,
+            "keys": [
+                "id",
+                "char_full_name",
+                "char_first_name",
+                "long1",
+                "scena_file",
+                "affiliation",
+                "occupation",
+                "byte1",
+                "byte2",
+                "byte3",
+                "byte4",
+                "byte5",
+                "byte6",
+                "byte7",
+                "byte8"
+            ],
+            "values": "nttntttnnnnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "NoteMonsAreaMenu",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IHHQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "short1",
+                "short2",
+                "note_text"
+            ],
+            "values": "nnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "IncValueS",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<QQ",
+            "sch_len": 16,
+            "keys": [
+                "name",
+                "value"
+            ],
+            "values": "tt"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "HelpIconList",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<HHIQfIQfIQQ",
+            "sch_len": 56,
+            "keys": [
+                "id1",
+                "id2",
+                "id3",
+                "text1",
+                "float1",
+                "uint1",
+                "text2",
+                "float2",
+                "uint2",
+                "text3",
+                "toffset"
+            ],
+            "values": "nnntnntnntt"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "BlackJackHelp",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<qQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "text"
+            ],
+            "values": "nt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "SkillLevelAbilityDefine",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<qQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "bonus1",
+                "bonus2"
+            ],
+            "values": "ntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SlotOpenRate",
+        "schema_length": 12,
+        "schema": {
+            "schema": "<HHHHHH",
+            "sch_len": 12,
+            "keys": [
+                "rate1",
+                "rate2",
+                "rate3",
+                "rate4",
+                "rate5",
+                "rate6"
+            ],
+            "values": "nnnnnn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "BooksText",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<hihQ",
+            "sch_len": 16,
+            "keys": [
+                "book_id",
+                "line_id",
+                "empty1",
+                "book_text"
+            ],
+            "values": "nnnt"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "BooksText",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<hihQq",
+            "sch_len": 24,
+            "keys": [
+                "book_id",
+                "line_id",
+                "empty1",
+                "book_text",
+                "long1"
+            ],
+            "values": "nnntn"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "BooksText",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<hihQQ",
+            "sch_len": 24,
+            "keys": [
+                "book_id",
+                "line_id",
+                "empty1",
+                "book_text",
+                "texture"
+            ],
+            "values": "nnntt"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "RecaptureIslandMissionTable",
+        "schema_length": 12,
+        "schema": {
+            "schema": "<III",
+            "sch_len": 12,
+            "keys": [
+                "uint1",
+                "uint2",
+                "uint3"
+            ],
+            "values": "nnn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "BooksTitle",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<hihQQq",
+            "sch_len": 32,
+            "keys": [
+                "id",
+                "int1",
+                "empty1",
+                "title",
+                "file_name",
+                "long2"
+            ],
+            "values": "nnnttn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "BooksTitle",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<hihQHHi",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "int1",
+                "empty1",
+                "title",
+                "short1",
+                "short2",
+                "empty2"
+            ],
+            "values": "nnntnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "FishInfo",
+        "schema_length": 168,
+        "schema": {
+            "schema": "<HIHQQQQQQQQQQQQQQQQQQQQ",
+            "sch_len": 168,
+            "keys": [
+                "ushort1",
+                "uint1",
+                "ushort2",
+                "id",
+                "ulong1",
+                "ulong2",
+                "ulong3",
+                "ulong4",
+                "ulong5",
+                "ulong6",
+                "ulong7",
+                "ulong8",
+                "ulong9",
+                "ulong10",
+                "ulong11",
+                "ulong12",
+                "ulong13",
+                "ulong14",
+                "ulong15",
+                "ulong16",
+                "ulong17",
+                "ulong18",
+                "text"
+            ],
+            "values": "nnntnnnnnnnnnnnnnnnnnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "FreeDungeonSection",
+        "schema_length": 160,
+        "schema": {
+            "schema": "<qQqqQIiQIiQIiQIiQIiQIiQQQQ",
+            "sch_len": 160,
+            "keys": [
+                "long1",
+                "id",
+                "long2",
+                "long3",
+                "arr1",
+                "int1",
+                "arr2",
+                "int2",
+                "arr3",
+                "int3",
+                "arr4",
+                "int4",
+                "arr5",
+                "int5",
+                "arr6",
+                "int6",
+                "text1",
+                "text2",
+                "text3",
+                "text4"
+            ],
+            "values": "ntnnanananananantttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "AbordageGroupTable",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<IIQIIQII",
+            "sch_len": 40,
+            "keys": [
+                "uint1",
+                "uint2",
+                "arr1",
+                "uint3",
+                "arr2",
+                "uint4"
+            ],
+            "values": "nnanan"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "HollowCoreVoice",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<hIHQII",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "int",
+                "empty",
+                "unknown",
+                "int2"
+            ],
+            "values": "nnnan",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "FishingActionParam",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<ifffff",
+            "sch_len": 24,
+            "keys": [
+                "int",
+                "float1",
+                "float2",
+                "float3",
+                "float4",
+                "float5"
+            ],
+            "values": "nnnnnn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "ArchiveMessage",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IIQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "uint1",
+                "text"
+            ],
+            "values": "nnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "CardEffectText",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<qQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "text1",
+                "text2"
+            ],
+            "values": "ntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "AbordageSpawnTboxTable",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IIQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "uint",
+                "toffset"
+            ],
+            "values": "nnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "ConditionHelpData",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<qQQQQ",
+            "sch_len": 40,
+            "keys": [
+                "id",
+                "text1",
+                "text2",
+                "text3",
+                "text4"
+            ],
+            "values": "ntttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "TimeAttackItem",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<IIQII",
+            "sch_len": 24,
+            "keys": [
+                "item_id",
+                "empty",
+                "name1",
+                "quantity",
+                "unk_u32"
+            ],
+            "values": "nntnn"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "IncValueF",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<QfI",
+            "sch_len": 16,
+            "keys": [
+                "name",
+                "value",
+                "padding"
+            ],
+            "values": "tnn"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "HelpPage",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<HHIQQQ",
+            "sch_len": 32,
+            "keys": [
+                "id1",
+                "id2",
+                "id3",
+                "text1",
+                "text2",
+                "text3"
+            ],
+            "values": "nnnttt"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "BattleEnemyDamageAdjust",
+        "schema_length": 8,
+        "schema": {
+            "schema": "<ii",
+            "sch_len": 8,
+            "keys": [
+                "level",
+                "ratio"
+            ],
+            "values": "nn"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "NoteMainBadge",
+        "schema_length": 4,
+        "schema": {
+            "schema": "<hh",
+            "sch_len": 4,
+            "keys": [
+                "id",
+                "value"
+            ],
+            "values": "nn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "MapSeaTable",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<IIQQQ",
+            "sch_len": 32,
+            "keys": [
+                "region_id",
+                "unk_u32",
+                "map",
+                "map_texture",
+                "map_name"
+            ],
+            "values": "nnttt"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "HelpTitle",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<HHIQQ",
+            "sch_len": 24,
+            "keys": [
+                "id1",
+                "id2",
+                "id3",
+                "text",
+                "ulong"
+            ],
+            "values": "nnntn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "QuestRank",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<QQii",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "rank_name",
+                "int1",
+                "int2"
+            ],
+            "values": "ntnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "HackingSkillData",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<Ifff",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "float1",
+                "float2",
+                "float3"
+            ],
+            "values": "nnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "SkillLevelAbilityParam",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<Hhhhhhhh",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "empty1",
+                "bonus",
+                "empty2",
+                "level_requirement",
+                "short1",
+                "short2",
+                "empty"
+            ],
+            "values": "nnnnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "TimeChartTitleParam",
+        "schema_length": 72,
+        "schema": {
+            "schema": "<QQIIQIIQQQQ",
+            "sch_len": 72,
+            "keys": [
+                "id",
+                "arr1",
+                "empty1",
+                "arr2",
+                "empty2",
+                "title",
+                "event",
+                "chapter",
+                "route"
+            ],
+            "values": "nbnbntttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "FreeDungeonData",
+        "schema_length": 232,
+        "schema": {
+            "schema": "<iiQIiQIiQIiQIiQIiQIiQIiQIiQIiQIiQiiiiiiiiiiiiii",
+            "sch_len": 232,
+            "keys": [
+                "int1",
+                "int2",
+                "arr1",
+                "int3",
+                "arr2",
+                "int4",
+                "arr3",
+                "int5",
+                "arr4",
+                "int6",
+                "arr5",
+                "int7",
+                "arr6",
+                "int8",
+                "arr7",
+                "int9",
+                "arr8",
+                "int10",
+                "arr9",
+                "int11",
+                "arr10",
+                "int12",
+                "text",
+                "int13",
+                "int14",
+                "int15",
+                "int16",
+                "int17",
+                "int18",
+                "int19",
+                "int20",
+                "int21",
+                "int22",
+                "int23",
+                "int24",
+                "int25",
+                "int26"
+            ],
+            "values": "nnbnananananananananantnnnnnnnnnnnnnn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "RecruitmentMember",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<IiQQQQQII",
+            "sch_len": 56,
+            "keys": [
+                "id",
+                "int1",
+                "recruitment",
+                "char_name",
+                "age",
+                "home",
+                "occupation",
+                "int2",
+                "int3"
+            ],
+            "values": "nntttttnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "HollowCoreLevelParam",
+        "schema_length": 224,
+        "schema": {
+            "schema": "<IIiIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIQ",
+            "sch_len": 224,
+            "keys": [
+                "item_id",
+                "level",
+                "int1",
+                "mat",
+                "ep",
+                "effects",
+                "description"
+            ],
+            "values": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnt"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SkillLevelHelpData",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<qQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "text1",
+                "text2"
+            ],
+            "values": "ntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "TopicfaceData",
+        "schema_length": 6,
+        "schema": {
+            "schema": "<HHH",
+            "sch_len": 6,
+            "keys": [
+                "ushort1",
+                "ushort2",
+                "ushort3"
+            ],
+            "values": "nnn"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "TopicGetCond",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<HHHHQIiQIi",
+            "sch_len": 40,
+            "keys": [
+                "id",
+                "short1",
+                "short2",
+                "short3",
+                "arr1",
+                "empty1",
+                "arr2",
+                "empty2"
+            ],
+            "values": "nnnnbnbn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "BTLVoiceTable",
+        "schema_length": 80,
+        "schema": {
+            "schema": "<iqqiQIiQIiQQIi",
+            "sch_len": 80,
+            "keys": [
+                "int1",
+                "long1",
+                "long2",
+                "empty1",
+                "arr1",
+                "empty2",
+                "arr2",
+                "empty3",
+                "text1",
+                "arr3",
+                "empty4"
+            ],
+            "values": "nnnnanantbn"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "BTLVoiceTable",
+        "schema_length": 88,
+        "schema": {
+            "schema": "<iHHHHiQIiQIiQIiQQIi",
+            "sch_len": 88,
+            "keys": [
+                "int1",
+                "short1",
+                "short2",
+                "short3",
+                "short4",
+                "int2",
+                "array1",
+                "empty1",
+                "array2",
+                "empty2",
+                "array3",
+                "empty3",
+                "text",
+                "array4",
+                "empty4"
+            ],
+            "values": "nnnnnnbnbnantbn"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "HelpOverlayIcon",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<HHIQffIfQ",
+            "sch_len": 40,
+            "keys": [
+                "id1",
+                "id2",
+                "id3",
+                "toffset",
+                "float1",
+                "float2",
+                "uint",
+                "float3",
+                "ulong"
+            ],
+            "values": "nnntnnnnn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "ConnectItemData",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<IIQQQbbbbI",
+            "sch_len": 40,
+            "keys": [
+                "id",
+                "int1",
+                "long1",
+                "item_name",
+                "item_description",
+                "byte1",
+                "byte2",
+                "byte3",
+                "byte4",
+                "empty1"
+            ],
+            "values": "nnnttnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SkillRangeHelpData",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<qQqQQ",
+            "sch_len": 40,
+            "keys": [
+                "id",
+                "text1",
+                "icon",
+                "text2",
+                "text3"
+            ],
+            "values": "ntntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "GlossarySelect",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IIQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "uint1",
+                "text"
+            ],
+            "values": "nnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "TopicTableData",
+        "schema_length": 48,
+        "schema": {
+            "schema": "<IiQIiQQQ",
+            "sch_len": 48,
+            "keys": [
+                "id",
+                "int1",
+                "scena_array",
+                "empty1",
+                "text1",
+                "text2",
+                "text3"
+            ],
+            "values": "nnbnttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "TopicTableData",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<qQQQ",
+            "sch_len": 32,
+            "keys": [
+                "id",
+                "text1",
+                "text2",
+                "text3"
+            ],
+            "values": "nttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "TopicTableData",
+        "schema_length": 104,
+        "schema": {
+            "schema": "<HHIQQQIIQIIQIIQIIQQ",
+            "sch_len": 104,
+            "keys": [
+                "id",
+                "ushort",
+                "uint1",
+                "text1",
+                "text2",
+                "arr1",
+                "uint2",
+                "arr2",
+                "uint3",
+                "arr3",
+                "uint4",
+                "arr4",
+                "uint5",
+                "toffset1",
+                "toffset2"
+            ],
+            "values": "nnnttbnbnbnbntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "EtcItemParam",
+        "schema_length": 48,
+        "schema": {
+            "schema": "<QQQQIfII",
+            "sch_len": 48,
+            "keys": [
+                "ulong1",
+                "ulong2",
+                "ulong3",
+                "ulong4",
+                "uint1",
+                "float",
+                "uint2",
+                "uint3"
+            ],
+            "values": "nnnnnnnn"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "SkillLevelFactorDefine",
+        "schema_length": 64,
+        "schema": {
+            "schema": "<QQQQqQIiii",
+            "sch_len": 64,
+            "keys": [
+                "id",
+                "text1",
+                "text2",
+                "text3",
+                "long1",
+                "array1",
+                "int1",
+                "int2",
+                "int3"
+            ],
+            "values": "ntttnannn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SkillTextArrayData",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<qQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "text1",
+                "text2"
+            ],
+            "values": "ntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "ShipPowerUpPlan",
+        "schema_length": 304,
+        "schema": {
+            "schema": "<IHHIIQIIQIIQIIIIQQQQQQQQQQIIIIIIIIQQQIIIIIIIIIIIIIIIIIIIIIIII",
+            "sch_len": 304,
+            "keys": [
+                "unk_u32_1",
+                "unk_u16_1",
+                "priority",
+                "unk_u32_2",
+                "unk_u32_3",
+                "array1",
+                "unk_u32_4",
+                "array2",
+                "unk_u32_5",
+                "array3",
+                "unk_u32_6",
+                "unk_u32_7",
+                "unk_u32_8",
+                "name1",
+                "details",
+                "desc_1",
+                "desc_2",
+                "text1",
+                "text2",
+                "unlock_1",
+                "unlock_2",
+                "unlock_3",
+                "unlock_4",
+                "materials",
+                "empty1",
+                "empty2",
+                "empty3",
+                "upgrades"
+            ],
+            "values": "nnnnnananannnttttttttttnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "MapBGM",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<qQIIQIi",
+            "sch_len": 40,
+            "keys": [
+                "long1",
+                "arr1",
+                "empty1",
+                "arr2",
+                "int1"
+            ],
+            "values": "nbnbn"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "FugilLetterData",
+        "schema_length": 88,
+        "schema": {
+            "schema": "<qQQQQIiQIiQiiq",
+            "sch_len": 88,
+            "keys": [
+                "id",
+                "toffset1",
+                "text1",
+                "text2",
+                "arr1",
+                "int1",
+                "arr2",
+                "int2",
+                "toffset2",
+                "int3",
+                "int4",
+                "long"
+            ],
+            "values": "ntttanantnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "ConnectEventData",
+        "schema_length": 72,
+        "schema": {
+            "schema": "<IiqQQqQIiQIi",
+            "sch_len": 72,
+            "keys": [
+                "id",
+                "int1",
+                "long1",
+                "connect_name",
+                "connect_description",
+                "long2",
+                "scena_array1",
+                "empty1",
+                "scena_array2",
+                "int2"
+            ],
+            "values": "nnnttnbnbn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "ConnectEventData",
+        "schema_length": 80,
+        "schema": {
+            "schema": "<QIqiQQqQIiQIi",
+            "sch_len": 80,
+            "keys": [
+                "arr1",
+                "long1",
+                "empty1",
+                "text1",
+                "text2",
+                "long2",
+                "arr2",
+                "empty",
+                "arr3",
+                "int1"
+            ],
+            "values": "bnnttnbnbn"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SkillPowerIcon",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<iiQ",
+            "sch_len": 16,
+            "keys": [
+                "skill_power",
+                "icon_id",
+                "power_text"
+            ],
+            "values": "nnt"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "NoteBattleCategory",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<qQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "note_text1",
+                "note_text2"
+            ],
+            "values": "ntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "EventTableData",
+        "schema_length": 128,
+        "schema": {
+            "schema": "<qQQqQQqQIIQQIIqqQq",
+            "sch_len": 128,
+            "keys": [
+                "id",
+                "text1",
+                "text2",
+                "long1",
+                "text3",
+                "text4",
+                "long2",
+                "text5",
+                "uint1",
+                "uint2",
+                "text6",
+                "array",
+                "uint3",
+                "long3",
+                "long4",
+                "text",
+                "long5"
+            ],
+            "values": "nttnttntnntannntn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "EventTableData",
+        "schema_length": 128,
+        "schema": {
+            "schema": "<qQQqQQqQIIQQIIQIIQq",
+            "sch_len": 128,
+            "keys": [
+                "id",
+                "text1",
+                "text2",
+                "long1",
+                "text3",
+                "text4",
+                "long2",
+                "text5",
+                "uint1",
+                "uint2",
+                "text6",
+                "arr1",
+                "uint3",
+                "arr2",
+                "uint4",
+                "text",
+                "long3"
+            ],
+            "values": "nttnttntnntbnbntn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "QuestTitle",
+        "schema_length": 72,
+        "schema": {
+            "schema": "<HihQQhihQiiHHHHiBBHq",
+            "sch_len": 72,
+            "keys": [
+                "id",
+                "int1",
+                "empty1",
+                "quest_description",
+                "quest_giver",
+                "short1",
+                "int2",
+                "empty2",
+                "file_name",
+                "int3",
+                "int4",
+                "short2",
+                "short3",
+                "short4",
+                "empty3",
+                "int5",
+                "byte1",
+                "byte2",
+                "short5",
+                "long1"
+            ],
+            "values": "nnnttnnntnnnnnnnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "QuestTitle",
+        "schema_length": 112,
+        "schema": {
+            "schema": "<HihQQhihQiiHHHHiBBHqQQIiQIi",
+            "sch_len": 112,
+            "keys": [
+                "id",
+                "int1",
+                "empty1",
+                "quest_description",
+                "quest_giver",
+                "short1",
+                "int2",
+                "empty2",
+                "file_name",
+                "int3",
+                "int4",
+                "short2",
+                "short3",
+                "short4",
+                "empty3",
+                "int5",
+                "byte1",
+                "byte2",
+                "short5",
+                "long1",
+                "text",
+                "arr1",
+                "int6",
+                "arr2",
+                "int7"
+            ],
+            "values": "nnnttnnntnnnnnnnnnnntbnbn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "QuestTitle",
+        "schema_length": 104,
+        "schema": {
+            "schema": "<HihQQhihQiiBBBBBBBBBBBBBBBBiiHihQQq",
+            "sch_len": 104,
+            "keys": [
+                "id",
+                "int1",
+                "empty1",
+                "quest_name",
+                "quest_giver",
+                "short1",
+                "int2",
+                "empty2",
+                "file_name",
+                "int3",
+                "int4",
+                "byte1",
+                "byte2",
+                "byte3",
+                "byte4",
+                "byte5",
+                "byte6",
+                "byte7",
+                "byte8",
+                "byte9",
+                "byte10",
+                "byte11",
+                "byte12",
+                "byte13",
+                "byte14",
+                "byte15",
+                "byte16",
+                "int5",
+                "int6",
+                "short2",
+                "int7",
+                "empty3",
+                "quest_number",
+                "completion_comment",
+                "empty4"
+            ],
+            "values": "nnnttnnntnnnnnnnnnnnnnnnnnnnnnnnttn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "QuestTitle",
+        "schema_length": 152,
+        "schema": {
+            "schema": "<QQQIIQIIQIIQIIQIIQQIIQQIIQ",
+            "sch_len": 152,
+            "keys": [
+                "id",
+                "text",
+                "arr1",
+                "uint1",
+                "arr2",
+                "uint2",
+                "arr3",
+                "uint3",
+                "arr4",
+                "uint4",
+                "arr5",
+                "uint5",
+                "ulong1",
+                "arr6",
+                "uint6",
+                "toffset1",
+                "toffset2",
+                "uint7",
+                "uint8",
+                "ulong2"
+            ],
+            "values": "ntananananannanttnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SeriesContents",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<QQQQ",
+            "sch_len": 32,
+            "keys": [
+                "id",
+                "toffset",
+                "text1",
+                "text2"
+            ],
+            "values": "nttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "AbordageIDTable",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IIII",
+            "sch_len": 16,
+            "keys": [
+                "uint1",
+                "uint2",
+                "uint3",
+                "uint4"
+            ],
+            "values": "nnnn"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "HackingStageData",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<qQfIIIq",
+            "sch_len": 40,
+            "keys": [
+                "id",
+                "text",
+                "float",
+                "uint1",
+                "uint2",
+                "uint3",
+                "long"
+            ],
+            "values": "ntnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "PlayRecordData",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<qQQQQ",
+            "sch_len": 40,
+            "keys": [
+                "achievement_category",
+                "tag",
+                "name",
+                "achieved_goal",
+                "todo_goal"
+            ],
+            "values": "ntttt"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "GlossaryContents",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<HHIQQQ",
+            "sch_len": 32,
+            "keys": [
+                "short",
+                "id",
+                "uint1",
+                "file",
+                "text1",
+                "text2"
+            ],
+            "values": "nnnttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "GlossaryContents",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<HHIQQQQ",
+            "sch_len": 40,
+            "keys": [
+                "short",
+                "id",
+                "uint1",
+                "file",
+                "text1",
+                "text2",
+                "text3"
+            ],
+            "values": "nnntttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "ATBonusSet",
+        "schema_length": 28,
+        "schema": {
+            "schema": "<IBBBBBBBBBBBBBBBBBBBBBBBB",
+            "sch_len": 28,
+            "keys": [
+                "id",
+                "player_or_foe_value",
+                "general_at_bonus_chance",
+                "hp_heal_s_bonus_chance",
+                "ep_heal_s_bonus_chance",
+                "cp_heal_s_bonus_chance",
+                "hp_heal_l_bonus_chance",
+                "ep_heal_l_bonus_chance",
+                "cp_heal_l_bonus_chance",
+                "critical_bonus_chance",
+                "unknown_bonus_chance_1",
+                "unknown_bonus_chance_2",
+                "unknown_bonus_chance_3",
+                "mystery_bonus_chance",
+                "unused_byte_1",
+                "unused_byte_2",
+                "unused_byte_3",
+                "unused_byte_4",
+                "unused_byte_5",
+                "unused_byte_6",
+                "unused_byte_7",
+                "unused_byte_8",
+                "unused_byte_9",
+                "unused_byte_10",
+                "unused_byte_11"
+            ],
+            "values": "nnnnnnnnnnnnnnnnnnnnnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "ATBonusSet",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<IBBBBBBBBBBBBBBBBBBBB",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "player_or_foe_value",
+                "general_at_bonus_chance",
+                "hp_heal_s_bonus_chance",
+                "ep_heal_s_bonus_chance",
+                "cp_heal_s_bonus_chance",
+                "hp_heal_l_bonus_chance",
+                "ep_heal_l_bonus_chance",
+                "cp_heal_l_bonus_chance",
+                "unknown_bonus_chance_1",
+                "unknown_bonus_chance_2",
+                "unknown_bonus_chance_3",
+                "unknown_bonus_chance_4",
+                "unknown_bonus_chance_5",
+                "unknown_bonus_chance_6",
+                "unknown_bonus_chance_7",
+                "unknown_bonus_chance_8",
+                "unknown_bonus_chance_9",
+                "unknown_bonus_chance_10",
+                "unknown_bonus_chance_11",
+                "byte1"
+            ],
+            "values": "nnnnnnnnnnnnnnnnnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "ATBonusSet",
+        "schema_length": 20,
+        "schema": {
+            "schema": "<IBBBBBBBBBBBBBBBB",
+            "sch_len": 20,
+            "keys": [
+                "id",
+                "player_or_foe_value",
+                "general_at_bonus_chance",
+                "hp_heal_s_bonus_chance",
+                "ep_heal_s_bonus_chance",
+                "cp_heal_s_bonus_chance",
+                "hp_heal_l_bonus_chance",
+                "ep_heal_l_bonus_chance",
+                "cp_heal_l_bonus_chance",
+                "critical_bonus_chance",
+                "unknown_bonus_chance_1",
+                "unknown_bonus_chance_2",
+                "unknown_bonus_chance_3",
+                "mystery_bonus_chance",
+                "unused_byte_1",
+                "unused_byte_2",
+                "unused_byte_3"
+            ],
+            "values": "nnnnnnnnnnnnnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "MapJumpRegionData",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<QQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "name",
+                "flag"
+            ],
+            "values": "ntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "MapJumpRegionData",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<QQQff",
+            "sch_len": 32,
+            "keys": [
+                "id",
+                "name",
+                "flag",
+                "float1",
+                "float2"
+            ],
+            "values": "nttnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "FishingBaitInfo",
+        "schema_length": 8,
+        "schema": {
+            "schema": "<II",
+            "sch_len": 8,
+            "keys": [
+                "uint1",
+                "uint2"
+            ],
+            "values": "nn"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "ActiveVoiceTable",
+        "schema_length": 72,
+        "schema": {
+            "schema": "<IIIIQIIQIIHQIHQ",
+            "sch_len": 72,
+            "keys": [
+                "uint1",
+                "uint2",
+                "uint3",
+                "uint4",
+                "arr1",
+                "uint5",
+                "arr2",
+                "uint6",
+                "ushort1",
+                "ulong",
+                "uint7",
+                "ushort2",
+                "text"
+            ],
+            "values": "nnnnanannnnnt"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "PokerMessage",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<IIQq",
+            "sch_len": 24,
+            "keys": [
+                "uint1",
+                "uint2",
+                "text",
+                "empty"
+            ],
+            "values": "nntn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "BattleLevelField",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IIIf",
+            "sch_len": 16,
+            "keys": [
+                "difficulty_id",
+                "player_damage_multiplier",
+                "enemy_damage_multiplier",
+                "player_stun_damage_multiplier"
+            ],
+            "values": "nnnn"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "EventTable",
+        "schema_length": 176,
+        "schema": {
+            "schema": "<IIqQQQIIqQfIQQQQQIIQIIQIIQIIQ",
+            "sch_len": 176,
+            "keys": [
+                "id",
+                "uint1",
+                "long1",
+                "text1",
+                "toffset1",
+                "toffset2",
+                "uint2",
+                "uint3",
+                "long2",
+                "text2",
+                "float",
+                "uint4",
+                "toffset3",
+                "toffset4",
+                "toffset5",
+                "toffset6",
+                "arr1",
+                "uint5",
+                "arr2",
+                "uint6",
+                "arr3",
+                "uint7",
+                "toffset7",
+                "uint8",
+                "uint9",
+                "toffset8"
+            ],
+            "values": "nnntttnnntnnttttananantnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "TacticalBonus",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<IfBBihQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "exp_bonus",
+                "byte1",
+                "byte2",
+                "empty1",
+                "empty2",
+                "text"
+            ],
+            "values": "nnnnnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "TacticalBonus",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IBBhQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "byte1",
+                "byte2",
+                "empty1",
+                "text"
+            ],
+            "values": "nnnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "FishingSpot",
+        "schema_length": 208,
+        "schema": {
+            "schema": "<IhhQIIQIIffffIffffIffffIffffIffffQQQQQQQQQ",
+            "sch_len": 208,
+            "keys": [
+                "id",
+                "short1",
+                "short2",
+                "arr1",
+                "uint1",
+                "arr2",
+                "uint2",
+                "float1",
+                "float2",
+                "float3",
+                "float4",
+                "float5",
+                "float6",
+                "float7",
+                "float8",
+                "float9",
+                "uint3",
+                "float10",
+                "float11",
+                "float12",
+                "float13",
+                "uint4",
+                "float14",
+                "float15",
+                "float16",
+                "float17",
+                "uint5",
+                "float18",
+                "float19",
+                "float20",
+                "float21",
+                "ulong1",
+                "ulong2",
+                "ulong3",
+                "ulong4",
+                "ulong5",
+                "ulong6",
+                "ulong7",
+                "ulong8",
+                "toffset"
+            ],
+            "values": "nnnbnbnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "TipsTable",
+        "schema_length": 96,
+        "schema": {
+            "schema": "<QQQQQIIQIIIIQQII",
+            "sch_len": 96,
+            "keys": [
+                "id",
+                "text1",
+                "text2",
+                "text3",
+                "arr1",
+                "uint1",
+                "arr2",
+                "uint2",
+                "uint3",
+                "uint4",
+                "ulong",
+                "arr3",
+                "uint5"
+            ],
+            "values": "ntttanannnnan",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "EquipLineHelpData",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<qQQQQ",
+            "sch_len": 40,
+            "keys": [
+                "id",
+                "text1",
+                "text2",
+                "text3",
+                "text4"
+            ],
+            "values": "ntttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "NaviText",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<qQQQIiQIi",
+            "sch_len": 56,
+            "keys": [
+                "long1",
+                "text1",
+                "text2",
+                "arr1",
+                "int1",
+                "arr2",
+                "int2"
+            ],
+            "values": "nttanan"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "EventGroupData",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<qQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "text"
+            ],
+            "values": "nt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "EventGroupData",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<qQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "text"
+            ],
+            "values": "nt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "NoteGenesisData",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<QIiQIiQ",
+            "sch_len": 40,
+            "keys": [
+                "arr1",
+                "empty1",
+                "arr2",
+                "empty2",
+                "note_text"
+            ],
+            "values": "bnbnt"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "FreeDungeonBreakObj",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<QQHHHH",
+            "sch_len": 24,
+            "keys": [
+                "ulong1",
+                "toffset1",
+                "ushort1",
+                "ushort2",
+                "ushort3",
+                "ushort4"
+            ],
+            "values": "ntnnnn"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "FreeDungeonClearBonus",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<QQ",
+            "sch_len": 16,
+            "keys": [
+                "ulong1",
+                "text"
+            ],
+            "values": "nt"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "RecaptureIslandMissionLevelTable",
+        "schema_length": 12,
+        "schema": {
+            "schema": "<Iff",
+            "sch_len": 12,
+            "keys": [
+                "id",
+                "float1",
+                "float2"
+            ],
+            "values": "nnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "FieldItemTableData",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<QfffIHHI",
+            "sch_len": 32,
+            "keys": [
+                "unknown_id1",
+                "x_coordinate",
+                "y_coordinate",
+                "z_coordinate",
+                "unknown",
+                "unknown_id2",
+                "item_id",
+                "value"
+            ],
+            "values": "nnnnnnnn"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "AttrData",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<BBBBiQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "element_id_1",
+                "element_id_2",
+                "byte1",
+                "icon_id",
+                "element_name"
+            ],
+            "values": "nnnnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "HollowCoreEffText",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<QQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "effect_description"
+            ],
+            "values": "nt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "AdvLogMainStory",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<IIQIIQQ",
+            "sch_len": 40,
+            "keys": [
+                "uint1",
+                "uint2",
+                "text1",
+                "uint3",
+                "uint4",
+                "ulong",
+                "text2"
+            ],
+            "values": "nntnnnt"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "AchievementTableData",
+        "schema_length": 72,
+        "schema": {
+            "schema": "<IIIIQIhhiiqQQQ",
+            "sch_len": 72,
+            "keys": [
+                "achievement_category",
+                "achievement_id",
+                "achievement_objective_1",
+                "achievement_objective_param_1",
+                "arr1",
+                "short1",
+                "short2",
+                "int1",
+                "int2",
+                "long1",
+                "flag",
+                "achievement_name",
+                "achievement_description"
+            ],
+            "values": "nnnnannnnnttt"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "AchievementTableData",
+        "schema_length": 88,
+        "schema": {
+            "schema": "<IIIIqQIhhiiqqQQQ",
+            "sch_len": 88,
+            "keys": [
+                "achievement_category",
+                "achievement_id",
+                "achievement_objective_1",
+                "achievement_objective_param_1",
+                "long1",
+                "arr1",
+                "short1",
+                "short2",
+                "int1",
+                "int2",
+                "long2",
+                "empty",
+                "flag",
+                "achievement_name",
+                "achievement_description"
+            ],
+            "values": "nnnnnannnnnnttt"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "AchievementTableData",
+        "schema_length": 96,
+        "schema": {
+            "schema": "<IIIIqQIhhiiqqQQQQ",
+            "sch_len": 96,
+            "keys": [
+                "achievement_category",
+                "achievement_id",
+                "achievement_objective_1",
+                "achievement_objective_param_1",
+                "long1",
+                "arr1",
+                "short1",
+                "short2",
+                "int1",
+                "int2",
+                "long2",
+                "long3",
+                "flag1",
+                "flag2",
+                "achievement_name",
+                "achievement_description"
+            ],
+            "values": "nnnnnannnnnntttt"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SkillLevelExpCorrectData",
+        "schema_length": 12,
+        "schema": {
+            "schema": "<iii",
+            "sch_len": 12,
+            "keys": [
+                "int1",
+                "int2",
+                "int3"
+            ],
+            "values": "nnn"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "NoteMonsSpotMenu",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<qQ",
+            "sch_len": 16,
+            "keys": [
+                "long1",
+                "note_text"
+            ],
+            "values": "nt"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "QuestCheckMessage",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<qQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "text"
+            ],
+            "values": "nt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "CardAttributeData",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<qQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "text"
+            ],
+            "values": "nt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "SkillLevelCostData",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<IIhHHHHHHHHHHHHHHH",
+            "sch_len": 40,
+            "keys": [
+                "id",
+                "id_2",
+                "empty1",
+                "stone_cost_1",
+                "stone_cost_2",
+                "stone_cost_3",
+                "stone_cost_4",
+                "stone_cost_5",
+                "stone_cost_6",
+                "stone_cost_7",
+                "stone_cost_8",
+                "stone_cost_9",
+                "stone_cost_10",
+                "stone_cost_11",
+                "stone_cost_12",
+                "stone_cost_13",
+                "stone_cost_14",
+                "stone_cost_15"
+            ],
+            "values": "nnnnnnnnnnnnnnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "NoteGourmetArea",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<qQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "text"
+            ],
+            "values": "nt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "BattleSCraftDamageRatio",
+        "schema_length": 4,
+        "schema": {
+            "schema": "<hh",
+            "sch_len": 4,
+            "keys": [
+                "Ratio_1",
+                "Ratio_2"
+            ],
+            "values": "nn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "QuestReportBackTexture",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<qQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "texture1",
+                "texture2"
+            ],
+            "values": "ntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "BattleLevelTurn",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<IIIIII",
+            "sch_len": 24,
+            "keys": [
+                "difficulty_id",
+                "player_damage_multiplier",
+                "enemy_damage_multiplier",
+                "hp_or_unknown_multi_1",
+                "hp_or_unknown_multi_2",
+                "enemy_spd_multiplier"
+            ],
+            "values": "nnnnnn"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "BattleLevelTurn",
+        "schema_length": 28,
+        "schema": {
+            "schema": "<IIIIIII",
+            "sch_len": 28,
+            "keys": [
+                "difficulty_id",
+                "player_damage_multiplier",
+                "enemy_damage_multiplier",
+                "hp_or_unknown_multi_1",
+                "hp_or_unknown_multi_2",
+                "enemy_spd_multiplier",
+                "int1"
+            ],
+            "values": "nnnnnnn"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "NoteCookRecipe",
+        "schema_length": 68,
+        "schema": {
+            "schema": "<iIIIIIIIIIIIIIIII",
+            "sch_len": 68,
+            "keys": [
+                "id",
+                "ingredients"
+            ],
+            "values": "nnnnnnnnnnnnnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "HollowCoreConvertLevelParam",
+        "schema_length": 8,
+        "schema": {
+            "schema": "<II",
+            "sch_len": 8,
+            "keys": [
+                "id",
+                "value"
+            ],
+            "values": "nn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "TipsTableData",
+        "schema_length": 48,
+        "schema": {
+            "schema": "<qQIiqQQ",
+            "sch_len": 48,
+            "keys": [
+                "long1",
+                "array",
+                "empty1",
+                "id",
+                "text_1",
+                "text_2"
+            ],
+            "values": "nbnntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "TipsTableData",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<HHIQIIQIIQQ",
+            "sch_len": 56,
+            "keys": [
+                "id1",
+                "id2",
+                "int1",
+                "array",
+                "int2",
+                "tag",
+                "tab_id",
+                "order",
+                "title",
+                "text"
+            ],
+            "values": "nnnbntnntt"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "FreeDungeonReward",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<qQIiQQ",
+            "sch_len": 40,
+            "keys": [
+                "long",
+                "arr",
+                "int",
+                "text",
+                "toffset"
+            ],
+            "values": "nantt"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "CharaLibData",
+        "schema_length": 232,
+        "schema": {
+            "schema": "<qQIiQIiqQQqQQQiiQQQIiQIiQIiQQQQQQQIi",
+            "sch_len": 232,
+            "keys": [
+                "id",
+                "arr",
+                "int1",
+                "arr2",
+                "int2",
+                "long1",
+                "text1",
+                "text2",
+                "long2",
+                "text3",
+                "text4",
+                "toffset1",
+                "int3",
+                "int4",
+                "toffset2",
+                "text5",
+                "arr3",
+                "int5",
+                "arr4",
+                "int6",
+                "arr5",
+                "int7",
+                "text6",
+                "text7",
+                "text8",
+                "text9",
+                "text10",
+                "text11",
+                "arr6",
+                "int8"
+            ],
+            "values": "nanannttntttnnttanananttttttan",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "LookPointTable",
+        "schema_length": 88,
+        "schema": {
+            "schema": "<QQQQQIfQIIQIIq",
+            "sch_len": 88,
+            "keys": [
+                "toffset1",
+                "toffset2",
+                "text",
+                "toffset3",
+                "toffset4",
+                "uint1",
+                "float",
+                "arr1",
+                "uint2",
+                "arr2",
+                "uint3",
+                "long"
+            ],
+            "values": "tttttnnanann"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "FreeDungeonTBox",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<qQIi",
+            "sch_len": 24,
+            "keys": [
+                "long",
+                "arr",
+                "int"
+            ],
+            "values": "nbn"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "NoteHelpMenu",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<HihQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "int1",
+                "empty1",
+                "note_text"
+            ],
+            "values": "nnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "NoteHelpMenu",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<qQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "note_text1",
+                "note_text"
+            ],
+            "values": "ntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "QuestChapterRank",
+        "schema_length": 20,
+        "schema": {
+            "schema": "<Iiiii",
+            "sch_len": 20,
+            "keys": [
+                "id",
+                "int1",
+                "int2",
+                "int3",
+                "int4"
+            ],
+            "values": "nnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "FeastEffectData",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IIQ",
+            "sch_len": 16,
+            "keys": [
+                "effect_id",
+                "unk_u32",
+                "effect_name"
+            ],
+            "values": "nnt"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "NoteHelpCategory",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<qQQQ",
+            "sch_len": 32,
+            "keys": [
+                "id",
+                "note_text1",
+                "note_text2",
+                "note_text3"
+            ],
+            "values": "nttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "BlackJackMessage",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<IIQq",
+            "sch_len": 24,
+            "keys": [
+                "uint1",
+                "uint2",
+                "text",
+                "long"
+            ],
+            "values": "nntn"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "BooksTitleReplace",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<HihQQHHi",
+            "sch_len": 32,
+            "keys": [
+                "id",
+                "int1",
+                "short1",
+                "book_name",
+                "file_name",
+                "short2",
+                "short3",
+                "empty"
+            ],
+            "values": "nnnttnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "CardData",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<qQhhhh",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "text",
+                "short1",
+                "short2",
+                "short3",
+                "short4"
+            ],
+            "values": "ntnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "PreStoryMainContents",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<IIQQQ",
+            "sch_len": 32,
+            "keys": [
+                "id",
+                "uint1",
+                "file",
+                "title",
+                "text2"
+            ],
+            "values": "nnttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "MapJumpSpotData",
+        "schema_length": 80,
+        "schema": {
+            "schema": "<QQQQQffffQQQ",
+            "sch_len": 80,
+            "keys": [
+                "id",
+                "place_name",
+                "long1",
+                "scena_file",
+                "toffset1",
+                "x_coordinate",
+                "y_coordinate",
+                "z_coordinate",
+                "angle",
+                "long2",
+                "jump_file",
+                "toffset2"
+            ],
+            "values": "ntnttnnnnntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "MapJumpSpotData",
+        "schema_length": 152,
+        "schema": {
+            "schema": "<IIIIQQQfffIQIffffIQQQQIIQIIQ",
+            "sch_len": 152,
+            "keys": [
+                "id",
+                "region_id",
+                "area_id",
+                "int1",
+                "place_name",
+                "long1",
+                "scena_file",
+                "x_coordinate1",
+                "y_coordinate1",
+                "z_coordinate1",
+                "empty",
+                "sub_scena_file",
+                "int2",
+                "x_coordinate2",
+                "y_coordinate2",
+                "z_coordinate2",
+                "angle2",
+                "int3",
+                "tag",
+                "float1",
+                "jump_file",
+                "arr1",
+                "long2",
+                "arr2",
+                "long3",
+                "jump_file_note3"
+            ],
+            "values": "nnnntntnnnntnnnnnntntbnbnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SkillEffectTypeHelpData",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<qQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "skill_type_name",
+                "text"
+            ],
+            "values": "ntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "ChapterSaveParam",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<iiqQ",
+            "sch_len": 24,
+            "keys": [
+                "int1",
+                "int2",
+                "long1",
+                "text"
+            ],
+            "values": "nnnt"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SkillTypeHelpData",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<qQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "text1",
+                "text2"
+            ],
+            "values": "ntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "PlaceTableData",
+        "schema_length": 72,
+        "schema": {
+            "schema": "<QQQQIfQIfQQ",
+            "sch_len": 72,
+            "keys": [
+                "id",
+                "text",
+                "text2",
+                "scena_flag_array1",
+                "float1",
+                "scena_flag_array2",
+                "float2",
+                "bytesseq",
+                "utf8text"
+            ],
+            "values": "nttbnbntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "PlaceTableData",
+        "schema_length": 112,
+        "schema": {
+            "schema": "<QQQfffIQIfQIfQQQfffI",
+            "sch_len": 112,
+            "keys": [
+                "id",
+                "text",
+                "text2",
+                "float1",
+                "float2",
+                "float3",
+                "empty1",
+                "scena_flag_array1",
+                "float5",
+                "scena_flag_array2",
+                "float6",
+                "text3",
+                "text4",
+                "text5",
+                "float7",
+                "float8",
+                "float9",
+                "empty2"
+            ],
+            "values": "nttnnnnbnbntttnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kiseki2 - Converted from KuroTools",
+        "table_header": "PlaceTableData",
+        "schema_length": 96,
+        "schema": {
+            "schema": "<QQQffffQIfQIfQQQ",
+            "sch_len": 96,
+            "keys": [
+                "id",
+                "text",
+                "text2",
+                "float1",
+                "float2",
+                "float3",
+                "float4",
+                "scena_flag_array1",
+                "float5",
+                "scena_flag_array2",
+                "float6",
+                "bytesseq",
+                "utf8text",
+                "text3"
+            ],
+            "values": "nttnnnnbnbnttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "PlaceTableData",
+        "schema_length": 168,
+        "schema": {
+            "schema": "<HIHQQQIfIIQIfQIfQQQQffQIfffIIIfff",
+            "sch_len": 168,
+            "keys": [
+                "id",
+                "id1",
+                "id2",
+                "file1",
+                "file2",
+                "file3",
+                "uint1",
+                "float1",
+                "uint2",
+                "uint3",
+                "empty_array1",
+                "float2",
+                "empty_array2",
+                "float3",
+                "ulong1",
+                "tags",
+                "name",
+                "empty_text",
+                "float4",
+                "float5",
+                "u32array",
+                "float6",
+                "float7",
+                "float8",
+                "uint4",
+                "uint5",
+                "uint6",
+                "float9",
+                "float10",
+                "float11"
+            ],
+            "values": "nnntttnnnnbnbnntttnnannnnnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "RuneStoneData",
+        "schema_length": 64,
+        "schema": {
+            "schema": "<IIQQQQQfIQ",
+            "sch_len": 64,
+            "keys": [
+                "id",
+                "unk_u32_1",
+                "rune_stone_name",
+                "rune_stone_description",
+                "rune_stone_text",
+                "rune_stone_diary_image",
+                "rune_stone_scene_image",
+                "float",
+                "unk_u32_2",
+                "unk_u64"
+            ],
+            "values": "nntttttnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "HollowCoreEffParam",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<IIQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "id_reference",
+                "long1",
+                "effect_name"
+            ],
+            "values": "nnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "MarkerTableData",
+        "schema_length": 96,
+        "schema": {
+            "schema": "<qQQIIQIIQqqqqQ",
+            "sch_len": 96,
+            "keys": [
+                "id",
+                "text1",
+                "array1",
+                "uint1",
+                "array2",
+                "uint2",
+                "text2",
+                "long1",
+                "long2",
+                "long3",
+                "long4",
+                "text3"
+            ],
+            "values": "ntbnbntnnnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "MarkerTableData",
+        "schema_length": 112,
+        "schema": {
+            "schema": "<hhIQIIQIIQIhhqQIffffffIQ",
+            "sch_len": 112,
+            "keys": [
+                "map&lp_icon_id",
+                "far_icon_id",
+                "empty1",
+                "map_ids",
+                "empty2",
+                "show_flags",
+                "empty3",
+                "hide_flags",
+                "placement_type",
+                "chr_id",
+                "quest_id",
+                "scene_or_lp_name",
+                "empty4",
+                "x_pos",
+                "y_pos",
+                "z_pos",
+                "highlight_radius",
+                "trigger_radius",
+                "transition_buffer",
+                "empty5",
+                "end"
+            ],
+            "values": "nnnanbnbnnntnnnnnnnnt"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "TextTableData",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<QQ",
+            "sch_len": 16,
+            "keys": [
+                "key",
+                "value"
+            ],
+            "values": "tt"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "TextTableData",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<QQ",
+            "sch_len": 16,
+            "keys": [
+                "key",
+                "value"
+            ],
+            "values": "tt"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "BattleEnemyLevelStatusAdjust",
+        "schema_length": 20,
+        "schema": {
+            "schema": "<HHiiii",
+            "sch_len": 20,
+            "keys": [
+                "difficulty_id",
+                "level",
+                "hp_multi",
+                "str_multi",
+                "ats_multi",
+                "spd_multi"
+            ],
+            "values": "nnnnnn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "BattleLevelMonsterParam",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<Qiiiiii",
+            "sch_len": 32,
+            "keys": [
+                "name",
+                "int1",
+                "int2",
+                "int3",
+                "int4",
+                "int5",
+                "int6"
+            ],
+            "values": "tnnnnnn"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "KeyConfigData",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<QQQIIIIIIII",
+            "sch_len": 56,
+            "keys": [
+                "id",
+                "text",
+                "toffset",
+                "uint1",
+                "uint2",
+                "uint3",
+                "uint4",
+                "uint5",
+                "uint6",
+                "uint7",
+                "uint8"
+            ],
+            "values": "nttnnnnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "AdvLogCategoryTab",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<IIIIQ",
+            "sch_len": 24,
+            "keys": [
+                "uint1",
+                "uint2",
+                "uint3",
+                "uint4",
+                "text"
+            ],
+            "values": "nnnnt"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "RecaptureIslandInfoTable",
+        "schema_length": 96,
+        "schema": {
+            "schema": "<QQQQQIIQQQIIIfff",
+            "sch_len": 96,
+            "keys": [
+                "text1",
+                "id",
+                "toffset1",
+                "text2",
+                "toffset2",
+                "uint1",
+                "uint2",
+                "ulong2",
+                "text3",
+                "toffset3",
+                "uint3",
+                "uint4",
+                "uint5",
+                "float1",
+                "float2",
+                "float3"
+            ],
+            "values": "tntttnnnttnnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "ReplaceBGMParam",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<IiQQQQQHHf",
+            "sch_len": 56,
+            "keys": [
+                "id",
+                "int1",
+                "flag",
+                "track_name_1",
+                "track_name_2",
+                "ost",
+                "sound_file",
+                "short1",
+                "short2",
+                "float"
+            ],
+            "values": "nntttttnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "HollowCoreBaseParam",
+        "schema_length": 88,
+        "schema": {
+            "schema": "<IIIbbhQQQIfffIfQIIQ",
+            "sch_len": 88,
+            "keys": [
+                "item_id",
+                "int1",
+                "int2",
+                "byte1",
+                "byte2",
+                "empty1",
+                "flag",
+                "s_boost_ability_type",
+                "s_boost_ability_name",
+                "int3",
+                "float1",
+                "float2",
+                "float3",
+                "empty2",
+                "float4",
+                "name",
+                "int4",
+                "name2"
+            ],
+            "values": "nnnnnntntnnnnnnant"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "HollowCoreBaseParam",
+        "schema_length": 104,
+        "schema": {
+            "schema": "<IIIbbhQQQQIIfffIfiQIIQ",
+            "sch_len": 104,
+            "keys": [
+                "item_id",
+                "int1",
+                "int2",
+                "byte1",
+                "byte2",
+                "empty1",
+                "flag",
+                "s_boost_ability_type",
+                "s_boost_ability_name",
+                "array1",
+                "int3",
+                "float1",
+                "float2",
+                "float3",
+                "empty2",
+                "float4",
+                "empty3",
+                "array2",
+                "int4",
+                "name"
+            ],
+            "values": "nnnnnntntbnnnnnnnant"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "VoiceSubtitleTable",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<iiQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "int1",
+                "text"
+            ],
+            "values": "nnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "AbordageSpawnDeckTable",
+        "schema_length": 72,
+        "schema": {
+            "schema": "<QQQIIQQIIQII",
+            "sch_len": 72,
+            "keys": [
+                "id",
+                "toffset1",
+                "arr1",
+                "uint1",
+                "toffset2",
+                "arr2",
+                "uint2",
+                "arr3",
+                "uint3"
+            ],
+            "values": "ntantanan",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "GlossaryList",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<HHIQII",
+            "sch_len": 24,
+            "keys": [
+                "short",
+                "id",
+                "uint1",
+                "text",
+                "uint2",
+                "uint3"
+            ],
+            "values": "nnntnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "ResearchData",
+        "schema_length": 136,
+        "schema": {
+            "schema": "<IIIffIQQQQQQQQQQQQQQ",
+            "sch_len": 136,
+            "keys": [
+                "category",
+                "unk_u32_1",
+                "unk_u32_2",
+                "float1",
+                "float2",
+                "empty",
+                "picture",
+                "profile",
+                "observations",
+                "imressions",
+                "unknown_u64"
+            ],
+            "values": "nnnnnntttttttttntntn"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "CardBattlerMessage",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<IIQIf",
+            "sch_len": 24,
+            "keys": [
+                "uint1",
+                "uint2",
+                "text",
+                "uint3",
+                "float"
+            ],
+            "values": "nntnn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "ConnectTopicData",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<hIhQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "int1",
+                "empty1",
+                "connect_name",
+                "connect_description"
+            ],
+            "values": "nnntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SkillLevelExpData",
+        "schema_length": 8,
+        "schema": {
+            "schema": "<ii",
+            "sch_len": 8,
+            "keys": [
+                "int1",
+                "int2"
+            ],
+            "values": "nn"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "RecaptureIslandEmitEnemyShipTable",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<IIQQIIQ",
+            "sch_len": 40,
+            "keys": [
+                "id",
+                "uint1",
+                "toffset",
+                "arr",
+                "uint2",
+                "ulong"
+            ],
+            "values": "nntann",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "RecaptureIslandSkillVoiceTable",
+        "schema_length": 28,
+        "schema": {
+            "schema": "<IIIIIII",
+            "sch_len": 28,
+            "keys": [
+                "id",
+                "uint1",
+                "uint2",
+                "uint3",
+                "uint4",
+                "uint5",
+                "uint6"
+            ],
+            "values": "nnnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "LogText",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<qQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "text"
+            ],
+            "values": "nt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "FishingEventParam",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<HHIQQIIQIIQ",
+            "sch_len": 56,
+            "keys": [
+                "ushort1",
+                "ushort2",
+                "uint1",
+                "toffset",
+                "arr1",
+                "uint2",
+                "arr2",
+                "uint3",
+                "ulong"
+            ],
+            "values": "nnntbnbnn"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "SupportLevelData",
+        "schema_length": 12,
+        "schema": {
+            "schema": "<HHii",
+            "sch_len": 12,
+            "keys": [
+                "chr_id",
+                "level",
+                "exp_requirement",
+                "ability_id"
+            ],
+            "values": "nnnn"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "FastTravelTable",
+        "schema_length": 112,
+        "schema": {
+            "schema": "<IIQQQIIQIIQIffffIQIIQ",
+            "sch_len": 112,
+            "keys": [
+                "area_id",
+                "island_id",
+                "travel_point_name",
+                "alt_travel_point_name",
+                "array1",
+                "unk_u32_1",
+                "array2",
+                "unk_u32_2",
+                "array3",
+                "x_pos",
+                "y_pos",
+                "z_pos",
+                "float",
+                "unk_u32_3",
+                "text",
+                "unk_u32_4",
+                "unk_u32_5",
+                "preview_image"
+            ],
+            "values": "nnttananannnnntnnt"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "IncValueI",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<QQ",
+            "sch_len": 16,
+            "keys": [
+                "name",
+                "value"
+            ],
+            "values": "tn"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SkillLevelConstant",
+        "schema_length": 4,
+        "schema": {
+            "schema": "<i",
+            "sch_len": 4,
+            "keys": [
+                "int1"
+            ],
+            "values": "n"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "ResearchCategory",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IIQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "region_id",
+                "picture"
+            ],
+            "values": "nnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "FreeDungeonSupportPos",
+        "schema_length": 44,
+        "schema": {
+            "schema": "<QQQQfff",
+            "sch_len": 44,
+            "keys": [
+                "ulong1",
+                "ulong2",
+                "ulong3",
+                "ulong4",
+                "float1",
+                "float2",
+                "float3"
+            ],
+            "values": "nnnnnnn"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "NoteCookItem",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<iiiiQiiQQIi",
+            "sch_len": 56,
+            "keys": [
+                "int1",
+                "int2",
+                "int3",
+                "int4",
+                "text1",
+                "int5",
+                "int6",
+                "text2",
+                "arr",
+                "int7"
+            ],
+            "values": "nnnntnntbn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "StampCharaList",
+        "schema_length": 12,
+        "schema": {
+            "schema": "<Iff",
+            "sch_len": 12,
+            "keys": [
+                "id",
+                "float1",
+                "float2"
+            ],
+            "values": "nnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "SSkillTable",
+        "schema_length": 128,
+        "schema": {
+            "schema": "<iiIIIIIIIIQQQQIIIffffffIIIQ",
+            "sch_len": 128,
+            "keys": [
+                "char_restriction",
+                "id",
+                "int1",
+                "int2",
+                "int3",
+                "int4",
+                "int5",
+                "int6",
+                "int7",
+                "int8",
+                "name",
+                "animation",
+                "description_1",
+                "internal_description",
+                "int9",
+                "int10",
+                "int11",
+                "float1",
+                "float2",
+                "float3",
+                "float4",
+                "float5",
+                "float6",
+                "int12",
+                "int13",
+                "int14",
+                "internal_name"
+            ],
+            "values": "nnnnnnnnnnttttnnnnnnnnnnnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "StatusParam",
+        "schema_length": 416,
+        "schema": {
+            "schema": "<QQQQQQQQQIfffffffffffffffffQIIIfffffHHHHffIfffIIfIfIIfIfIfIfIfIfIfIfIIIIIIIIBBBBBBBBBBBBHHHHHHHHBBBBBBBBqIBBHIBBHIQQ",
+            "sch_len": 416,
+            "keys": [
+                "ai_file",
+                "flag",
+                "data",
+                "file1",
+                "file2",
+                "file3",
+                "file4",
+                "unknown",
+                "file5",
+                "int1",
+                "float1",
+                "float2",
+                "float3",
+                "float4",
+                "float5",
+                "float6",
+                "float7",
+                "float8",
+                "float9",
+                "float10",
+                "float11",
+                "float12",
+                "float13",
+                "float14",
+                "float15",
+                "float16",
+                "float17",
+                "flag2",
+                "int2",
+                "int3",
+                "int4",
+                "float23",
+                "float24",
+                "float25",
+                "float26",
+                "float27",
+                "short3",
+                "short4",
+                "short5",
+                "short6",
+                "float28",
+                "float29",
+                "int5",
+                "float30",
+                "float31",
+                "float32",
+                "level",
+                "exp_base",
+                "exp_growth",
+                "hp_base",
+                "hp_growth",
+                "ep_base",
+                "cp_base",
+                "cp_growth",
+                "str_base",
+                "str_growth",
+                "def_base",
+                "def_growth",
+                "ats_base",
+                "ats_growth",
+                "adf_base",
+                "adf_growth",
+                "spd_base",
+                "spd_growth",
+                "agl_base",
+                "agl_growth",
+                "dex_base",
+                "dex_growth",
+                "mov",
+                "rng",
+                "int6",
+                "int7",
+                "int8",
+                "int9",
+                "int10",
+                "int11",
+                "poison_efficacy",
+                "freeze_efficacy",
+                "petrify_efficacy",
+                "sleep_efficacy",
+                "burn_efficacy",
+                "seal_efficacy",
+                "mute_efficacy",
+                "blind_efficacy",
+                "confuse_efficacy",
+                "deathblow_efficacy",
+                "statdown_efficacy",
+                "stun_efficacy",
+                "delay_efficacy",
+                "earth_efficacy",
+                "water_efficacy",
+                "fire_efficacy",
+                "wind_efficacy",
+                "time_efficacy",
+                "space_efficacy",
+                "mirage_efficacy",
+                "earth_sepith",
+                "water_sepith",
+                "fire_sepith",
+                "wind_sepith",
+                "time_sepith",
+                "space_sepith",
+                "mirage_sepith",
+                "sepith_mass",
+                "long_for_ally",
+                "item_drop_1",
+                "item_drop_1_min",
+                "item_drop_1_max",
+                "item_drop_1_rate",
+                "item_drop_2",
+                "item_drop_2_min",
+                "item_drop_2_max",
+                "item_drop_2_rate",
+                "empty",
+                "name",
+                "description"
+            ],
+            "values": "ttnttttttnnnnnnnnnnnnnnnnnntnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnntt"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "StatusParam",
+        "schema_length": 424,
+        "schema": {
+            "schema": "<QQQQQQQQQIffffffffffffifffffffffiiiffiiifiififiiiifififififififiiiiiiiiBBBBBBBBBBBBBBBBBBBBHHHHHHHHHHHHHHHHHHHHHHHHiBBHiBBBBiQQ",
+            "sch_len": 424,
+            "keys": [
+                "ai_file",
+                "flag",
+                "data",
+                "file1",
+                "file2",
+                "file3",
+                "file4",
+                "unknown",
+                "file5",
+                "int1",
+                "float1",
+                "float2",
+                "float3",
+                "float4",
+                "float5",
+                "float6",
+                "float7",
+                "float8",
+                "float9",
+                "float10",
+                "float11",
+                "float12",
+                "int2",
+                "float13",
+                "float14",
+                "float15",
+                "float16",
+                "float17",
+                "float18",
+                "float19",
+                "float20",
+                "float21",
+                "int3",
+                "int4",
+                "int5",
+                "float23",
+                "float24",
+                "int6",
+                "int7",
+                "int8",
+                "float25",
+                "int9",
+                "int10",
+                "float26",
+                "int11",
+                "float27",
+                "int12",
+                "int13",
+                "int14",
+                "int15",
+                "float28",
+                "level",
+                "float29",
+                "int16",
+                "float30",
+                "int17",
+                "float31",
+                "int18",
+                "float32",
+                "int19",
+                "float33",
+                "int20",
+                "float34",
+                "int21",
+                "int22",
+                "int23",
+                "int24",
+                "int25",
+                "int26",
+                "int27",
+                "int28",
+                "corrosion_vulnerability",
+                "freeze_vulnerability",
+                "burn_vulnerability",
+                "seal_vulnerability",
+                "mute_vulnerability",
+                "blind_vulnerability",
+                "fear_vulnerability",
+                "deathblow_vulnerability",
+                "dazzle_vulnerability",
+                "stat_vulnerability",
+                "unknown_vulnerability",
+                "delay_vulnerability",
+                "earth_vulnerability",
+                "water_vulnerability",
+                "fire_vulnerability",
+                "wind_vulnerability",
+                "time_vulnerability",
+                "space_vulnerability",
+                "mirage_vulnerability",
+                "byte1",
+                "short1",
+                "short2",
+                "short3",
+                "short4",
+                "short5",
+                "short6",
+                "short7",
+                "short8",
+                "short9",
+                "short10",
+                "short11",
+                "short12",
+                "short13",
+                "short14",
+                "short15",
+                "short16",
+                "short17",
+                "short18",
+                "short19",
+                "short20",
+                "short21",
+                "short22",
+                "short23",
+                "short24",
+                "int29",
+                "byte2",
+                "byte3",
+                "short25",
+                "int30",
+                "byte4",
+                "byte5",
+                "byte6",
+                "byte7",
+                "int31",
+                "name",
+                "description"
+            ],
+            "values": "ttnttttttnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnntt"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "StatusParam",
+        "schema_length": 392,
+        "schema": {
+            "schema": "<QQQQQQQQQIffffffffffffffffffffffiiiffffffiifIfIIIIfIfIfIfIfIfIfIIIIIIIIBBBBBBBBBBBBBBBBBBBBBBBBBBBBIIIBBHHHIBBBBQQ",
+            "sch_len": 392,
+            "keys": [
+                "ai_script_1",
+                "flag",
+                "data",
+                "file1",
+                "file2",
+                "file3",
+                "file4",
+                "ai_script_2",
+                "character_art",
+                "int1",
+                "float1",
+                "float2",
+                "float3",
+                "float4",
+                "float5",
+                "float6",
+                "float7",
+                "float8",
+                "float9",
+                "float10",
+                "float11",
+                "float12",
+                "float13",
+                "float14",
+                "float15",
+                "float16",
+                "float17",
+                "float18",
+                "float19",
+                "float20",
+                "float21",
+                "float22",
+                "int2",
+                "int3",
+                "stun_bar",
+                "float23",
+                "float24",
+                "float25",
+                "float26",
+                "float27",
+                "float28",
+                "level",
+                "int5",
+                "float29",
+                "hp_base",
+                "hp_growth",
+                "ep_base",
+                "cp",
+                "int6",
+                "str_base",
+                "str_growth",
+                "def_base",
+                "def_growth",
+                "ats_base",
+                "ats_growth",
+                "adf_base",
+                "adf_growth",
+                "spd_base",
+                "spd_growth",
+                "agl_base",
+                "agl_growth",
+                "dex_base",
+                "dex_growth",
+                "mov",
+                "rng",
+                "int7",
+                "aev",
+                "acc",
+                "eva",
+                "crt",
+                "int12",
+                "corrosion_vulnerability",
+                "freeze_vulnerability",
+                "burn_vulnerability",
+                "seal_vulnerability",
+                "mute_vulnerability",
+                "blind_vulnerability",
+                "fear_vulnerability",
+                "deathblow_vulnerability",
+                "dazzle_vulnerability",
+                "stat_vulnerability",
+                "unknown_vulnerability",
+                "delay_vulnerability",
+                "earth_vulnerability",
+                "water_vulnerability",
+                "fire_vulnerability",
+                "wind_vulnerability",
+                "time_vulnerability",
+                "space_vulnerability",
+                "mirage_vulnerability",
+                "byte1",
+                "byte2",
+                "byte3",
+                "byte4",
+                "byte5",
+                "byte6",
+                "byte7",
+                "byte8",
+                "byte9",
+                "int13",
+                "int14",
+                "int15",
+                "byte10",
+                "byte11",
+                "short1",
+                "short2",
+                "short3",
+                "int16",
+                "byte12",
+                "byte13",
+                "byte14",
+                "byte15",
+                "name",
+                "description"
+            ],
+            "values": "ttnttttttnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnntt"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "StatusParam",
+        "schema_length": 384,
+        "schema": {
+            "schema": "<QQQQQQQQQIffffffffffffffffffffffiiiffffffiifIfIfIfIfIfIfIfIfIfIIIIIIIIbbbbbbbbbbbbbbbbbbbBBBBBBBBBIIIBBHIBBBBQQ",
+            "sch_len": 384,
+            "keys": [
+                "ai_file",
+                "flag",
+                "data",
+                "file1",
+                "file2",
+                "file3",
+                "file4",
+                "unknown",
+                "file5",
+                "int1",
+                "float1",
+                "float2",
+                "float3",
+                "float4",
+                "float5",
+                "float6",
+                "float7",
+                "float8",
+                "float9",
+                "float10",
+                "float11",
+                "float12",
+                "float13",
+                "float14",
+                "float15",
+                "float16",
+                "float17",
+                "float18",
+                "float19",
+                "float20",
+                "float21",
+                "float22",
+                "int2",
+                "int3",
+                "int4",
+                "float23",
+                "float24",
+                "float25",
+                "float26",
+                "float27",
+                "float28",
+                "level",
+                "int5",
+                "float",
+                "hp_base",
+                "hp_growth",
+                "ep_base",
+                "ep_growth",
+                "str_base",
+                "str_growth",
+                "def_base",
+                "def_growth",
+                "ats_base",
+                "ats_growth",
+                "adf_base",
+                "adf_growth",
+                "spd_base",
+                "spd_growth",
+                "agl_base",
+                "agl_growth",
+                "dex_base",
+                "dex_growth",
+                "rng",
+                "mov",
+                "int6",
+                "int7",
+                "int8",
+                "int9",
+                "int10",
+                "int11",
+                "corrosion_vulnerability",
+                "freeze_vulnerability",
+                "burn_vulnerability",
+                "seal_vulnerability",
+                "mute_vulnerability",
+                "blind_vulnerability",
+                "fear_vulnerability",
+                "deathblow_vulnerability",
+                "dazzle_vulnerability",
+                "stat_vulnerability",
+                "unknown_vulnerability",
+                "delay_vulnerability",
+                "earth_vulnerability",
+                "water_vulnerability",
+                "fire_vulnerability",
+                "wind_vulnerability",
+                "time_vulnerability",
+                "space_vulnerability",
+                "mirage_vulnerability",
+                "byte1",
+                "byte2",
+                "byte3",
+                "byte4",
+                "byte5",
+                "byte6",
+                "byte7",
+                "byte8",
+                "byte9",
+                "int12",
+                "int13",
+                "int14",
+                "byte10",
+                "byte11",
+                "short1",
+                "int15",
+                "byte12",
+                "byte13",
+                "byte14",
+                "byte15",
+                "name",
+                "description"
+            ],
+            "values": "ttnttttttnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnntt"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "CharaLibCategory",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<QQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "text"
+            ],
+            "values": "nt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "ChrDataParam",
+        "schema_length": 64,
+        "schema": {
+            "schema": "<qQffffffffffff",
+            "sch_len": 64,
+            "keys": [
+                "id",
+                "file_name",
+                "float1",
+                "float2",
+                "float3",
+                "float4",
+                "float5",
+                "float6",
+                "float7",
+                "float8",
+                "float9",
+                "float10",
+                "float11",
+                "float12"
+            ],
+            "values": "ntnnnnnnnnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "BattleEnemyLevelAdjust",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<Qii",
+            "sch_len": 16,
+            "keys": [
+                "monster",
+                "int1",
+                "int2"
+            ],
+            "values": "tnn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "PreStoryContents",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<IIQQQ",
+            "sch_len": 32,
+            "keys": [
+                "id",
+                "uint1",
+                "file",
+                "title",
+                "text2"
+            ],
+            "values": "nnttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "HollowCoreCalcLevelParam",
+        "schema_length": 20,
+        "schema": {
+            "schema": "<IfIff",
+            "sch_len": 20,
+            "keys": [
+                "int1",
+                "float1",
+                "int2",
+                "float2",
+                "float3"
+            ],
+            "values": "nnnnn"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SkillItemStatusData",
+        "schema_length": 48,
+        "schema": {
+            "schema": "<qQQQqQ",
+            "sch_len": 48,
+            "keys": [
+                "id",
+                "text1",
+                "text2",
+                "text3",
+                "long",
+                "text4"
+            ],
+            "values": "ntttnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "ConnectBonusParam",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<IIIIIIIIIIQQ",
+            "sch_len": 56,
+            "keys": [
+                "id",
+                "int1",
+                "int2",
+                "int3",
+                "int4",
+                "int5",
+                "int6",
+                "int7",
+                "int8",
+                "int9",
+                "description",
+                "bonus"
+            ],
+            "values": "nnnnnnnnnntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "LookPointTableData",
+        "schema_length": 64,
+        "schema": {
+            "schema": "<QQQqqqqq",
+            "sch_len": 64,
+            "keys": [
+                "text1",
+                "text2",
+                "text3",
+                "long1",
+                "long2",
+                "long3",
+                "long4",
+                "long5"
+            ],
+            "values": "tttnnnnn"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "ShipTalkTitleTable",
+        "schema_length": 8,
+        "schema": {
+            "schema": "<II",
+            "sch_len": 8,
+            "keys": [
+                "id1",
+                "id2"
+            ],
+            "values": "nn"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "HackingPlayerData",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<qQ",
+            "sch_len": 16,
+            "keys": [
+                "uint1",
+                "text"
+            ],
+            "values": "nt"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "NPCParam",
+        "schema_length": 152,
+        "schema": {
+            "schema": "<qQIIQIIQfffffIffffQQQIIQQIIII",
+            "sch_len": 152,
+            "keys": [
+                "char_id",
+                "start_scena_flag",
+                "int1",
+                "end_scena_flag",
+                "int2",
+                "map",
+                "X",
+                "Y",
+                "Z",
+                "orientation_angle",
+                "range_interaction",
+                "int",
+                "flt7",
+                "flt8",
+                "flt9",
+                "flt10",
+                "text1",
+                "talk_setting_function",
+                "first_animation_function",
+                "int3",
+                "int4",
+                "talk_function",
+                "text2",
+                "int5",
+                "int6",
+                "int7",
+                "int8"
+            ],
+            "values": "nbnbntnnnnnnnnnntttnnttnnnn"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "ResearchName",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<IIQQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "unk_u32",
+                "text",
+                "image"
+            ],
+            "values": "nntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "GourmetChr",
+        "schema_length": 2,
+        "schema": {
+            "schema": "<h",
+            "sch_len": 2,
+            "keys": [
+                "value"
+            ],
+            "values": "n"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "ElementSlotRate",
+        "schema_length": 4,
+        "schema": {
+            "schema": "<f",
+            "sch_len": 4,
+            "keys": [
+                "element_restrict_multiply"
+            ],
+            "values": "n"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "FishingConstant",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<QQQ",
+            "sch_len": 24,
+            "keys": [
+                "ulong1",
+                "ulong2",
+                "ulong3"
+            ],
+            "values": "nnn"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SteamDlcTableData",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<IIQIIQQ",
+            "sch_len": 40,
+            "keys": [
+                "id",
+                "steam_app_id",
+                "arr1",
+                "int2",
+                "dlc_name",
+                "description"
+            ],
+            "values": "nnantt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "PreStoryList",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IIQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "uint1",
+                "game"
+            ],
+            "values": "nnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "PreStoryList",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<qQQQQQII",
+            "sch_len": 56,
+            "keys": [
+                "id",
+                "text",
+                "toffset1",
+                "toffset2",
+                "toffset3",
+                "toffset4",
+                "uint1",
+                "uint2"
+            ],
+            "values": "ntttttnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "TimeChartData",
+        "schema_length": 48,
+        "schema": {
+            "schema": "<HIhQQIiQIi",
+            "sch_len": 48,
+            "keys": [
+                "id",
+                "sequence_id",
+                "empty1",
+                "name",
+                "arr1",
+                "empty2",
+                "arr2",
+                "empty3"
+            ],
+            "values": "nnntbnbn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "QuestReportMessage",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<qQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "text"
+            ],
+            "values": "nt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "ShardSkillParam",
+        "schema_length": 144,
+        "schema": {
+            "schema": "<HBBBBBBBBBBBBBBBBHIQIiQIIIIHHIiiiIiiiIQQQQQ",
+            "sch_len": 144,
+            "keys": [
+                "id",
+                "byte1",
+                "byte2",
+                "element_earth",
+                "element_water",
+                "element_fire",
+                "element_wind",
+                "element_time",
+                "element_space",
+                "element_mirage",
+                "activation_chance",
+                "sclm_activation_chance",
+                "sboost_activation_chance",
+                "sboost_sclm_activation_chance",
+                "full_boost_activation_chance",
+                "empty",
+                "byte3",
+                "upgrade_id",
+                "empty2",
+                "array_flag",
+                "empty3",
+                "flag2",
+                "activation_condition_1",
+                "activation_condition_2",
+                "int1",
+                "empty4",
+                "short1",
+                "skill_substitute_id",
+                "effects",
+                "int2 ",
+                "animation",
+                "id_for_something",
+                "name",
+                "description_1",
+                "description_2"
+            ],
+            "values": "nnnnnnnnnnnnnnnnnnnbntnnnnnnnnnnnnnnntnttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "ShardSkillParam",
+        "schema_length": 136,
+        "schema": {
+            "schema": "<HBBBBBBBBBBBBBBBBHIQIiQIIIIHHIIIIIIIIIQQQQ",
+            "sch_len": 136,
+            "keys": [
+                "id",
+                "byte1",
+                "byte2",
+                "element_earth",
+                "element_water",
+                "element_fire",
+                "element_wind",
+                "element_time",
+                "element_space",
+                "element_mirage",
+                "activation_chance",
+                "sclm_activation_chance",
+                "sboost_activation_chance",
+                "sboost_sclm_activation_chance",
+                "full_boost_activation_chance",
+                "empty",
+                "byte3",
+                "upgrade_id",
+                "empty2",
+                "array_flag",
+                "empty3",
+                "flag2",
+                "activation_condition_1",
+                "activation_condition_2",
+                "int1",
+                "empty4",
+                "short1",
+                "skill_substitute_id",
+                "effects",
+                "int2",
+                "animation",
+                "id_for_something",
+                "name",
+                "description"
+            ],
+            "values": "nnnnnnnnnnnnnnnnnnnbntnnnnnnnnnnnnnnntntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "ATBonusParam",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<BBiHQiiiiQ",
+            "sch_len": 40,
+            "keys": [
+                "id",
+                "reference_id",
+                "int1",
+                "short1",
+                "flag",
+                "int2",
+                "int3",
+                "int4",
+                "int5",
+                "at_bonus_name"
+            ],
+            "values": "nnnntnnnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "FeastFoodData",
+        "schema_length": 60,
+        "schema": {
+            "schema": "<IIIIIIffIfIfIfI",
+            "sch_len": 60,
+            "keys": [
+                "item_id",
+                "recipe_id",
+                "u32_1",
+                "u32_2",
+                "u32_3",
+                "basic_ingredients_req",
+                "float1",
+                "float2",
+                "effect_id1",
+                "effect_value1",
+                "effect_id2",
+                "effect_value2",
+                "effect_id3",
+                "effect_value3",
+                "unk_u32"
+            ],
+            "values": "nnnnnnnnnnnnnnn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "HelpTableData",
+        "schema_length": 48,
+        "schema": {
+            "schema": "<hhiQQQQq",
+            "sch_len": 48,
+            "keys": [
+                "id",
+                "short1",
+                "int1",
+                "file_name1",
+                "file_name2",
+                "tab_name",
+                "empty_text_offset",
+                "long1"
+            ],
+            "values": "nnnttttn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "HelpTableData",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<hhiQQQQQq",
+            "sch_len": 56,
+            "keys": [
+                "id",
+                "short1",
+                "int1",
+                "file_name1",
+                "file_name2",
+                "tab_name",
+                "empty_text_offset",
+                "text",
+                "long2"
+            ],
+            "values": "nnntttttn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "QuestSubText",
+        "schema_length": 48,
+        "schema": {
+            "schema": "<hhhhhhhhhhhhhhhhhhhhhhhh",
+            "sch_len": 48,
+            "keys": [
+                "this is a dummy schema bc kuro 2 doesn't use this pls add schema if you see this message",
+                "short2",
+                "short3",
+                "short4",
+                "short5",
+                "short6",
+                "short7",
+                "short8",
+                "short9",
+                "short10",
+                "short11",
+                "short12",
+                "short13",
+                "short14",
+                "short15",
+                "short16",
+                "short17",
+                "short18",
+                "short19",
+                "short20",
+                "short21",
+                "short22",
+                "short23",
+                "short24"
+            ],
+            "values": "nnnnnnnnnnnnnnnnnnnnnnnn"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "ConditionInfoTableData",
+        "schema_length": 112,
+        "schema": {
+            "schema": "<IIQIIIiiiiiiiiiiiiffiiiiiQ",
+            "sch_len": 112,
+            "keys": [
+                "id",
+                "int1",
+                "state_name",
+                "int2",
+                "int3",
+                "int4",
+                "effects",
+                "float1",
+                "float2",
+                "int5",
+                "int6",
+                "int7",
+                "int8",
+                "int9",
+                "flag"
+            ],
+            "values": "nntnnnnnnnnnnnnnnnnnnnnnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "ConditionInfoTableData",
+        "schema_length": 88,
+        "schema": {
+            "schema": "<IIQIIIiiiiiiiifiiiiQ",
+            "sch_len": 88,
+            "keys": [
+                "id",
+                "int1",
+                "state_name",
+                "int2",
+                "int3",
+                "int4",
+                "effects",
+                "float1",
+                "int5",
+                "int6",
+                "int7",
+                "int8",
+                "flag"
+            ],
+            "values": "nntnnnnnnnnnnnnnnnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "HackingBarrierData",
+        "schema_length": 8,
+        "schema": {
+            "schema": "<If",
+            "sch_len": 8,
+            "keys": [
+                "id",
+                "float"
+            ],
+            "values": "nn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "AbordageSpawnSeaTable",
+        "schema_length": 48,
+        "schema": {
+            "schema": "<QQQIIQII",
+            "sch_len": 48,
+            "keys": [
+                "id",
+                "toffset",
+                "arr1",
+                "uint1",
+                "arr2",
+                "uint2"
+            ],
+            "values": "ntanan",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "QuartzLineParam",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<IIiHIHHIHHIHHH",
+            "sch_len": 40,
+            "keys": [
+                "character_id",
+                "line_type",
+                "1",
+                "short1",
+                "slots",
+                "slot_line_number"
+            ],
+            "values": "nnnnnnnnnnnnnn"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "NoteMainChara",
+        "schema_length": 64,
+        "schema": {
+            "schema": "<qQQQQQffff",
+            "sch_len": 64,
+            "keys": [
+                "id",
+                "note_text1",
+                "note_text2",
+                "note_text3",
+                "note_text4",
+                "note_text5",
+                "float1",
+                "float2",
+                "float3",
+                "float4"
+            ],
+            "values": "ntttttnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "BeforeStoryList",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IIQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "uint1",
+                "text"
+            ],
+            "values": "nnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "SettingMenuData",
+        "schema_length": 272,
+        "schema": {
+            "schema": "<QQQQQQQQQQQQQQQQQQQQQQQQQQIIfIIIffffffffQ",
+            "sch_len": 272,
+            "keys": [
+                "id",
+                "name1",
+                "option_1",
+                "option_2",
+                "option_3",
+                "option_4",
+                "option_5",
+                "option_6",
+                "option_7",
+                "option_8",
+                "option_1_desc",
+                "option_2_desc",
+                "option_3_desc",
+                "option_4_desc",
+                "option_5_desc",
+                "option_6_desc",
+                "option_7_desc",
+                "option_8_desc",
+                "option_1_desc_2",
+                "option_2_desc_2",
+                "option_3_desc_2",
+                "option_4_desc_2",
+                "option_5_desc_2",
+                "option_6_desc_2",
+                "option_7_desc_2",
+                "option_8_desc_2",
+                "unk_u32_1",
+                "float1",
+                "floats",
+                "floats2",
+                "text"
+            ],
+            "values": "ntttttttttttttttttttttttttnnnnnnnnnnnnnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "RecaptureIslandSkillTable",
+        "schema_length": 144,
+        "schema": {
+            "schema": "<IIQQIIIIIIIIIIQQfIQQIIQIIIIQ",
+            "sch_len": 144,
+            "keys": [
+                "id",
+                "uint1",
+                "text1",
+                "text2",
+                "uint2",
+                "uint3",
+                "uint4",
+                "uint5",
+                "uint6",
+                "uint7",
+                "uint8",
+                "uint9",
+                "uint10",
+                "uint11",
+                "toffset1",
+                "toffset2",
+                "float",
+                "uint12",
+                "toffset3",
+                "arr1",
+                "uint13",
+                "arr2",
+                "uint14",
+                "uint15",
+                "uint16",
+                "ulong"
+            ],
+            "values": "nnttnnnnnnnnnnttnntanannnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "EventSubGroupData",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<qQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "text"
+            ],
+            "values": "nt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "EventSubGroupData",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<qQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "text"
+            ],
+            "values": "nt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "MonsterSettingParam",
+        "schema_length": 168,
+        "schema": {
+            "schema": "<QQQIIQQQIIQIIQIffffIIIQQQQQQ",
+            "sch_len": 168,
+            "keys": [
+                "string1",
+                "id",
+                "array1",
+                "btl_name",
+                "tag",
+                "long2",
+                "array2",
+                "empty2",
+                "array3",
+                "empty3",
+                "battle",
+                "int1",
+                "float1",
+                "float2",
+                "float3",
+                "float4",
+                "unknown1",
+                "unknown2",
+                "unknown3",
+                "string7",
+                "move_type",
+                "string9",
+                "long5",
+                "long6",
+                "stringA"
+            ],
+            "values": "tnantnbnbntnnnnnnnntttnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "MapJumpWorldData",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<qQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "text"
+            ],
+            "values": "nt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "DialogueTable",
+        "schema_length": 104,
+        "schema": {
+            "schema": "<QQIfffIIIhhQQIIQIIQQ",
+            "sch_len": 104,
+            "keys": [
+                "ulong1",
+                "toffset1",
+                "uint1",
+                "float1",
+                "float2",
+                "float3",
+                "uint2",
+                "uint3",
+                "uint4",
+                "short1",
+                "short2",
+                "ulong2",
+                "arr1",
+                "uint5",
+                "arr2",
+                "uint6",
+                "text",
+                "toffset2"
+            ],
+            "values": "ntnnnnnnnnnnanantt"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SkillEffectHelpData",
+        "schema_length": 88,
+        "schema": {
+            "schema": "<QQQIiQQQQiiQQ",
+            "sch_len": 88,
+            "keys": [
+                "effect_id",
+                "text1",
+                "array",
+                "int1",
+                "text2",
+                "text3",
+                "text4",
+                "text5",
+                "int2",
+                "int3",
+                "text6",
+                "text7"
+            ],
+            "values": "ntanttttnntt"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "HelpImageList",
+        "schema_length": 48,
+        "schema": {
+            "schema": "<QQQQQII",
+            "sch_len": 48,
+            "keys": [
+                "ulong",
+                "toffset1",
+                "toffset2",
+                "text",
+                "arr",
+                "uint"
+            ],
+            "values": "ntttan"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "MapJumpAreaData",
+        "schema_length": 72,
+        "schema": {
+            "schema": "<QQQQIffiQQQ",
+            "sch_len": 72,
+            "keys": [
+                "id",
+                "place_name",
+                "place_name_highlight",
+                "scena_file",
+                "int1",
+                "float1",
+                "float2",
+                "empty1",
+                "place",
+                "jump_file",
+                "description"
+            ],
+            "values": "ntttnnnnttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "MapJumpAreaData",
+        "schema_length": 80,
+        "schema": {
+            "schema": "<QQQQIIffQQQq",
+            "sch_len": 80,
+            "keys": [
+                "id",
+                "place_name",
+                "place_name_highlight",
+                "scena_file",
+                "int1",
+                "int2",
+                "float1",
+                "float2",
+                "place",
+                "jump_file",
+                "description",
+                "long1"
+            ],
+            "values": "ntttnnnntttn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "MapJumpAreaData",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<IIQQfffIQQ",
+            "sch_len": 56,
+            "keys": [
+                "id",
+                "region_id",
+                "place_name",
+                "scena_file",
+                "x_coordinate",
+                "y_coordinate",
+                "z_coordinate",
+                "empty",
+                "jump_file",
+                "description"
+            ],
+            "values": "nnttnnnntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "BeforeStoryContents",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<IIQQQ",
+            "sch_len": 32,
+            "keys": [
+                "id",
+                "uint1",
+                "file",
+                "text",
+                "text2"
+            ],
+            "values": "nnttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SeriesList",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IIQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "uint1",
+                "text"
+            ],
+            "values": "nnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "NoteBooksMenu",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<HihQq",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "int1",
+                "empty1",
+                "note_text",
+                "long1"
+            ],
+            "values": "nnntn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "HackingEnemyData",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<qQff",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "float1",
+                "float2",
+                "float3"
+            ],
+            "values": "ntnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "NoteMainHistory",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<Qq",
+            "sch_len": 16,
+            "keys": [
+                "text",
+                "value"
+            ],
+            "values": "tn"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "MapIslandTable",
+        "schema_length": 72,
+        "schema": {
+            "schema": "<QQQQQIIQIIQ",
+            "sch_len": 72,
+            "keys": [
+                "text1",
+                "island_name",
+                "island_desc",
+                "island_image",
+                "array1",
+                "unk_u32_1",
+                "array2",
+                "unk_u32_2",
+                "text2"
+            ],
+            "values": "ntttanant"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "TopicUseCond",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<HHHHQIIQII",
+            "sch_len": 40,
+            "keys": [
+                "id",
+                "short1",
+                "short2",
+                "short3",
+                "arr1",
+                "empty1",
+                "arr2",
+                "empty2"
+            ],
+            "values": "nnnnbnbn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "NoteMainAffiliation",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<Qq",
+            "sch_len": 16,
+            "keys": [
+                "text",
+                "value"
+            ],
+            "values": "tn"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "MapAreaTable",
+        "schema_length": 104,
+        "schema": {
+            "schema": "<QQQQQIIQIIQIIQIIQ",
+            "sch_len": 104,
+            "keys": [
+                "area_id",
+                "map",
+                "minimap",
+                "map_name",
+                "array1",
+                "unk_u32_1",
+                "array2",
+                "unk_u32_2",
+                "array3",
+                "unk_u32_3",
+                "array4",
+                "unk_u32_4",
+                "text"
+            ],
+            "values": "ntttanananant"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "TimeAttackData",
+        "schema_length": 96,
+        "schema": {
+            "schema": "<IIQQQIIIIIIQQIIIIII",
+            "sch_len": 96,
+            "keys": [
+                "id",
+                "character_id",
+                "name1",
+                "image",
+                "ui_text",
+                "unk_u32_1",
+                "adol_weapon",
+                "karja_weapon",
+                "adol_armor",
+                "karja_armor",
+                "unk_u32_2",
+                "map",
+                "text",
+                "target_time_easy",
+                "target_time_normal",
+                "target_time_hard",
+                "target_time_nightmare",
+                "target_time_inferno",
+                "unk_u32_3"
+            ],
+            "values": "nntttnnnnnnttnnnnnn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "OverDriveEffect",
+        "schema_length": 104,
+        "schema": {
+            "schema": "<iiiiiiiiiiiiQQQQQQQ",
+            "sch_len": 104,
+            "keys": [
+                "id",
+                "int1",
+                "int2",
+                "int3",
+                "int4",
+                "int5",
+                "int6",
+                "int7",
+                "int8",
+                "int9",
+                "int10",
+                "int11",
+                "text1",
+                "text2",
+                "text3",
+                "text4",
+                "text5",
+                "text6",
+                "text7"
+            ],
+            "values": "nnnnnnnnnnnnttttttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "NoteCookChara",
+        "schema_length": 2,
+        "schema": {
+            "schema": "<h",
+            "sch_len": 2,
+            "keys": [
+                "id"
+            ],
+            "values": "n",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "PokerHelp",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<qQ",
+            "sch_len": 16,
+            "keys": [
+                "uint1",
+                "text"
+            ],
+            "values": "nt"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "ArchiveSelect",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IIQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "uint1",
+                "text"
+            ],
+            "values": "nnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "AdvLogCooking",
+        "schema_length": 12,
+        "schema": {
+            "schema": "<III",
+            "sch_len": 12,
+            "keys": [
+                "uint1",
+                "uint2",
+                "uint3"
+            ],
+            "values": "nnn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "ActiveVoiceTableData",
+        "schema_length": 80,
+        "schema": {
+            "schema": "<IiQqQqQIiqQq",
+            "sch_len": 80,
+            "keys": [
+                "id",
+                "int1",
+                "toffset1",
+                "empty1",
+                "toffset2",
+                "long1",
+                "scena_flag_array",
+                "int2",
+                "long2",
+                "voice_subtitle",
+                "empty2"
+            ],
+            "values": "nntntnbnntn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "ActiveVoiceTableData",
+        "schema_length": 88,
+        "schema": {
+            "schema": "<IiQqQqQIiQIiQq",
+            "sch_len": 88,
+            "keys": [
+                "id",
+                "int1",
+                "toffset1",
+                "empty1",
+                "toffset2",
+                "long1",
+                "scena_flag_array",
+                "int2",
+                "array1",
+                "int3",
+                "voice_subtitle",
+                "empty2"
+            ],
+            "values": "nntntnbnbntn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "ActiveVoiceTableData",
+        "schema_length": 128,
+        "schema": {
+            "schema": "<QQIIQqQQIIQIIQIIQIIQq",
+            "sch_len": 128,
+            "keys": [
+                "id",
+                "char_ids",
+                "empty1",
+                "filename",
+                "type_id",
+                "tag",
+                "array2",
+                "empty2",
+                "array3",
+                "empty3",
+                "array4",
+                "empty4",
+                "array5",
+                "empty5",
+                "dialogue",
+                "unknown"
+            ],
+            "values": "nbntntbnbnbnantn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "CharactorList",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<IHHQQQ",
+            "sch_len": 32,
+            "keys": [
+                "id",
+                "short1",
+                "short2",
+                "int1",
+                "int3",
+                "text"
+            ],
+            "values": "nnnttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "CharactorList",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<IHHQQQQ",
+            "sch_len": 40,
+            "keys": [
+                "id",
+                "short1",
+                "short2",
+                "int1",
+                "int3",
+                "text1",
+                "text2"
+            ],
+            "values": "nnntttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "TimeLineList",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<IIQQQ",
+            "sch_len": 32,
+            "keys": [
+                "id",
+                "uint1",
+                "title",
+                "text",
+                "text2"
+            ],
+            "values": "nnttt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "AchievementCategoryData",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<QQ",
+            "sch_len": 16,
+            "keys": [
+                "category_id",
+                "category_name"
+            ],
+            "values": "nt"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "NoteFishingMenu",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<HihQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "int1",
+                "empty1",
+                "note_text"
+            ],
+            "values": "nnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SkillConnectListData",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<QQIi",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "array",
+                "int"
+            ],
+            "values": "nbn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "NoteConnectMenu",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IiQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "int1",
+                "note_text"
+            ],
+            "values": "nnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "SkillLevelParam",
+        "schema_length": 40,
+        "schema": {
+            "schema": "<HHHHHHHHHHHHHHHHHHHH",
+            "sch_len": 40,
+            "keys": [
+                "chr_id",
+                "skill_id",
+                "empty1",
+                "upgrade_type_id",
+                "empty2",
+                "lvl_1_param",
+                "lvl_2_param",
+                "lvl_3_param",
+                "lvl_4_param",
+                "lvl_5_param",
+                "lvl_6_param",
+                "lvl_7_param",
+                "lvl_8_param",
+                "lvl_9_param",
+                "lvl_10_param",
+                "lvl_11_param",
+                "lvl_12_param",
+                "lvl_13_param",
+                "lvl_14_param",
+                "lvl_15_param"
+            ],
+            "values": "nnnnnnnnnnnnnnnnnnnn"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "SkillLevelParam",
+        "schema_length": 26,
+        "schema": {
+            "schema": "<HHHhhhhhhhhhh",
+            "sch_len": 26,
+            "keys": [
+                "chr_id",
+                "skill_id",
+                "upgrade_type_id",
+                "lv_1_param",
+                "lvl_2_param",
+                "lvl_3_param",
+                "lvl_4_param",
+                "lvl_5_param",
+                "lvl_6_param",
+                "lvl_7_param",
+                "lvl_8_param",
+                "lvl_9_param",
+                "lvl_10_param"
+            ],
+            "values": "nnnnnnnnnnnnn"
+        }
+    },
+    {
+        "info_comment": "Kai - Converted from KuroTools",
+        "table_header": "LogContents",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<qQQQ",
+            "sch_len": 32,
+            "keys": [
+                "long",
+                "toffset",
+                "text1",
+                "text2"
+            ],
+            "values": "nttt"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "MapPartsTable",
+        "schema_length": 48,
+        "schema": {
+            "schema": "<QQQIIQQ",
+            "sch_len": 48,
+            "keys": [
+                "toffset1",
+                "toffset2",
+                "text",
+                "uint1",
+                "uint2",
+                "ulong",
+                "toffset3"
+            ],
+            "values": "tttnnnt"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "ShipTalkTable",
+        "schema_length": 64,
+        "schema": {
+            "schema": "<IIQQfIQIIQQ",
+            "sch_len": 64,
+            "keys": [
+                "uint1",
+                "uint2",
+                "text1",
+                "ulong1",
+                "float",
+                "uint3",
+                "toffset",
+                "uint4",
+                "uint5",
+                "ulong2",
+                "text2"
+            ],
+            "values": "nntnnntnnnt"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "QuestText",
+        "schema_length": 64,
+        "schema": {
+            "schema": "<HihQQqQIiQIi",
+            "sch_len": 64,
+            "keys": [
+                "quest_id",
+                "int1",
+                "empty1",
+                "quest_description",
+                "notebook_text",
+                "empty2",
+                "array_flag1",
+                "empty3",
+                "array_flag2",
+                "empty4"
+            ],
+            "values": "nnnttnbnbn"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "QuestText",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<HihQQIiQIiq",
+            "sch_len": 56,
+            "keys": [
+                "quest_id",
+                "int1",
+                "empty1",
+                "quest_description",
+                "array_flag1",
+                "empty3",
+                "array_flag2",
+                "empty4",
+                "empty5"
+            ],
+            "values": "nnntbnbnn"
+        }
+    },
+    {
+        "info_comment": "Sora1 - Converted from KuroTools",
+        "table_header": "QuestText",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<HihQqQ",
+            "sch_len": 32,
+            "keys": [
+                "quest_id",
+                "txt_id",
+                "empty1",
+                "quest_description",
+                "long1",
+                "unk_txt"
+            ],
+            "values": "nnntnt"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "QuestText",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<IIQQIi",
+            "sch_len": 32,
+            "keys": [
+                "id1",
+                "id2",
+                "text",
+                "arr",
+                "int"
+            ],
+            "values": "nntan"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "FreeDungeonCPSupplyList",
+        "schema_length": 20,
+        "schema": {
+            "schema": "<IIIII",
+            "sch_len": 20,
+            "keys": [
+                "uint1",
+                "uint2",
+                "uint3",
+                "uint4",
+                "uint5"
+            ],
+            "values": "nnnnn"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "TimeChartNode",
+        "schema_length": 96,
+        "schema": {
+            "schema": "<HIhQQIHHBBBBBBBBQQQQQQq",
+            "sch_len": 96,
+            "keys": [
+                "id",
+                "time_chart_id",
+                "empty1",
+                "text1",
+                "arr1",
+                "empty2",
+                "short1",
+                "byte1",
+                "byte2",
+                "byte3",
+                "byte4",
+                "byte5",
+                "byte6",
+                "byte7",
+                "byte8",
+                "text2",
+                "description",
+                "text3",
+                "date",
+                "location",
+                "tex4",
+                "long1"
+            ],
+            "values": "nnntbnnnnnnnnnnttttttn",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "GourmetRankParam",
+        "schema_length": 24,
+        "schema": {
+            "schema": "<hhiqQ",
+            "sch_len": 24,
+            "keys": [
+                "id",
+                "short1",
+                "int1",
+                "long1",
+                "rank_up_text"
+            ],
+            "values": "nnnnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "SDebugMapJumpTable",
+        "schema_length": 56,
+        "schema": {
+            "schema": "<HIHQQQQhhhhhhhh",
+            "sch_len": 56,
+            "keys": [
+                "ushort1",
+                "uint",
+                "ushort2",
+                "text",
+                "toffset1",
+                "toffset2",
+                "toffset3",
+                "short1",
+                "short2",
+                "short3",
+                "short4",
+                "short5",
+                "short6",
+                "short7",
+                "short8"
+            ],
+            "values": "nnnttttnnnnnnnn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "LGCParam",
+        "schema_length": 4,
+        "schema": {
+            "schema": "<bbbb",
+            "sch_len": 4,
+            "keys": [
+                "byte1",
+                "byte2",
+                "byte3",
+                "byte4"
+            ],
+            "values": "nnnn"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "FishParam",
+        "schema_length": 96,
+        "schema": {
+            "schema": "<HIHQIfffffffQQHHHHHHIQHHI",
+            "sch_len": 96,
+            "keys": [
+                "id1",
+                "id2",
+                "ushort1",
+                "text1",
+                "uint1",
+                "float1",
+                "float2",
+                "float3",
+                "float4",
+                "float5",
+                "float6",
+                "float7",
+                "toffset1",
+                "text2",
+                "ushort2",
+                "ushort3",
+                "ushort4",
+                "ushort5",
+                "ushort6",
+                "ushort7",
+                "uint2",
+                "toffset2",
+                "ushort8",
+                "ushort9",
+                "uint3"
+            ],
+            "values": "nnntnnnnnnnnttnnnnnnntnnn"
+        }
+    },
+    {
+        "info_comment": "Kuro1 - Converted from KuroTools",
+        "table_header": "CharactorSelect",
+        "schema_length": 16,
+        "schema": {
+            "schema": "<IIQ",
+            "sch_len": 16,
+            "keys": [
+                "id",
+                "uint1",
+                "text"
+            ],
+            "values": "nnt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Ys_X - Converted from KuroTools",
+        "table_header": "AchievementTable",
+        "schema_length": 32,
+        "schema": {
+            "schema": "<IIIIQQ",
+            "sch_len": 32,
+            "keys": [
+                "id",
+                "unknown",
+                "hidden",
+                "rarity",
+                "text1",
+                "text2"
+            ],
+            "values": "nnnntt",
+            "primary_key": "id"
+        }
+    },
+    {
+        "info_comment": "Kuro2 - Converted from KuroTools",
+        "table_header": "FishingCastInfo",
+        "schema_length": 12,
+        "schema": {
+            "schema": "<IHIH",
+            "sch_len": 12,
+            "keys": [
+                "uint1",
+                "ushort1",
+                "uint2",
+                "ushort2"
+            ],
+            "values": "nnnn"
         }
     }
 ]
