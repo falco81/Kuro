@@ -8,7 +8,9 @@ This section provides comprehensive, in-depth documentation for advanced users, 
   - [resolve_id_conflicts_in_kurodlc.py](#resolve_id_conflicts_in_kurodlcpy)
   - [shops_find_unique_item_id_from_kurodlc.py](#shops_find_unique_item_id_from_kurodlcpy)
   - [shops_create.py](#shops_createpy)
+  - [visualize_id_allocation.py](#visualize_id_allocationpy) ⭐ NEW
   - [convert_kurotools_schemas.py](#convert_kurotools_schemaspy)
+  - [3D Model Viewer Scripts](#3d-model-viewer-scripts) ⭐ NEW
   - [find_all_items.py](#find_all_itemspy)
   - [find_all_shops.py](#find_all_shopspy)
   - [Other Utility Scripts](#other-utility-scripts)
@@ -17,6 +19,7 @@ This section provides comprehensive, in-depth documentation for advanced users, 
 - [Export/Import Formats](#exportimport-formats)
 - [Log Files](#log-files)
 - [Advanced Workflows](#advanced-workflows)
+- [3D Model Viewing](#3d-model-viewing) ⭐ NEW
 
 ---
 
