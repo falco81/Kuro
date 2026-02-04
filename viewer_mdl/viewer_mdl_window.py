@@ -595,7 +595,8 @@ def main():
                 width=1280,
                 height=800,
                 resizable=True,
-                fullscreen=False
+                fullscreen=False,
+		maximized=True
             )
             
             print("[OK] Window opened. Close it to exit.")
