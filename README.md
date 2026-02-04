@@ -1072,7 +1072,7 @@ See **[ADVANCED_DOCUMENTATION.md](ADVANCED_DOCUMENTATION.md)** ⭐
 - [Real Data Examples](ADVANCED_DOCUMENTATION.md#real-data-examples)
 - [Advanced Workflows](ADVANCED_DOCUMENTATION.md#advanced-workflows)
 - [Schema Conversion Guide](ADVANCED_DOCUMENTATION.md#schema-conversion)
-- [Visualization Guide](VISUALIZATION_GUIDE.md) ⭐ NEW
+- [Visualization Guide](NEW_FEATURES_DOCUMENTATION.md) ⭐ NEW
 - [3D Viewer Guide](ADVANCED_DOCUMENTATION.md#3d-model-viewing) ⭐ NEW
 
 ---
