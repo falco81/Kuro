@@ -10,7 +10,7 @@ This section provides comprehensive, in-depth documentation for advanced users, 
   - [shops_create.py](#shops_createpy)
   - [visualize_id_allocation.py](#visualize_id_allocationpy) ⭐ NEW
   - [convert_kurotools_schemas.py](#convert_kurotools_schemaspy)
-  - [3D Model Viewer Scripts](#3d-model-viewer-scripts) ⭐ NEW
+  - [3D Model Viewer Scripts](NEW_FEATURES_DOCUMENTATION.md) ⭐ NEW
   - [find_all_items.py](#find_all_itemspy)
   - [find_all_shops.py](#find_all_shopspy)
   - [Other Utility Scripts](#other-utility-scripts)
