@@ -1,5 +1,5 @@
 python -m PyInstaller --onefile --add-data "three.min.js;." viewer_mdl.py
 
 Python 3.11 required - pywebview issue
-c:\Program Files\Python311\Scripts>pip3.11.exe install PyInstaller xxhash zstandard blowfish numpy pywebview
+"c:\Program Files\Python311\Scripts>pip3.11.exe" install PyInstaller xxhash zstandard blowfish numpy pywebview
 "c:\Program Files\Python311\python.exe" -m PyInstaller --onefile --add-data "three.min.js;." viewer_mdl_window.py
