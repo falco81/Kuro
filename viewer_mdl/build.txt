@@ -3,3 +3,4 @@ python -m PyInstaller --onefile --add-data "three.min.js;." viewer_mdl.py
 Python 3.11 required - pywebview issue
 "c:\Program Files\Python311\Scripts>pip3.11.exe" install PyInstaller xxhash zstandard blowfish numpy pywebview
 "c:\Program Files\Python311\python.exe" -m PyInstaller --onefile --add-data "three.min.js;." viewer_mdl_window.py
+"c:\Program Files\Python311\python.exe" -m PyInstaller --onefile --add-data "three.min.js;." --add-data "lib_fmtibvb.py;." --add-data "lib_texture_loader.py;." --add-data "kuro_mdl_export_meshes.py;." --hidden-import=PIL --hidden-import=numpy viewer_mdl_textured.py
