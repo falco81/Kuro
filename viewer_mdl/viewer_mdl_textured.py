@@ -435,6 +435,30 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
       display: inline-block; width: 12px; height: 12px; border-radius: 3px;
       margin-left: 6px; background: linear-gradient(135deg, #10b981, #34d399);
     }}
+    #screenshot-modal {{
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;
+    }}
+    #screenshot-modal.show {{ display: flex; }}
+    .modal-content {{
+      background: rgba(20,20,35,0.98); padding: 30px; border-radius: 12px;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.7); max-width: 500px; text-align: center;
+      border: 2px solid rgba(124, 58, 237, 0.5);
+    }}
+    .modal-content h3 {{ color: #7c3aed; margin-bottom: 20px; font-size: 20px; }}
+    .modal-content p {{ color: #e0e0e0; margin: 15px 0; font-size: 14px; line-height: 1.6; }}
+    .modal-content .filename {{ 
+      background: rgba(124, 58, 237, 0.2); padding: 10px; border-radius: 6px;
+      font-family: monospace; color: #a78bfa; word-break: break-all; margin: 15px 0;
+      cursor: pointer; transition: all 0.2s;
+    }}
+    .modal-content .filename:hover {{
+      background: rgba(124, 58, 237, 0.3); color: #c4b5fd;
+    }}
+    .modal-content button {{
+      margin-top: 20px; padding: 12px 30px; font-size: 14px; width: auto;
+      min-width: 120px;
+    }}
   </style>
 </head>
 <body>
@@ -475,6 +499,7 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
     <button onclick="toggleWireframe()">📐 Wireframe Only</button>
     <button onclick="toggleWireframeOverlay()">🔲 Wireframe Overlay</button>
     <button onclick="resetCamera()">🎯 Reset Camera</button>
+    <button onclick="takeScreenshot()">📷 Screenshot</button>
     <h4>👁️ Meshes</h4>
     <div id="mesh-list"></div>
   </div>
@@ -483,6 +508,16 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
     <div id="triangles"></div>
     <div id="visible"></div>
     <div id="fps"></div>
+  </div>
+
+  <!-- Screenshot Modal -->
+  <div id="screenshot-modal">
+    <div class="modal-content">
+      <h3>📷 Screenshot Saved</h3>
+      <p>Screenshot has been successfully saved to:</p>
+      <div class="filename" id="screenshot-path"></div>
+      <button onclick="closeScreenshotModal()">OK</button>
+    </div>
   </div>
 
   <script src="three.min.js"></script>
@@ -712,7 +747,6 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
     }}
 
     function loadMeshes() {{
-      const hideKeywords = ['shadow', 'kage'];
       const colors = [0xff6b6b, 0x4ecdc4, 0xffe66d, 0x95e1d3, 0xf38181];
       
       data.forEach((meshData, idx) => {{
@@ -741,7 +775,9 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
         mesh.userData.hasTexture = !!meshData.material && !!materials[meshData.material];
         
         // Auto-hide shadow meshes if enabled in config
-        if (CONFIG.AUTO_HIDE_SHADOW && hideKeywords.some(keyword => meshData.name.toLowerCase().includes(keyword))) {{
+        const hideKeywords = ['shadow', 'kage'];
+        if (CONFIG.AUTO_HIDE_SHADOW && 
+            hideKeywords.some(keyword => meshData.name.toLowerCase().includes(keyword))) {{
           mesh.visible = false;
         }}
         
@@ -938,6 +974,76 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
       document.getElementById('visible').textContent = `Visible: ${{visibleMeshes.length}}/${{meshes.length}}`;
     }}
 
+    let currentScreenshotPath = null;
+
+    function takeScreenshot() {{
+      // Render scény pro čistý screenshot
+      renderer.render(scene, camera);
+      
+      // Získat data z canvasu jako PNG
+      const dataURL = renderer.domElement.toDataURL('image/png');
+      
+      // Check if pywebview API is available
+      if (window.pywebview && window.pywebview.api) {{
+        // Use Python API to save file
+        window.pywebview.api.save_screenshot(dataURL).then(result => {{
+          const modal = document.getElementById('screenshot-modal');
+          const pathElement = document.getElementById('screenshot-path');
+          
+          if (result.success) {{
+            currentScreenshotPath = result.filepath;
+            pathElement.textContent = result.filepath;
+            pathElement.onclick = openScreenshot;
+            pathElement.style.cursor = 'pointer';
+            pathElement.title = 'Click to open';
+            modal.classList.add('show');
+            console.log(`Screenshot saved to: ${{result.filepath}}`);
+          }} else {{
+            alert(`Error saving screenshot: ${{result.error}}`);
+          }}
+        }}).catch(error => {{
+          alert(`Error: ${{error}}`);
+          console.error('Screenshot error:', error);
+        }});
+      }} else {{
+        // Fallback: download via browser (for non-pywebview environments)
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        const filename = `screenshot_${{timestamp}}.png`;
+        
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = dataURL;
+        link.click();
+        
+        const modal = document.getElementById('screenshot-modal');
+        const pathElement = document.getElementById('screenshot-path');
+        pathElement.textContent = `Downloads/${{filename}}`;
+        pathElement.onclick = null;
+        pathElement.style.cursor = 'default';
+        modal.classList.add('show');
+        
+        console.log(`Screenshot downloaded as: ${{filename}}`);
+      }}
+    }}
+
+    function openScreenshot() {{
+      if (currentScreenshotPath && window.pywebview && window.pywebview.api) {{
+        window.pywebview.api.open_file(currentScreenshotPath).then(result => {{
+          if (!result.success) {{
+            alert(`Error opening file: ${{result.error}}`);
+          }}
+        }}).catch(error => {{
+          console.error('Error opening screenshot:', error);
+        }});
+      }}
+    }}
+
+    function closeScreenshotModal() {{
+      const modal = document.getElementById('screenshot-modal');
+      modal.classList.remove('show');
+    }}
+
+
     let lastTime = Date.now();
     function animate() {{
       requestAnimationFrame(animate);
@@ -970,6 +1076,104 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
 """
 
     return html_content
+
+
+# -----------------------------
+# WebView API for screenshots
+# -----------------------------
+class Api:
+    """API for communication between JavaScript and Python."""
+    
+    def __init__(self, screenshot_dir: str):
+        # Use Downloads folder instead of MDL location
+        import os
+        if os.name == 'nt':  # Windows
+            downloads = Path.home() / 'Downloads'
+        else:  # Linux/Mac
+            downloads = Path.home() / 'Downloads'
+        
+        self.screenshot_dir = str(downloads)
+    
+    def save_screenshot(self, image_data: str) -> dict:
+        """
+        Save screenshot to Downloads folder.
+        
+        Args:
+            image_data: Base64 encoded PNG image data (with data:image/png;base64, prefix)
+        
+        Returns:
+            dict with 'success', 'filepath', and 'filename'
+        """
+        try:
+            import base64
+            
+            # Remove data URL prefix
+            if ',' in image_data:
+                image_data = image_data.split(',', 1)[1]
+            
+            # Decode base64
+            image_bytes = base64.b64decode(image_data)
+            
+            # Generate filename with timestamp
+            timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+            filename = f"screenshot_{timestamp}.png"
+            filepath = Path(self.screenshot_dir) / filename
+            
+            # Save file
+            with open(filepath, 'wb') as f:
+                f.write(image_bytes)
+            
+            print(f"[Screenshot] Saved to: {filepath}")
+            
+            return {
+                'success': True,
+                'filepath': str(filepath.absolute()),
+                'filename': filename
+            }
+        
+        except Exception as e:
+            print(f"[Screenshot] Error: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def open_file(self, filepath: str) -> dict:
+        """
+        Open file in default system viewer.
+        
+        Args:
+            filepath: Path to the file to open
+            
+        Returns:
+            dict with 'success'
+        """
+        try:
+            import subprocess
+            import os
+            
+            filepath = Path(filepath)
+            
+            if not filepath.exists():
+                return {'success': False, 'error': 'File not found'}
+            
+            # Open file with default application
+            if os.name == 'nt':  # Windows
+                os.startfile(filepath)
+            elif sys.platform == 'darwin':  # macOS
+                subprocess.run(['open', str(filepath)])
+            else:  # Linux
+                subprocess.run(['xdg-open', str(filepath)])
+            
+            print(f"[Screenshot] Opened: {filepath}")
+            return {'success': True}
+            
+        except Exception as e:
+            print(f"[Screenshot] Error opening file: {e}")
+            return {'success': False, 'error': str(e)}
+
 
 
 # -----------------------------
@@ -1058,6 +1262,9 @@ def main():
     try:
         import webview
         
+        # Create API instance with string path (to avoid serialization issues)
+        api = Api(str(mdl_path.parent.absolute()))
+        
         window = webview.create_window(
             title=f"Model Viewer - {mdl_path.name}",
             url=f'file:///{temp_file.absolute().as_posix()}',
@@ -1065,7 +1272,8 @@ def main():
             height=800,
             resizable=True,
             fullscreen=False,
-            maximized=True
+            maximized=True,
+            js_api=api
         )
         
         print("[OK] Window opened. Close it to exit.")
