@@ -251,24 +251,33 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, use_original_normals:
                     tex_name = tex_name + '.dds'
                 
                 slot = tex['texture_slot']
+                wrapS = tex.get('wrapS', 0)  # Default to REPEAT
+                wrapT = tex.get('wrapT', 0)  # Default to REPEAT
                 
                 if tex_name in texture_success and texture_success[tex_name]:
                     # Use relative path: textures/filename.png
                     rel_path = f"textures/{texture_success[tex_name]}"
                     
+                    # Create texture info with wrap modes
+                    tex_info = {
+                        'path': rel_path,
+                        'wrapS': wrapS,
+                        'wrapT': wrapT
+                    }
+                    
                     # Map to material property
                     if slot == 0:
-                        mat_textures['diffuse'] = rel_path
+                        mat_textures['diffuse'] = tex_info
                     elif slot == 1:
-                        mat_textures['detail'] = rel_path
+                        mat_textures['detail'] = tex_info
                     elif slot == 3:
-                        mat_textures['normal'] = rel_path
+                        mat_textures['normal'] = tex_info
                     elif slot == 7:
-                        mat_textures['specular'] = rel_path
+                        mat_textures['specular'] = tex_info
                     elif slot == 9:
-                        mat_textures['toon'] = rel_path
+                        mat_textures['toon'] = tex_info
                     else:
-                        mat_textures[f'slot_{slot}'] = rel_path
+                        mat_textures[f'slot_{slot}'] = tex_info
             
             if mat_textures:
                 material_texture_map[mat_name] = mat_textures
@@ -482,7 +491,7 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
     // CONFIGURATION - Adjust these values as needed
     // ============================================================
     const CONFIG = {{
-      CAMERA_ZOOM: 1.0,           // Camera zoom factor (lower = closer, higher = farther)
+      CAMERA_ZOOM: 1.2,           // Camera zoom factor (lower = closer, higher = farther)
                                    // 1.0 = tight fit, 1.2 = 20% padding, 0.9 = zoom in 10%
       AUTO_HIDE_SHADOW: true,      // Automatically hide meshes with "shadow" in name
       INITIAL_BACKGROUND: 0x1a1a2e // Background color (hex)
@@ -502,50 +511,102 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
 
     class OrbitControls {{
       constructor(camera, domElement) {{
-        this.camera = camera; this.domElement = domElement;
+        this.camera = camera;
+        this.domElement = domElement;
         this.target = new THREE.Vector3();
         this.spherical = new THREE.Spherical();
         this.sphericalDelta = new THREE.Spherical();
-        this.scale = 1; this.panOffset = new THREE.Vector3();
-        this.isMouseDown = false; this.rotateSpeed = 0.5; this.zoomSpeed = 1; this.panSpeed = 1;
+        this.scale = 1;
+        this.panOffset = new THREE.Vector3();
+        this.isMouseDown = false;
+        this.rotateSpeed = 0.5;
+        this.zoomSpeed = 1;
+        this.panSpeed = 1;
         this.mouseButtons = {{LEFT: 0, MIDDLE: 1, RIGHT: 2}};
+        
         this.domElement.addEventListener('contextmenu', e => e.preventDefault());
         this.domElement.addEventListener('mousedown', this.onMouseDown.bind(this));
         this.domElement.addEventListener('mousemove', this.onMouseMove.bind(this));
         this.domElement.addEventListener('mouseup', this.onMouseUp.bind(this));
         this.domElement.addEventListener('wheel', this.onMouseWheel.bind(this));
       }}
-      onMouseDown(e) {{ this.isMouseDown = true; this.mouseButton = e.button; }}
-      onMouseUp() {{ this.isMouseDown = false; }}
+      
+      onMouseDown(e) {{
+        this.isMouseDown = true;
+        this.mouseButton = e.button;
+      }}
+      
+      onMouseUp() {{
+        this.isMouseDown = false;
+      }}
+      
       onMouseMove(e) {{
         if (!this.isMouseDown) return;
-        const dx = e.movementX * this.rotateSpeed * 0.01;
-        const dy = e.movementY * this.rotateSpeed * 0.01;
+        
         if (this.mouseButton === this.mouseButtons.LEFT) {{
-          this.sphericalDelta.theta -= dx; this.sphericalDelta.phi -= dy;
+          // LEFT = ROTATE
+          const dx = e.movementX * this.rotateSpeed * 0.01;
+          const dy = e.movementY * this.rotateSpeed * 0.01;
+          this.sphericalDelta.theta -= dx;
+          this.sphericalDelta.phi -= dy;
         }} else if (this.mouseButton === this.mouseButtons.RIGHT) {{
-          const cam = this.camera, right = new THREE.Vector3(cam.matrix.elements[0], cam.matrix.elements[1], cam.matrix.elements[2]);
+          // RIGHT = PAN (použít e.movementX/Y přímo!)
+          const cam = this.camera;
+          const right = new THREE.Vector3(cam.matrix.elements[0], cam.matrix.elements[1], cam.matrix.elements[2]);
           const up = new THREE.Vector3(cam.matrix.elements[4], cam.matrix.elements[5], cam.matrix.elements[6]);
-          this.panOffset.add(right.multiplyScalar(-dx * this.panSpeed * 0.5));
-          this.panOffset.add(up.multiplyScalar(dy * this.panSpeed * 0.5));
+          this.panOffset.add(right.multiplyScalar(-e.movementX * this.panSpeed * 0.0008));
+          this.panOffset.add(up.multiplyScalar(e.movementY * this.panSpeed * 0.0008));
         }}
       }}
-      onMouseWheel(e) {{ e.preventDefault(); this.scale *= e.deltaY < 0 ? 0.9 : 1.1; }}
+      
+      onMouseWheel(e) {{
+        e.preventDefault();
+        this.scale *= Math.pow(0.95, -e.deltaY * this.zoomSpeed * 0.05);
+      }}
+      
       update() {{
+        const offset = new THREE.Vector3();
+        const quat = new THREE.Quaternion().setFromUnitVectors(this.camera.up, new THREE.Vector3(0, 1, 0));
+        
+        offset.copy(this.camera.position).sub(this.target);
+        offset.applyQuaternion(quat);
+        
+        this.spherical.setFromVector3(offset);
         this.spherical.theta += this.sphericalDelta.theta;
-        this.spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.spherical.phi + this.sphericalDelta.phi));
-        this.sphericalDelta.set(0, 0, 0);
-        const offset = new THREE.Vector3().setFromSpherical(this.spherical).multiplyScalar(this.scale);
-        this.camera.position.copy(this.target).add(offset).add(this.panOffset);
+        this.spherical.phi += this.sphericalDelta.phi;
+        this.spherical.phi = Math.max(0.01, Math.min(Math.PI - 0.01, this.spherical.phi));
+        this.spherical.radius *= this.scale;
+        
+        this.target.add(this.panOffset);
+        
+        offset.setFromSpherical(this.spherical);
+        offset.applyQuaternion(quat.invert());
+        
+        this.camera.position.copy(this.target).add(offset);
         this.camera.lookAt(this.target);
+        
+        this.sphericalDelta.set(0, 0, 0);
+        this.scale = 1;
+        this.panOffset.set(0, 0, 0);
       }}
     }}
 
-    function loadTexture(url, onLoad, onError) {{
+    function loadTexture(url, wrapS, wrapT, onLoad, onError) {{
+      // Konverze wrap mode hodnot:
+      // 0 = REPEAT, 1 = MIRROR (MirroredRepeatWrapping), 2 = CLAMP (ClampToEdgeWrapping)
+      const wrapModes = [
+        THREE.RepeatWrapping,        // 0
+        THREE.MirroredRepeatWrapping, // 1
+        THREE.ClampToEdgeWrapping     // 2
+      ];
+      
+      const wrapSMode = wrapModes[wrapS] || THREE.RepeatWrapping;
+      const wrapTMode = wrapModes[wrapT] || THREE.RepeatWrapping;
+      
       textureLoader.load(url, 
         texture => {{
-          texture.wrapS = THREE.RepeatWrapping;
-          texture.wrapT = THREE.RepeatWrapping;
+          texture.wrapS = wrapSMode;
+          texture.wrapT = wrapTMode;
           texture.needsUpdate = true;
           loadedTexturesCount++;
           updateTextureStatus();
@@ -572,7 +633,12 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
 
       if (matData.diffuse) {{
         totalTexturesCount++;
-        loadTexture(matData.diffuse, texture => {{
+        const texInfo = matData.diffuse;
+        const texPath = typeof texInfo === 'string' ? texInfo : texInfo.path;
+        const wrapS = typeof texInfo === 'object' ? (texInfo.wrapS || 0) : 0;
+        const wrapT = typeof texInfo === 'object' ? (texInfo.wrapT || 0) : 0;
+        
+        loadTexture(texPath, wrapS, wrapT, texture => {{
           const mesh = meshes.find(m => m.userData.meshName === meshName);
           if (mesh) {{
             mesh.material.map = texture;
@@ -586,7 +652,12 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
 
       if (matData.normal) {{
         totalTexturesCount++;
-        loadTexture(matData.normal, texture => {{
+        const texInfo = matData.normal;
+        const texPath = typeof texInfo === 'string' ? texInfo : texInfo.path;
+        const wrapS = typeof texInfo === 'object' ? (texInfo.wrapS || 0) : 0;
+        const wrapT = typeof texInfo === 'object' ? (texInfo.wrapT || 0) : 0;
+        
+        loadTexture(texPath, wrapS, wrapT, texture => {{
           const mesh = meshes.find(m => m.userData.meshName === meshName);
           if (mesh) {{
             mesh.material.normalMap = texture;
@@ -704,9 +775,15 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
       camera.position.copy(center).add(direction.multiplyScalar(dist));
       camera.lookAt(center);
       
+      // Initialize controls properly
       controls.target.copy(center);
-      controls.spherical.setFromVector3(camera.position.clone().sub(center));
-      controls.scale = dist;
+      
+      // Set spherical from camera position
+      const offset = camera.position.clone().sub(center);
+      controls.spherical.setFromVector3(offset);
+      // radius is already set by setFromVector3
+      controls.panOffset.set(0, 0, 0);
+      
       controls.update();
     }}
 
@@ -835,10 +912,14 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
       camera.position.copy(center).add(direction.multiplyScalar(dist));
       camera.lookAt(center);
       
+      // Reset controls properly
       controls.target.copy(center);
-      controls.spherical.setFromVector3(camera.position.clone().sub(center));
-      controls.scale = dist;
+      
+      // Set spherical from camera position
+      const offset = camera.position.clone().sub(center);
+      controls.spherical.setFromVector3(offset);
       controls.panOffset.set(0, 0, 0);
+      
       controls.update();
     }}
 
