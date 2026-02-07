@@ -5,6 +5,22 @@ A comprehensive Python toolkit for creating and managing DLC mods for games usin
 [![Python Version](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-GPL--3.0-green)](LICENSE)
 
+**viewer_mdl_textured_anim_beta.exe**
+
+new tool for quick preview of model. ideally associate exe with mdl file. for correct display of textures it looks for standard folder structure.
+for proper function it needs to have all necessary data extracted in the game data structure, including model_info and mdl with animations,
+it currently only supports mi/json model_info in text form, it does not support binary for now
+```
+└───asset
+    ├───common
+    │   └───model
+    │   └───model_info
+    └───dx11
+        └───image
+```
+
+![viewer_mdl/viewer.png](viewer_mdl/viewer_anim.png)
+
 **viewer_mdl_textured.exe**
 
 new tool for quick preview of model. ideally associate exe with mdl file. for correct display of textures it looks for standard folder structure
