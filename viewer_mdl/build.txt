@@ -4,7 +4,7 @@ Python 3.11 required - pywebview issue
 "c:\Program Files\Python311\Scripts>pip3.11.exe" install PyInstaller xxhash zstandard blowfish numpy pywebview
 "c:\Program Files\Python311\python.exe" -m PyInstaller --onefile --add-data "three.min.js;." viewer_mdl_window.py
 "c:\Program Files\Python311\python.exe" -m PyInstaller --onefile --add-data "three.min.js;." viewer_mdl_textured.py
-"c:\Program Files\Python311\python.exe" -m PyInstaller --onefile --add-data "three.min.js;." viewer_mdl_textured_annim.py
+"c:\Program Files\Python311\python.exe" -m PyInstaller --onefile --add-data "three.min.js;." viewer_mdl_textured_anim.py
 "c:\Program Files\Python311\python.exe" -m PyInstaller --onefile --add-data "three.min.js;." viewer_mdl_optimized.py
 "c:\Program Files\Python311\python.exe" -m PyInstaller --onefile --add-data "three.min.js;." viewer_mdl.py
 "c:\Program Files\Python311\python.exe" -m PyInstaller --onefile --add-data "three.min.js;." viewer.py
