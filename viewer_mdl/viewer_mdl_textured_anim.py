@@ -564,10 +564,13 @@ def load_animations_from_directory(mdl_path: Path, skeleton_data: list) -> list:
     
     mdl_dir = mdl_path.parent
     model_stem = mdl_path.stem  # e.g. "chr5001_c11"
-    # Extract base name: chr5001_c11 -> chr5001
-    base_name = model_stem.split('_')[0]  # chr5001
+    # Extract base character name (chrXXXX) from any position in filename
+    # e.g. "q_chr5121" -> "chr5121", "chr5001_c11" -> "chr5001"
+    import re as _re
+    chr_match = _re.search(r'(chr\d+)', model_stem)
+    base_name = chr_match.group(1) if chr_match else model_stem.split('_')[0]
     
-    # Find animation MDL files: *chr5001*_m_*.mdl
+    # Find animation MDL files: *chr5001*_m_*.mdl (covers base, q_ prefix, etc.)
     pattern = str(mdl_dir / f"*{base_name}*_m_*.mdl")
     anim_files = sorted(_glob.glob(pattern))
     
@@ -601,8 +604,17 @@ def load_animations_from_directory(mdl_path: Path, skeleton_data: list) -> list:
     
     for anim_path in anim_files:
         anim_file = Path(anim_path)
-        # Extract animation name: chr5001_m_wait.mdl -> wait
-        anim_name = anim_file.stem.replace(f"{base_name}_m_", "")
+        # Extract animation name from any prefix pattern
+        # e.g. chr5001_m_wait.mdl -> wait, q_chr5001_m_wait.mdl -> q_wait
+        anim_stem = anim_file.stem
+        # Find _m_ marker and take everything after it
+        m_idx = anim_stem.find(f"{base_name}_m_")
+        if m_idx >= 0:
+            prefix = anim_stem[:m_idx] if m_idx > 0 else ""
+            suffix = anim_stem[m_idx + len(base_name) + 3:]  # skip "base_m_"
+            anim_name = (prefix + suffix) if prefix else suffix
+        else:
+            anim_name = anim_stem
         
         try:
             with open(anim_path, 'rb') as f:
@@ -625,13 +637,17 @@ def load_animations_from_directory(mdl_path: Path, skeleton_data: list) -> list:
                 mdl_ver = struct.unpack("<I", f.read(4))[0]
                 f.read(4)  # unknown
                 
-                # Version >= 2 uses 1-byte string prefix, version 1 uses 4-byte
+                # Version >= 1 uses 1-byte string prefix, version 0 uses 4-byte
                 def read_string(fh):
-                    if mdl_ver >= 2:
+                    if mdl_ver >= 1:
                         length, = struct.unpack("<B", fh.read(1))
                     else:
                         length, = struct.unpack("<I", fh.read(4))
-                    return fh.read(length).decode("utf-8")
+                    raw = fh.read(length)
+                    try:
+                        return raw.decode("utf-8")
+                    except UnicodeDecodeError:
+                        return raw.decode("latin-1")
                 
                 ani_offset = None
                 ani_size = None
@@ -2178,6 +2194,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           colliders.push({{
             bone: attachBone, name: cd.name, type: cd.type,
             radius: cd.param0, height: cd.param1,
+            param2: cd.param2 || 0, param3: cd.param3 || 0,
             offset: new THREE.Vector3(cd.offset_x, cd.offset_y, cd.offset_z),
             offsetRot: rotQ,
             needSpecific: cd.need_specific
@@ -2377,6 +2394,62 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }});
       }});
       dynLastAnimTime = -1;
+      
+      // Compute collision exemptions: particles that START inside a collider
+      // in their natural bind/animated pose should never be pushed out by that collider.
+      // This is computed once at init, NOT per-frame (unlike the old animPos check).
+      // During animation, collisions work normally for non-exempt pairs.
+      dynChains.forEach(chain => {{
+        const exempt = new Set();
+        const chainColl = chain.colliders;
+        for (let pi = 0; pi < chain.particles.length; pi++) {{
+          const ppos = chain.particles[pi].pos;
+          const colRad = chain.params[pi].colRadius;
+          for (let ci = 0; ci < chainColl.length; ci++) {{
+            const col = chainColl[ci];
+            const colWP = new THREE.Vector3();
+            col.bone.getWorldPosition(colWP);
+            const boneQ = col.bone.getWorldQuaternion(new THREE.Quaternion());
+            if (col.offset.lengthSq() > 0) {{
+              colWP.add(col.offset.clone().applyQuaternion(boneQ));
+            }}
+            const colQ = boneQ.clone();
+            if (col.offsetRot) colQ.multiply(col.offsetRot);
+            
+            let inside = false;
+            if (col.type === 0) {{
+              // Sphere
+              const d = ppos.distanceTo(colWP);
+              inside = d < col.radius + colRad;
+            }} else if (col.type === 2) {{
+              // Capsule - use correct axis from param2
+              const axisVec = [new THREE.Vector3(1,0,0), new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,1)];
+              const axis = (axisVec[col.param2] || axisVec[2]).clone().applyQuaternion(colQ);
+              const halfH = col.height * 0.5;
+              const diff = new THREE.Vector3().subVectors(ppos, colWP);
+              let proj = diff.dot(axis);
+              proj = Math.max(-halfH, Math.min(halfH, proj));
+              const cp = colWP.clone().addScaledVector(axis, proj);
+              const d = ppos.distanceTo(cp);
+              inside = d < col.radius + colRad;
+            }} else if (col.type === 1) {{
+              // Finite plane: normal = local Y rotated by colQ
+              const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(colQ);
+              const diff = new THREE.Vector3().subVectors(ppos, colWP);
+              const dist = diff.dot(normal);
+              inside = dist < col.height + colRad;
+            }} else if (col.type === 4) {{
+              // Oriented plane
+              const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(colQ);
+              const diff = new THREE.Vector3().subVectors(ppos, colWP);
+              const dist = diff.dot(normal);
+              inside = dist < colRad;
+            }}
+            if (inside) exempt.add(pi + '_' + ci);
+          }}
+        }}
+        chain.collisionExempt = exempt;
+      }});
     }}
 
     function updateDynamicBones(dt) {{
@@ -2545,110 +2618,85 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
             }}
           }}
           
-          // 3. Collision (can be toggled off for debugging)
-          // KEY INSIGHT: A collider should only prevent particles from moving INTO
-          // the collider volume. Particles whose ANIMATED position is already inside
-          // the collider are "naturally there" and should NOT be pushed out.
-          // Without this check, large colliders like BH_atari (r=2.0) push hair
-          // particles outward every frame, causing U-shape and bulging.
+          // 3. Collision
+          // Colliders represent body geometry. They push particles out when physics
+          // simulation moves them inside. Particles that naturally START inside a
+          // collider (computed once at init in resetDynamicBones) are exempt.
           if (dynCollisionsEnabled) {{
           const colRad = pp.colRadius;
+          const exempt = chain.collisionExempt || new Set();
           for (let ci = 0; ci < chainColl.length; ci++) {{
+            if (exempt.has(i + '_' + ci)) continue; // Natural position, skip
+            
             const col = chainColl[ci];
             const colWP = new THREE.Vector3();
             col.bone.getWorldPosition(colWP);
-            // Bone's world rotation (for offset position) and collider orientation
             const boneQ = col.bone.getWorldQuaternion(new THREE.Quaternion());
-            // Offset position is in bone-local space → transform by bone rotation only
             if (col.offset.lengthSq() > 0) {{
               colWP.add(col.offset.clone().applyQuaternion(boneQ));
             }}
-            // Collider orientation = bone world rotation * collider's local rotation
             const colQ = boneQ.clone();
             if (col.offsetRot) colQ.multiply(col.offsetRot);
             
             if (col.type === 0) {{
-              // Sphere: radius = param0
+              // Sphere: param0 = radius
               const r = col.radius + colRad;
               if (r > 0) {{
-                // Check if animated position is inside → skip (natural position)
-                const adx = animPos[i].x - colWP.x;
-                const ady = animPos[i].y - colWP.y;
-                const adz = animPos[i].z - colWP.z;
-                const animDist = Math.sqrt(adx*adx + ady*ady + adz*adz);
-                if (animDist >= r) {{
-                  // Animated pos is outside collider → enforce collision
-                  dx = p.pos.x - colWP.x;
-                  dy = p.pos.y - colWP.y;
-                  dz = p.pos.z - colWP.z;
-                  const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
-                  if (dist < r && dist > 0.0001) {{
-                    const push = r / dist;
-                    p.pos.x = colWP.x + dx * push;
-                    p.pos.y = colWP.y + dy * push;
-                    p.pos.z = colWP.z + dz * push;
-                  }}
-                }}
-              }}
-            }} else if (col.type === 2) {{
-              // Capsule: radius = param0, half-height = param1
-              const axis = new THREE.Vector3(0, 1, 0).applyQuaternion(colQ);
-              const halfH = col.height * 0.5;
-              const r = col.radius + colRad;
-              if (r > 0) {{
-                // Check animated pos distance to capsule axis
-                let adx2 = animPos[i].x - colWP.x;
-                let ady2 = animPos[i].y - colWP.y;
-                let adz2 = animPos[i].z - colWP.z;
-                let aproj = adx2*axis.x + ady2*axis.y + adz2*axis.z;
-                aproj = Math.max(-halfH, Math.min(halfH, aproj));
-                const acpx = colWP.x + axis.x * aproj;
-                const acpy = colWP.y + axis.y * aproj;
-                const acpz = colWP.z + axis.z * aproj;
-                const aDistX = animPos[i].x - acpx;
-                const aDistY = animPos[i].y - acpy;
-                const aDistZ = animPos[i].z - acpz;
-                const animDist = Math.sqrt(aDistX*aDistX + aDistY*aDistY + aDistZ*aDistZ);
-                
-                if (animDist >= r) {{
-                  // Animated pos is outside capsule → enforce collision
-                  dx = p.pos.x - colWP.x;
-                  dy = p.pos.y - colWP.y;
-                  dz = p.pos.z - colWP.z;
-                  let proj = dx*axis.x + dy*axis.y + dz*axis.z;
-                  proj = Math.max(-halfH, Math.min(halfH, proj));
-                  const cpx = colWP.x + axis.x * proj;
-                  const cpy = colWP.y + axis.y * proj;
-                  const cpz = colWP.z + axis.z * proj;
-                  dx = p.pos.x - cpx;
-                  dy = p.pos.y - cpy;
-                  dz = p.pos.z - cpz;
-                  const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
-                  if (dist < r && dist > 0.0001) {{
-                    const push = r / dist;
-                    p.pos.x = cpx + dx * push;
-                    p.pos.y = cpy + dy * push;
-                    p.pos.z = cpz + dz * push;
-                  }}
-                }}
-              }}
-            }} else if (col.type === 1) {{
-              // Finite plane: normal = bone's local Y
-              // param0 = half-extent, param1 = collision margin
-              const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(colQ);
-              const r = col.height + colRad;
-              // Check animated pos side of plane
-              const adx3 = animPos[i].x - colWP.x;
-              const ady3 = animPos[i].y - colWP.y;
-              const adz3 = animPos[i].z - colWP.z;
-              const animDist = adx3*normal.x + ady3*normal.y + adz3*normal.z;
-              if (animDist >= r) {{
-                // Animated pos is on positive side → enforce collision
                 dx = p.pos.x - colWP.x;
                 dy = p.pos.y - colWP.y;
                 dz = p.pos.z - colWP.z;
-                const dist = dx*normal.x + dy*normal.y + dz*normal.z;
-                if (dist < r) {{
+                const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                if (dist < r && dist > 0.0001) {{
+                  const push = r / dist;
+                  p.pos.x = colWP.x + dx * push;
+                  p.pos.y = colWP.y + dy * push;
+                  p.pos.z = colWP.z + dz * push;
+                }}
+              }}
+            }} else if (col.type === 2) {{
+              // Capsule: param0 = radius, param1 = height, param2 = axis (0=X, 1=Y, 2=Z)
+              const axisVecs = [new THREE.Vector3(1,0,0), new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,1)];
+              const axis = (axisVecs[col.param2] || axisVecs[2]).clone().applyQuaternion(colQ);
+              const halfH = col.height * 0.5;
+              const r = col.radius + colRad;
+              if (r > 0) {{
+                dx = p.pos.x - colWP.x;
+                dy = p.pos.y - colWP.y;
+                dz = p.pos.z - colWP.z;
+                let proj = dx*axis.x + dy*axis.y + dz*axis.z;
+                proj = Math.max(-halfH, Math.min(halfH, proj));
+                const cpx = colWP.x + axis.x * proj;
+                const cpy = colWP.y + axis.y * proj;
+                const cpz = colWP.z + axis.z * proj;
+                dx = p.pos.x - cpx;
+                dy = p.pos.y - cpy;
+                dz = p.pos.z - cpz;
+                const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                if (dist < r && dist > 0.0001) {{
+                  const push = r / dist;
+                  p.pos.x = cpx + dx * push;
+                  p.pos.y = cpy + dy * push;
+                  p.pos.z = cpz + dz * push;
+                }}
+              }}
+            }} else if (col.type === 1) {{
+              // Finite plane: normal = local Y rotated by colQ
+              // param0 = half-width, param1 = margin/thickness, param2 = half-depth
+              const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(colQ);
+              const r = col.height + colRad;
+              dx = p.pos.x - colWP.x;
+              dy = p.pos.y - colWP.y;
+              dz = p.pos.z - colWP.z;
+              const dist = dx*normal.x + dy*normal.y + dz*normal.z;
+              if (dist < r) {{
+                // Check finite extent: project onto local X and Z axes
+                const localX = new THREE.Vector3(1, 0, 0).applyQuaternion(colQ);
+                const localZ = new THREE.Vector3(0, 0, 1).applyQuaternion(colQ);
+                const projX = Math.abs(dx*localX.x + dy*localX.y + dz*localX.z);
+                const projZ = Math.abs(dx*localZ.x + dy*localZ.y + dz*localZ.z);
+                const extentX = col.radius > 0 ? col.radius : 999;  // param0
+                const extentZ = col.param2 > 0 ? col.param2 : 999;  // param2
+                if (projX < extentX && projZ < extentZ) {{
                   const push = r - dist;
                   p.pos.x += normal.x * push;
                   p.pos.y += normal.y * push;
@@ -2656,26 +2704,18 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
                 }}
               }}
             }} else if (col.type === 4) {{
-              // Oriented plane: infinite plane through bone position
+              // Oriented plane: infinite plane through collider position
               const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(colQ);
               const margin = colRad;
-              // Check animated pos side of plane
-              const adx4 = animPos[i].x - colWP.x;
-              const ady4 = animPos[i].y - colWP.y;
-              const adz4 = animPos[i].z - colWP.z;
-              const animDist = adx4*normal.x + ady4*normal.y + adz4*normal.z;
-              if (animDist >= margin) {{
-                // Animated pos is on positive side → enforce collision
-                dx = p.pos.x - colWP.x;
-                dy = p.pos.y - colWP.y;
-                dz = p.pos.z - colWP.z;
-                const dist = dx*normal.x + dy*normal.y + dz*normal.z;
-                if (dist < margin) {{
-                  const push = margin - dist;
-                  p.pos.x += normal.x * push;
-                  p.pos.y += normal.y * push;
-                  p.pos.z += normal.z * push;
-                }}
+              dx = p.pos.x - colWP.x;
+              dy = p.pos.y - colWP.y;
+              dz = p.pos.z - colWP.z;
+              const dist = dx*normal.x + dy*normal.y + dz*normal.z;
+              if (dist < margin) {{
+                const push = margin - dist;
+                p.pos.x += normal.x * push;
+                p.pos.y += normal.y * push;
+                p.pos.z += normal.z * push;
               }}
             }}
           }}
