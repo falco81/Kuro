@@ -16,10 +16,11 @@ REQUIREMENTS:
   pip install pywebview Pillow
 
 USAGE:
-  python viewer_mdl_textured.py /path/to/model.mdl [--use-original-normals] [--debug]
+  python viewer_mdl_textured.py /path/to/model.mdl [--recompute-normals] [--debug]
   
-  --use-original-normals  Use original normals from MDL instead of recomputing
-  --debug                 Enable verbose console logging in browser
+  --recompute-normals  Recompute smooth normals instead of using originals from MDL
+                       (slower loading, typically no visual difference)
+  --debug              Enable verbose console logging in browser
 """
 
 from pathlib import Path
@@ -103,7 +104,7 @@ def convert_dds_to_png(dds_path: Path, output_path: Path) -> bool:
 # Smooth normals
 # -----------------------------
 def compute_smooth_normals_with_sharing(vertices: np.ndarray, indices: np.ndarray, tolerance: float = 1e-6) -> np.ndarray:
-    """Compute smooth normals with position sharing."""
+    """Compute smooth normals with position sharing using spatial hashing (O(n) instead of O(n²))."""
     n = len(vertices)
     normals = np.zeros((n, 3), dtype=np.float32)
     
@@ -123,15 +124,46 @@ def compute_smooth_normals_with_sharing(vertices: np.ndarray, indices: np.ndarra
         normals[i1] += face_normal
         normals[i2] += face_normal
     
-    # Position-based normal sharing
+    # Position-based normal sharing using spatial hash (O(n) amortized)
+    cell_size = tolerance * 10  # Hash cell size slightly larger than tolerance
+    if cell_size < 1e-8:
+        cell_size = 1e-5
+    
+    def hash_pos(v):
+        return (int(v[0] / cell_size), int(v[1] / cell_size), int(v[2] / cell_size))
+    
+    # Build spatial hash
+    from collections import defaultdict
+    cells = defaultdict(list)
     for i in range(n):
-        matches = np.where(np.linalg.norm(vertices - vertices[i], axis=1) < tolerance)[0]
+        cells[hash_pos(vertices[i])].append(i)
+    
+    # For each vertex, check its cell and 26 neighbors
+    shared = np.zeros((n, 3), dtype=np.float32)
+    visited = np.zeros(n, dtype=bool)
+    
+    for i in range(n):
+        if visited[i]:
+            continue
+        cx, cy, cz = hash_pos(vertices[i])
+        matches = [i]
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for dz in (-1, 0, 1):
+                    for j in cells.get((cx+dx, cy+dy, cz+dz), []):
+                        if j != i and not visited[j] and np.linalg.norm(vertices[i] - vertices[j]) < tolerance:
+                            matches.append(j)
+        
         if len(matches) > 1:
             shared_normal = normals[matches].sum(axis=0)
             norm = np.linalg.norm(shared_normal)
             if norm > 1e-12:
                 shared_normal = shared_normal / norm
-            normals[matches] = shared_normal
+            for idx in matches:
+                normals[idx] = shared_normal
+                visited[idx] = True
+        else:
+            visited[i] = True
     
     # Normalize
     norms = np.linalg.norm(normals, axis=1)
@@ -139,6 +171,232 @@ def compute_smooth_normals_with_sharing(vertices: np.ndarray, indices: np.ndarra
     normals[valid] = normals[valid] / norms[valid][:, None]
     
     return normals
+
+
+# -----------------------------
+# Synthetic bones for missing mesh references
+# -----------------------------
+def decompose_bind_matrix(mat_4x4):
+    """Decompose a 4x4 row-major bind matrix into (pos, quat_xyzw, scale).
+    
+    Row-major convention (DirectX/Kuro):
+      Row 0-2: rotation*scale
+      Row 3:   translation
+    """
+    mat = np.array(mat_4x4, dtype=np.float64)
+    
+    pos = [float(mat[3][0]), float(mat[3][1]), float(mat[3][2])]
+    
+    # Scale = row lengths of upper-left 3x3
+    sx = float(np.linalg.norm(mat[0][:3]))
+    sy = float(np.linalg.norm(mat[1][:3]))
+    sz = float(np.linalg.norm(mat[2][:3]))
+    scale = [sx if sx > 1e-12 else 1.0, sy if sy > 1e-12 else 1.0, sz if sz > 1e-12 else 1.0]
+    
+    # Rotation matrix (scale removed)
+    rot = np.zeros((3, 3), dtype=np.float64)
+    rot[0] = np.array(mat[0][:3]) / scale[0]
+    rot[1] = np.array(mat[1][:3]) / scale[1]
+    rot[2] = np.array(mat[2][:3]) / scale[2]
+    
+    # Rotation matrix → quaternion (Shepperd's method)
+    tr = rot[0, 0] + rot[1, 1] + rot[2, 2]
+    if tr > 0:
+        s = np.sqrt(tr + 1.0) * 2.0
+        w, x, y, z = 0.25 * s, (rot[2, 1] - rot[1, 2]) / s, (rot[0, 2] - rot[2, 0]) / s, (rot[1, 0] - rot[0, 1]) / s
+    elif rot[0, 0] > rot[1, 1] and rot[0, 0] > rot[2, 2]:
+        s = np.sqrt(1.0 + rot[0, 0] - rot[1, 1] - rot[2, 2]) * 2.0
+        w, x, y, z = (rot[2, 1] - rot[1, 2]) / s, 0.25 * s, (rot[0, 1] + rot[1, 0]) / s, (rot[0, 2] + rot[2, 0]) / s
+    elif rot[1, 1] > rot[2, 2]:
+        s = np.sqrt(1.0 + rot[1, 1] - rot[0, 0] - rot[2, 2]) * 2.0
+        w, x, y, z = (rot[0, 2] - rot[2, 0]) / s, (rot[0, 1] + rot[1, 0]) / s, 0.25 * s, (rot[1, 2] + rot[2, 1]) / s
+    else:
+        s = np.sqrt(1.0 + rot[2, 2] - rot[0, 0] - rot[1, 1]) * 2.0
+        w, x, y, z = (rot[1, 0] - rot[0, 1]) / s, (rot[0, 2] + rot[2, 0]) / s, (rot[1, 2] + rot[2, 1]) / s, 0.25 * s
+    
+    quat_xyzw = [float(x), float(y), float(z), float(w)]
+    return pos, quat_xyzw, scale
+
+
+def create_synthetic_bones(skeleton_data, skeleton_name_to_idx, global_bind_matrices):
+    """Create skeleton entries for bones referenced by meshes but missing from skeleton.
+    
+    These are typically costume-specific bones (cloth chains, endpoints) that exist in
+    mesh vgmaps and some animations, but not in the base MDL skeleton.
+    
+    Infers parent-child chain hierarchy from naming conventions:
+      BC01 → BC02 → BC03 → BC_Top
+      LeftCA01 → LeftCA02 → ... → LeftCA_Top
+      Head_Top → child of Head (endpoint)
+    """
+    import re
+    from collections import defaultdict
+    
+    # Find missing bone names
+    missing_names = set()
+    for name in global_bind_matrices:
+        if name not in skeleton_name_to_idx:
+            missing_names.add(name)
+    
+    if not missing_names:
+        return 0
+    
+    # Group into chains by prefix
+    chains = defaultdict(list)
+    endpoint_bones = []  # *_Top bones whose parent exists in skeleton
+    
+    for name in missing_names:
+        if name.endswith('_Top'):
+            # Check if parent bone (without _Top) exists in skeleton
+            parent_name = name[:-4]
+            if parent_name in skeleton_name_to_idx:
+                endpoint_bones.append((name, parent_name))
+            else:
+                # Part of a missing chain (e.g., BC_Top where BC04 is also missing)
+                prefix = parent_name.rstrip('0123456789')
+                if not prefix:
+                    prefix = parent_name
+                chains[prefix].append((999, name))
+        else:
+            match = re.match(r'^(.+?)(\d+)$', name)
+            if match:
+                prefix, num = match.group(1), int(match.group(2))
+                chains[prefix].append((num, name))
+            else:
+                chains[name].append((0, name))
+    
+    # Sort each chain by number
+    for prefix in chains:
+        chains[prefix].sort()
+    
+    next_id = max(b['id_referenceonly'] for b in skeleton_data) + 1
+    created = 0
+    
+    def mat4_from_bind(name):
+        """Get 4x4 numpy matrix from bind matrices."""
+        m = global_bind_matrices[name]
+        return np.array(m, dtype=np.float64)
+    
+    def add_bone(name, parent_id, local_pos, local_quat_xyzw, local_scale):
+        """Add a synthetic bone to skeleton_data."""
+        nonlocal next_id, created
+        
+        bone_entry = {
+            'id_referenceonly': next_id,
+            'name': name,
+            'type': 1,
+            'mesh_index': -1,
+            'pos_xyz': local_pos,
+            'unknown_quat': [0.0, 0.0, 0.0, 1.0],
+            'skin_mesh': 0,
+            'rotation_euler_rpy': [0.0, 0.0, 0.0],  # Dummy, quat_xyzw is authoritative
+            'scale': local_scale,
+            'unknown': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            'children': [],
+            'quat_xyzw': local_quat_xyzw,
+            'synthetic': True
+        }
+        
+        # Add to parent's children list
+        for b in skeleton_data:
+            if b['id_referenceonly'] == parent_id:
+                b['children'].append(next_id)
+                break
+        
+        skeleton_data.append(bone_entry)
+        skeleton_name_to_idx[name] = next_id
+        next_id += 1
+        created += 1
+    
+    # 1. Process endpoint bones (e.g., Head_Top → child of Head)
+    for name, parent_name in endpoint_bones:
+        parent_id = skeleton_name_to_idx[parent_name]
+        parent_world = mat4_from_bind(parent_name) if parent_name in global_bind_matrices else np.eye(4, dtype=np.float64)
+        child_world = mat4_from_bind(name)
+        
+        local_mat = np.linalg.inv(parent_world) @ child_world
+        pos, quat, scale = decompose_bind_matrix(local_mat)
+        add_bone(name, parent_id, pos, quat, scale)
+    
+    # 2. Process missing chains (e.g., BC01 → BC02 → BC03 → BC04 → BC_Top)
+    for prefix, chain_items in sorted(chains.items()):
+        # Find chain root parent: try common skeleton bones
+        chain_root_parent_id = 0  # Default to root
+        
+        # Special case: single _Top bone (e.g., LeftHandIndex_Top)
+        # Try to find highest-numbered bone with same prefix in skeleton
+        if len(chain_items) == 1 and chain_items[0][0] == 999:
+            bone_name = chain_items[0][1]
+            base = bone_name[:-4]  # Remove _Top
+            best_match = None
+            best_num = -1
+            for skel_name in skeleton_name_to_idx:
+                if skel_name.startswith(base) and skel_name != bone_name:
+                    match = re.search(r'(\d+)$', skel_name)
+                    if match and int(match.group(1)) > best_num:
+                        best_num = int(match.group(1))
+                        best_match = skel_name
+                    elif not match and best_num < 0:
+                        best_match = skel_name
+            if best_match:
+                chain_root_parent_id = skeleton_name_to_idx[best_match]
+        
+        if chain_root_parent_id == 0:
+            # Try to find parent by prefix pattern
+            parent_candidates = []
+            # Strip Left/Right prefix for matching
+            clean_prefix = prefix
+            side = ''
+            if prefix.startswith('Left'):
+                clean_prefix = prefix[4:]
+                side = 'Left'
+            elif prefix.startswith('Right'):
+                clean_prefix = prefix[5:]
+                side = 'Right'
+            elif prefix.startswith('L_'):
+                clean_prefix = prefix[2:]
+                side = 'Left'  # Map L_ to Left for parent search
+            elif prefix.startswith('R_'):
+                clean_prefix = prefix[2:]
+                side = 'Right'  # Map R_ to Right for parent search
+            
+            # Common parent mappings for costume bones
+            if clean_prefix in ('C', 'CA', 'CB', 'CC', 'CD', 'CE'):
+                parent_candidates = [f'{side}Shoulder', f'{side}Arm', 'Spine2', 'Spine1', 'Spine']
+            elif clean_prefix in ('BC', 'FC'):
+                parent_candidates = ['Spine', 'Spine1', 'Hips']
+            elif clean_prefix.startswith('Bag'):
+                parent_candidates = [f'{side}UpLeg', f'{side}Leg', 'Hips']
+            
+            for cand in parent_candidates:
+                if cand in skeleton_name_to_idx:
+                    chain_root_parent_id = skeleton_name_to_idx[cand]
+                    break
+        
+        # Build chain with proper hierarchy
+        prev_id = chain_root_parent_id
+        prev_world = np.eye(4, dtype=np.float64)
+        
+        # Get parent world matrix
+        for b in skeleton_data:
+            if b['id_referenceonly'] == chain_root_parent_id and b['name'] in global_bind_matrices:
+                prev_world = mat4_from_bind(b['name'])
+                break
+        
+        for _, bone_name in chain_items:
+            if bone_name not in global_bind_matrices:
+                continue
+            
+            child_world = mat4_from_bind(bone_name)
+            local_mat = np.linalg.inv(prev_world) @ child_world
+            pos, quat, scale = decompose_bind_matrix(local_mat)
+            
+            add_bone(bone_name, prev_id, pos, quat, scale)
+            
+            prev_id = skeleton_name_to_idx[bone_name]
+            prev_world = child_world
+    
+    return created
 
 
 # -----------------------------
@@ -323,8 +581,14 @@ def load_animations_from_directory(mdl_path: Path, skeleton_data: list) -> list:
     skel_map = {}
     if skeleton_data:
         for bone in skeleton_data:
-            q_wxyz = rpy2quat(bone['rotation_euler_rpy']) if 'rotation_euler_rpy' in bone else [1,0,0,0]
-            skel_map[bone['name']] = q_wxyz  # wxyz format
+            if bone.get('synthetic') and 'quat_xyzw' in bone:
+                # Synthetic bones store authoritative quaternion directly (xyzw → wxyz)
+                q = bone['quat_xyzw']
+                skel_map[bone['name']] = [q[3], q[0], q[1], q[2]]
+            elif 'rotation_euler_rpy' in bone:
+                skel_map[bone['name']] = rpy2quat(bone['rotation_euler_rpy'])
+            else:
+                skel_map[bone['name']] = [1, 0, 0, 0]
     
     def qmul(a, b):
         """Multiply two quaternions in wxyz format."""
@@ -467,7 +731,7 @@ def load_animations_from_directory(mdl_path: Path, skeleton_data: list) -> list:
 # -----------------------------
 # Load MDL with all data
 # -----------------------------
-def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, use_original_normals: bool = False):
+def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bool = False):
     """
     Load MDL file and copy textures to temp directory.
     Also loads skeleton and model info if available.
@@ -631,6 +895,13 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, use_original_normals:
     print(f"\n[+] Processing {len(all_buffers)} mesh groups...")
     print(f"[+] Collected {len(global_bind_matrices)} unique bind-pose matrices from mesh nodes")
 
+    # Create synthetic skeleton entries for bones in mesh vgmaps but not in skeleton
+    # (e.g., costume cloth chains, endpoint bones)
+    if skeleton_data and skeleton_name_to_idx:
+        synth_count = create_synthetic_bones(skeleton_data, skeleton_name_to_idx, global_bind_matrices)
+        if synth_count > 0:
+            print(f"[+] Created {synth_count} synthetic bones for mesh references not in MDL skeleton")
+
     for i, submesh_list in enumerate(all_buffers):
         base_name = mesh_blocks[i].get("name", f"mesh_{i}") if i < len(mesh_blocks) else f"mesh_{i}"
         primitives = mesh_blocks[i].get("primitives", []) if i < len(mesh_blocks) else []
@@ -722,7 +993,7 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, use_original_normals:
                 if not blend_indices_buffer:
                     print(f"    Mesh {i}_{j}: No BLENDINDICES buffer")
 
-            if use_original_normals and normal_buffer:
+            if not recompute_normals and normal_buffer:
                 normals = np.array([n[:3] for n in normal_buffer], dtype=np.float32)
                 lens = np.linalg.norm(normals, axis=1)
                 nonzero = lens > 1e-8
@@ -1978,6 +2249,44 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         chainCount++;
       }});
       
+      // === CHAIN PRIORITY DEDUPLICATION ===
+      // Some bones appear in multiple chains (e.g. Left_Rib01_Top is in the master
+      // back-hair chain [2] with weak defaults r=1, AND in dedicated sub-chain [9]
+      // with tuned r=20). Without dedup, dynProcessedBones gives priority to whichever
+      // chain runs first (the master), ignoring the tuned sub-chain entirely.
+      // Fix: for each duplicate bone, keep it active only in the chain where it has
+      // the strongest/most specific params; disable it in the other chain(s).
+      const boneChainMap = new Map(); // boneName → [entry objects]
+      dynChains.forEach((chain, ci) => {{
+        chain.bones.forEach((b, ji) => {{
+          if (!boneChainMap.has(b.name)) boneChainMap.set(b.name, []);
+          boneChainMap.get(b.name).push({{ chainIdx: ci, jointIdx: ji }});
+        }});
+      }});
+      let dedupCount = 0;
+      boneChainMap.forEach((entries, boneName) => {{
+        if (entries.length < 2) return;
+        // Pick the "best" entry: prefer the chain where this bone has highest
+        // non-default resilience, or highest damping, or smallest chain size (= dedicated)
+        let bestIdx = 0;
+        let bestScore = -1;
+        entries.forEach((e, ei) => {{
+          const p = dynChains[e.chainIdx].params[e.jointIdx];
+          const chainLen = dynChains[e.chainIdx].bones.length;
+          // Score: resilience * 1000 + damping * 100 + (1/chainLen) to prefer dedicated chains
+          const score = p.resilience * 1000 + p.damping * 100 + (100 / chainLen);
+          if (score > bestScore) {{ bestScore = score; bestIdx = ei; }}
+        }});
+        // Disable this bone in all OTHER chains
+        entries.forEach((e, ei) => {{
+          if (ei !== bestIdx) {{
+            dynChains[e.chainIdx].params[e.jointIdx].isDisable = true;
+            dedupCount++;
+          }}
+        }});
+      }});
+      if (dedupCount > 0) debug('Chain dedup: disabled', dedupCount, 'duplicate bone entries');
+      
       const info = document.getElementById('dynBonesInfo');
       if (info) info.textContent = `${{chainCount}} chains`;
       debug('Dynamic bones initialized:', chainCount, 'chains');
@@ -2124,15 +2433,27 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           // Gravity (acceleration: pos += g * dt², scaled by intensity)
           p.pos.y += pp.gravity * dt * dt * dynIntensityMult;
           
-          // Elasticity: spring force pulling toward animated position
-          // resilience/100 = spring coefficient per step
-          // resilience=5 → 5% pull per step (loose hair)
-          // resilience=80 → 80% pull per step (stiff sub-chain)
+          // Elasticity: spring force maintaining animated DIRECTION from current parent
+          // Uses RELATIVE target: parentParticle.pos + animatedDirection * restLen
+          // This prevents cumulative backward rotation (U-shape) in long chains.
+          // Each bone maintains its animated direction from wherever its parent is,
+          // rather than trying to reach its absolute animated world position.
           const elasticity = pp.resilience / 100;
           if (elasticity > 0) {{
-            p.pos.x += (animPos[i].x - p.pos.x) * elasticity;
-            p.pos.y += (animPos[i].y - p.pos.y) * elasticity;
-            p.pos.z += (animPos[i].z - p.pos.z) * elasticity;
+            const pPos = particles[pi].pos;
+            const adx = animPos[i].x - animPos[pi].x;
+            const ady = animPos[i].y - animPos[pi].y;
+            const adz = animPos[i].z - animPos[pi].z;
+            const adLen = Math.sqrt(adx*adx + ady*ady + adz*adz);
+            if (adLen > 0.0001) {{
+              const invAd = p.restLen / adLen;
+              const tx = pPos.x + adx * invAd;
+              const ty = pPos.y + ady * invAd;
+              const tz = pPos.z + adz * invAd;
+              p.pos.x += (tx - p.pos.x) * elasticity;
+              p.pos.y += (ty - p.pos.y) * elasticity;
+              p.pos.z += (tz - p.pos.z) * elasticity;
+            }}
           }}
           
           // === CONSTRAINTS (applied in order) ===
@@ -2241,13 +2562,15 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
                 }}
               }}
             }} else if (col.type === 1) {{
-              // Plane: normal = bone's local Y, param0 = offset distance
+              // Finite plane: normal = bone's local Y
+              // param0 (radius) = half-extent (plane size), param1 (height) = collision margin
+              // e.g. haimen01: param0=1.5 (extent), param1=0.05 (thickness)
               const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(colQ);
               dx = p.pos.x - colWP.x;
               dy = p.pos.y - colWP.y;
               dz = p.pos.z - colWP.z;
               const dist = dx*normal.x + dy*normal.y + dz*normal.z;
-              const r = col.radius + colRad;  // param0 as margin
+              const r = col.height + colRad;  // param1 as collision margin
               if (dist < r) {{
                 const push = r - dist;
                 p.pos.x += normal.x * push;
@@ -2372,22 +2695,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         const dot = curDir.dot(simDir);
         if (dot > 0.9999) continue;
         
-        // Clamp rotation angle to bone's rotation limit
-        const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
-        const rotLimit = chain.params[i].rotLimit;
-        let finalSimDir = simDir;
-        if (rotLimit < 3.0 && angle > rotLimit) {{
-          // Clamp: rotate curDir toward simDir by rotLimit instead of full angle
-          const cross = new THREE.Vector3().crossVectors(curDir, simDir);
-          const crossLen = cross.length();
-          if (crossLen > 1e-6) {{
-            cross.divideScalar(crossLen);
-            finalSimDir = curDir.clone().applyAxisAngle(cross, rotLimit);
-          }}
-        }}
+        // Note: rotation limits are already enforced on particle positions in
+        // dynPhysicsStep. Applying them again here would double-constrain non-root
+        // bones (parent rotation shifts live curDir, making the effective limit tighter).
+        // So we just faithfully rotate the bone toward where the particle ended up.
         
-        // World-space rotation delta: current bone direction → simulated (clamped)
-        const worldRot = new THREE.Quaternion().setFromUnitVectors(curDir, finalSimDir);
+        // World-space rotation delta: current bone direction → simulated
+        const worldRot = new THREE.Quaternion().setFromUnitVectors(curDir, simDir);
         
         // Convert to local space delta:
         // We want: newWorldQ = worldRot * curWorldQ
@@ -2735,7 +3049,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       
       // Dynamic bones physics (after clean animation, before skinning)
-      if (dynamicBonesEnabled && animationMixer) {{
+      // Works both with and without animation (gravity affects static pose too)
+      if (dynamicBonesEnabled) {{
         updateDynamicBones(delta);
         if (bones.length > 0) {{
           bones[0].updateMatrixWorld(true);
@@ -2844,11 +3159,11 @@ class API:
 # -----------------------------
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python viewer_mdl_textured.py <path_to_model.mdl> [--use-original-normals] [--debug]")
+        print("Usage: python viewer_mdl_textured.py <path_to_model.mdl> [--recompute-normals] [--debug]")
         sys.exit(1)
 
     mdl_path = Path(sys.argv[1])
-    use_original_normals = '--use-original-normals' in sys.argv
+    recompute_normals = '--recompute-normals' in sys.argv
     debug_mode = '--debug' in sys.argv
     
     if debug_mode:
@@ -2893,7 +3208,7 @@ def main():
 
     # Load MDL with skeleton and model info
     meshes, material_texture_map, skeleton_data, model_info, bind_matrices = load_mdl_with_textures(
-        mdl_path, temp_dir, use_original_normals
+        mdl_path, temp_dir, recompute_normals
     )
 
     if not meshes:
