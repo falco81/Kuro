@@ -21,6 +21,9 @@ it currently only supports mi/json model_info in text form, it does not support 
 
 ![viewer_mdl/viewer.png](viewer_mdl/viewer_anim.png)
 
+Beta2
+![viewer_mdl/viewer.png](viewer_mdl/viewer_anim2.png)
+
 **viewer_mdl_textured.exe**
 
 new tool for quick preview of model. ideally associate exe with mdl file. for correct display of textures it looks for standard folder structure
@@ -33,6 +36,9 @@ new tool for quick preview of model. ideally associate exe with mdl file. for co
 ```
 
 ![viewer_mdl/viewer.png](viewer_mdl/viewer.png)
+
+New UI
+![viewer_mdl/viewer.png](viewer_mdl/viewer2.png)
 
 
 > **⚠️ GPL-3.0 License Notice**  
