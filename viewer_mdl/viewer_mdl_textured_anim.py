@@ -1217,6 +1217,12 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           <input type="range" id="animTimeline" min="0" max="1" step="0.001" value="0"
                  style="flex:1;" oninput="scrubAnimation(this.value)">
         </div>
+        <div class="slider-row" style="display:flex;align-items:center;gap:6px;margin:4px 0 8px 0;">
+          <span style="font-size:11px;color:#9ca3af;min-width:52px;">Speed:</span>
+          <input type="range" id="animSpeedSlider" min="-100" max="100" step="5" value="0"
+                 style="flex:1;cursor:pointer;" oninput="updateAnimSpeed(this.value)">
+          <span id="animSpeedLabel" style="font-size:11px;color:#a78bfa;min-width:32px;text-align:right;">1.0x</span>
+        </div>
         <button id="btnDynBones" onclick="toggleDynamicBones()" style="margin-top:4px;">&#9889; Dynamic Bones</button>
         <span id="dynBonesInfo" style="font-size:11px;color:#9ca3af;margin-left:8px;"></span>
         <div id="dynIntensityRow" style="display:none;margin-top:6px;">
@@ -1226,13 +1232,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
                    style="flex:1;cursor:pointer;" oninput="updateDynIntensity(this.value)">
             <span id="dynIntensityLabel" style="font-size:11px;color:#a78bfa;min-width:32px;text-align:right;">+0</span>
           </div>
-          <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
-            <label style="font-size:11px;color:#9ca3af;cursor:pointer;display:flex;align-items:center;gap:4px;">
-              <input type="checkbox" id="dynCollisionCheck" checked
-                     onchange="dynCollisionsEnabled=this.checked; console.log('Collisions:', this.checked);">
-              Collisions
-            </label>
-
+          <div style="margin-top:4px;">
+            <button id="btnCollisions" class="active" onclick="toggleCollisions()" style="font-size:12px;padding:4px 10px;">💥 Collisions</button>
           </div>
         </div>
       </div>
@@ -2012,6 +2013,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // Create mixer on root bone
       const target = bones[0];
       animationMixer = new THREE.AnimationMixer(target);
+      // Apply current speed slider
+      const speedSlider = document.getElementById('animSpeedSlider');
+      if (speedSlider) animationMixer.timeScale = Math.pow(2, parseInt(speedSlider.value) / 50);
       currentAnimName = animName;
 
       currentAnimation = animationMixer.clipAction(clip);
@@ -2027,6 +2031,17 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       
       debug('Playing:', animName, 'duration:', clip.duration.toFixed(2) + 's');
+    }}
+
+    function updateAnimSpeed(val) {{
+      const v = parseInt(val);
+      // -100→0.25x, 0→1.0x, +100→4.0x (exponential for natural feel)
+      const speed = Math.pow(2, v / 50);
+      if (animationMixer) {{
+        animationMixer.timeScale = speed;
+      }}
+      const label = document.getElementById('animSpeedLabel');
+      if (label) label.textContent = speed.toFixed(1) + 'x';
     }}
 
     function toggleAnimPlayback() {{
@@ -2323,6 +2338,12 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       
       resetDynamicBones();
       dynAccum = 0;
+    }}
+
+    function toggleCollisions() {{
+      dynCollisionsEnabled = !dynCollisionsEnabled;
+      const btn = document.getElementById('btnCollisions');
+      if (btn) btn.classList.toggle('active', dynCollisionsEnabled);
     }}
 
     function updateDynIntensity(val) {{
@@ -2955,6 +2976,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (dynSlider) dynSlider.value = 0;
       const dynLabel = document.getElementById('dynIntensityLabel');
       if (dynLabel) dynLabel.textContent = '+0';
+      // Reset speed slider
+      const speedSlider = document.getElementById('animSpeedSlider');
+      if (speedSlider) speedSlider.value = 0;
+      const speedLabel = document.getElementById('animSpeedLabel');
+      if (speedLabel) speedLabel.textContent = '1.0x';
       // Mesh opacity 1
       document.getElementById('meshOpacity').value = 1;
       document.getElementById('meshOpVal').textContent = '1';
