@@ -30,9 +30,10 @@ for proper function it needs to have all necessary data extracted in the game da
   - Still has known bugs
   - Physics now reacts to character movements with the mouse (requires physics display enabled in UI)
 
+
 Beta4
-![viewer_mdl/viewer.png](viewer_mdl/viewer_anim4.gif)
 ![viewer_mdl/viewer.png](viewer_mdl/viewer_anim4.png)
+![viewer_mdl/viewer.png](viewer_mdl/viewer_anim4.gif)
 
 Beta3
 demo with collision on/off, physics intensity, and more
