@@ -31,6 +31,7 @@ import tempfile
 import atexit
 import time
 import shutil
+import fractions
 
 # Import parser functions
 from kuro_mdl_export_meshes import decryptCLE, obtain_material_data, obtain_mesh_data  # type: ignore
@@ -1291,6 +1292,27 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;
     }}
     #screenshot-modal.show {{ display: flex; }}
+
+    /* Converting modal */
+    #converting-modal {{
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8); z-index: 2001; align-items: center; justify-content: center;
+    }}
+    #converting-modal.show {{ display: flex; }}
+    .progress-bar-container {{
+      width: 100%; height: 8px; background: rgba(124, 58, 237, 0.2);
+      border-radius: 4px; overflow: hidden; margin-top: 16px;
+    }}
+    .progress-bar-fill {{
+      height: 100%; width: 30%; border-radius: 4px;
+      background: linear-gradient(90deg, #7c3aed, #a855f7, #7c3aed);
+      background-size: 200% 100%;
+      animation: progress-sweep 1.5s ease-in-out infinite;
+    }}
+    @keyframes progress-sweep {{
+      0% {{ margin-left: -30%; }}
+      100% {{ margin-left: 100%; }}
+    }}
     .modal-content {{
       background: rgba(20,20,35,0.98); padding: 30px; border-radius: 12px;
       box-shadow: 0 12px 48px rgba(0,0,0,0.7); max-width: 500px; text-align: center;
@@ -1426,6 +1448,12 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           <option value="60" selected>60 FPS</option>
         </select>
       </div>
+      <div class="slider-row">
+        <span class="info-text" style="min-width:72px;">Video format:</span>
+        <select id="videoFormat" class="styled-select" style="width:auto;flex:1;margin:0;padding:6px 8px;">
+          <option value="webm" selected>WebM (VP9)</option>
+        </select>
+      </div>
     </div>
 
     
@@ -1533,6 +1561,17 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       <div class="filename" id="screenshot-filename" onclick="openScreenshotFile()">filename.png</div>
       <p style="font-size: 12px; color: #9ca3af;">Click filename to open file</p>
       <button class="btn-action" onclick="closeScreenshotModal()">Close</button>
+    </div>
+  </div>
+
+  <div id="converting-modal">
+    <div class="modal-content" style="min-width:320px;">
+      <h3 id="converting-title">⏳ Converting Video...</h3>
+      <p id="converting-info" style="color:#9ca3af;">Please wait, encoding to MP4</p>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="converting-progress"></div>
+      </div>
+      <p style="font-size:11px;color:#6b7280;margin-top:8px;">This may take a moment depending on video length</p>
     </div>
   </div>
 
@@ -3634,7 +3673,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           btn.textContent = '⏹ Stop Recording';
         }}
         updateRecordTimer();
-        debug('Recording started:', selectedMime, fps + 'fps', (bitrate/1000000) + 'Mbps');
+        const outFormat = document.getElementById('videoFormat').value || 'webm';
+        debug('Recording started:', selectedMime, fps + 'fps', (bitrate/1000000) + 'Mbps', '→', outFormat);
       }} catch (e) {{
         alert('Recording failed: ' + e.message);
       }}
@@ -3762,17 +3802,49 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
     }}
 
+    let convertingTimerInterval = null;
+    function showConvertingModal(format) {{
+      const title = document.getElementById('converting-title');
+      const info = document.getElementById('converting-info');
+      if (title) title.textContent = '⏳ Converting Video...';
+      if (info) info.textContent = 'Encoding to ' + format.toUpperCase();
+      document.getElementById('converting-modal').classList.add('show');
+      // Start elapsed timer
+      const startTime = Date.now();
+      convertingTimerInterval = setInterval(() => {{
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(0);
+        if (info) info.textContent = 'Encoding to ' + format.toUpperCase() + ' (' + elapsed + 's)';
+      }}, 500);
+    }}
+
+    function hideConvertingModal() {{
+      document.getElementById('converting-modal').classList.remove('show');
+      if (convertingTimerInterval) {{ clearInterval(convertingTimerInterval); convertingTimerInterval = null; }}
+    }}
+
     function saveRecording(blob) {{
+      const rawFormat = document.getElementById('videoFormat').value || 'webm';
+      const container = rawFormat.split(':')[0]; // 'mp4:h264_nvenc' → 'mp4'
+      const needsConversion = container !== 'webm';
+
       if (window.pywebview) {{
+        // Show converting overlay immediately for non-webm
+        if (needsConversion) showConvertingModal(container);
+
         const reader = new FileReader();
         reader.onload = () => {{
           const base64 = reader.result.split(',')[1];
-          window.pywebview.api.save_video(base64).then(result => {{
+          window.pywebview.api.save_video(base64, rawFormat).then(result => {{
+            hideConvertingModal();
             if (result.success) {{
               showScreenshotModal(result.filepath);
+              if (result.warning) console.warn('[Recording]', result.warning);
             }} else {{
               alert('Save failed: ' + result.error);
             }}
+          }}).catch(err => {{
+            hideConvertingModal();
+            alert('Save failed: ' + err);
           }});
         }};
         reader.readAsDataURL(blob);
@@ -3780,7 +3852,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'recording_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0,19) + '.webm';
+        a.download = 'recording_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0,19) + '.' + container;
         a.click();
         URL.revokeObjectURL(url);
       }}
@@ -3859,6 +3931,42 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       lastTime = now;
     }}
 
+    // Populate video format dropdown from Python API
+    let videoFormatsLoaded = false;
+    function populateVideoFormats() {{
+      if (videoFormatsLoaded) return;
+      if (!window.pywebview || !window.pywebview.api || !window.pywebview.api.get_video_formats) {{
+        // Retry until pywebview API is fully ready
+        if (!window._vfRetries) window._vfRetries = 0;
+        window._vfRetries++;
+        if (window._vfRetries < 50) {{ // try for 10 seconds
+          setTimeout(populateVideoFormats, 200);
+        }} else {{
+          debug('pywebview API not available for video formats');
+        }}
+        return;
+      }}
+      window.pywebview.api.get_video_formats().then(result => {{
+        const sel = document.getElementById('videoFormat');
+        if (!sel || !result || !result.formats) return;
+        videoFormatsLoaded = true;
+        sel.innerHTML = '';
+        result.formats.forEach((f, i) => {{
+          const opt = document.createElement('option');
+          opt.value = f.value;
+          opt.textContent = f.label;
+          if (i === 0) opt.selected = true;
+          sel.appendChild(opt);
+        }});
+        debug('Video formats:', result.formats.map(f => f.label).join(', '));
+      }}).catch(err => {{
+        debug('Could not load video formats:', err);
+      }});
+    }}
+    setTimeout(populateVideoFormats, 500);
+    // Also listen for pywebview ready event
+    window.addEventListener('pywebviewready', populateVideoFormats);
+
     init();
   </script>
 </body>
@@ -3872,15 +3980,92 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 # API Class for pywebview
 # -----------------------------
 class API:
-    def __init__(self, screenshot_dir: str):
+    def __init__(self, screenshot_dir: str, temp_dir: str):
         # Store as string to avoid pywebview serialization issues with Path objects
         self.screenshot_dir_str = screenshot_dir
+        self.temp_dir_str = temp_dir
         # Ensure directory exists
         Path(screenshot_dir).mkdir(parents=True, exist_ok=True)
         self.screenshot_counter = 0
         self.video_counter = 0
+        
+        # Detect available video codecs
+        self.available_codecs = []
+        self._detect_codecs()
 
-    def save_screenshot(self, image_data: str) -> dict:
+    def _detect_codecs(self):
+        """Detect available video encoders via PyAV."""
+        try:
+            import av
+            import tempfile, os
+            
+            # Test codecs by actually encoding a tiny video
+            codecs_to_check = [
+                ('libx264', 'H.264 (x264)'),
+                ('libopenh264', 'H.264 (OpenH264)'),
+                ('h264_nvenc', 'H.264 (NVIDIA NVENC)'),
+                ('h264_amf', 'H.264 (AMD AMF)'),
+                ('h264_qsv', 'H.264 (Intel QSV)'),
+                ('h264_mf', 'H.264 (Media Foundation)'),
+                ('mpeg4', 'MPEG-4'),
+            ]
+            
+            for codec_name, label in codecs_to_check:
+                tmp_path = None
+                try:
+                    # Check if codec exists first
+                    try:
+                        av.Codec(codec_name, 'w')
+                    except Exception:
+                        continue
+                    
+                    # Try encoding 1 frame into a real container
+                    tmp_fd, tmp_path = tempfile.mkstemp(suffix='.mp4')
+                    os.close(tmp_fd)
+                    
+                    out = av.open(tmp_path, mode='w')
+                    stream = out.add_stream(codec_name, rate=30)
+                    stream.width = 64
+                    stream.height = 64
+                    stream.pix_fmt = 'yuv420p'
+                    
+                    frame = av.VideoFrame(64, 64, 'yuv420p')
+                    for pkt in stream.encode(frame):
+                        out.mux(pkt)
+                    for pkt in stream.encode():
+                        out.mux(pkt)
+                    out.close()
+                    
+                    self.available_codecs.append({'codec': codec_name, 'label': label})
+                except Exception:
+                    pass
+                finally:
+                    if tmp_path and os.path.exists(tmp_path):
+                        try:
+                            os.unlink(tmp_path)
+                        except Exception:
+                            pass
+            
+            names = [c['codec'] for c in self.available_codecs]
+            print(f"[+] PyAV video codecs: {', '.join(names) if names else 'none'}")
+        except ImportError:
+            print(f"[+] PyAV not installed (MP4/MKV export unavailable)")
+
+    def get_video_formats(self) -> dict:
+        """Return available video formats for the UI."""
+        formats = [{'value': 'webm', 'label': 'WebM (VP9)', 'codec': 'vp9'}]
+        
+        if self.available_codecs:
+            # Find best H.264 codec for MP4/MKV
+            best = self.available_codecs[0]
+            formats.append({'value': 'mp4', 'label': f'MP4 ({best["label"]})', 'codec': best['codec']})
+            formats.append({'value': 'mkv', 'label': f'MKV ({best["label"]})', 'codec': best['codec']})
+            
+            # Add additional codec options for MP4 if multiple available
+            for c in self.available_codecs[1:]:
+                formats.append({'value': f'mp4:{c["codec"]}', 'label': f'MP4 ({c["label"]})', 'codec': c['codec']})
+        
+        return {"formats": formats}
         """Save screenshot from base64 data URL."""
         try:
             import base64
@@ -3909,8 +4094,8 @@ class API:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def save_video(self, base64_data: str) -> dict:
-        """Save video recording from base64 WebM data."""
+    def save_video(self, base64_data: str, format: str = 'webm') -> dict:
+        """Save video recording. Converts from WebM to MP4/MKV via PyAV if needed."""
         try:
             import base64
             
@@ -3918,14 +4103,129 @@ class API:
             
             timestamp = time.strftime("%Y%m%d_%H%M%S")
             self.video_counter += 1
-            filename = f"recording_{timestamp}_{self.video_counter:03d}.webm"
-            filepath = Path(self.screenshot_dir_str) / filename
             
-            with open(filepath, 'wb') as f:
+            # Parse format - can be 'webm', 'mp4', 'mkv', or 'mp4:h264_nvenc' etc.
+            forced_codec = None
+            if ':' in format:
+                format, forced_codec = format.split(':', 1)
+            
+            if format not in ('webm', 'mp4', 'mkv'):
+                format = 'webm'
+            
+            if format == 'webm':
+                # Direct save, no conversion needed
+                filename = f"recording_{timestamp}_{self.video_counter:03d}.webm"
+                filepath = Path(self.screenshot_dir_str) / filename
+                with open(filepath, 'wb') as f:
+                    f.write(video_data)
+                print(f"[Recording] Saved: {filepath} ({len(video_data) / 1024 / 1024:.1f} MB)")
+                return {"success": True, "filepath": str(filepath.absolute())}
+            
+            # MP4/MKV: convert via PyAV
+            try:
+                import av
+            except ImportError:
+                return {"success": False, "error": "PyAV not installed. Run: pip install av"}
+            
+            # Save WebM to temp file in script's temp directory
+            tmp_webm = Path(self.temp_dir_str) / f"_tmp_{timestamp}.webm"
+            with open(tmp_webm, 'wb') as f:
                 f.write(video_data)
             
-            print(f"[Recording] Saved: {filepath} ({len(video_data) / 1024 / 1024:.1f} MB)")
-            return {"success": True, "filepath": str(filepath.absolute())}
+            filename = f"recording_{timestamp}_{self.video_counter:03d}.{format}"
+            filepath = Path(self.screenshot_dir_str) / filename
+            
+            try:
+                input_container = av.open(str(tmp_webm))
+                input_video = input_container.streams.video[0]
+                
+                # Use forced codec, or best available from startup detection
+                if forced_codec:
+                    codec = forced_codec
+                elif self.available_codecs:
+                    codec = self.available_codecs[0]['codec']
+                else:
+                    codec = 'mpeg4'
+                
+                print(f"[Recording] Encoding with: {codec}")
+                
+                pix_fmt = 'yuv420p'
+                
+                output_container = av.open(str(filepath), mode='w')
+                output_stream = output_container.add_stream(codec, rate=input_video.average_rate or 60)
+                # H.264 requires even dimensions
+                out_w = input_video.width if input_video.width % 2 == 0 else input_video.width - 1
+                out_h = input_video.height if input_video.height % 2 == 0 else input_video.height - 1
+                output_stream.width = out_w
+                output_stream.height = out_h
+                output_stream.pix_fmt = pix_fmt
+                out_fps = int(input_video.average_rate or 60)
+                output_stream.time_base = fractions.Fraction(1, out_fps)
+                # Quality: CRF-like via bit_rate
+                if input_video.bit_rate:
+                    output_stream.bit_rate = input_video.bit_rate
+                else:
+                    output_stream.bit_rate = 8_000_000
+                
+                # Copy audio if present
+                input_audio = None
+                output_audio = None
+                if len(input_container.streams.audio) > 0:
+                    input_audio = input_container.streams.audio[0]
+                    output_audio = output_container.add_stream('aac', rate=input_audio.rate or 44100)
+                
+                frame_count = 0
+                for packet in input_container.demux():
+                    if packet.stream == input_video:
+                        for frame in packet.decode():
+                            # Reformat to target pix_fmt and dimensions
+                            out_frame = frame.reformat(width=out_w, height=out_h, format=pix_fmt)
+                            # Reset pts to ensure monotonic increase
+                            out_frame.pts = frame_count
+                            out_frame.time_base = fractions.Fraction(1, out_fps)
+                            frame_count += 1
+                            for out_packet in output_stream.encode(out_frame):
+                                output_container.mux(out_packet)
+                    elif input_audio and packet.stream == input_audio:
+                        for frame in packet.decode():
+                            for out_packet in output_audio.encode(frame):
+                                output_container.mux(out_packet)
+                
+                # Flush encoders
+                for out_packet in output_stream.encode():
+                    output_container.mux(out_packet)
+                if output_audio:
+                    for out_packet in output_audio.encode():
+                        output_container.mux(out_packet)
+                
+                output_container.close()
+                input_container.close()
+                
+                file_size = filepath.stat().st_size / 1024 / 1024
+                print(f"[Recording] Converted to {format.upper()}: {filepath} ({file_size:.1f} MB, {frame_count} frames)")
+                return {"success": True, "filepath": str(filepath.absolute())}
+                
+            except Exception as conv_err:
+                # Close any open containers before moving files
+                for c in ('input_container', 'output_container'):
+                    try:
+                        obj = locals().get(c)
+                        if obj: obj.close()
+                    except Exception:
+                        pass
+                # Conversion failed - copy WebM to downloads as fallback
+                import shutil
+                fallback = Path(self.screenshot_dir_str) / f"recording_{timestamp}_{self.video_counter:03d}.webm"
+                shutil.move(str(tmp_webm), str(fallback))
+                print(f"[Recording] Conversion failed ({conv_err}), saved as WebM fallback: {fallback}")
+                return {"success": True, "filepath": str(fallback.absolute()), 
+                        "warning": f"Conversion to {format} failed: {conv_err}. Saved as WebM."}
+            finally:
+                try:
+                    if tmp_webm.exists():
+                        tmp_webm.unlink()
+                except Exception:
+                    pass
             
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -4041,7 +4341,7 @@ def main():
         screenshots_dir.mkdir(exist_ok=True)
         
         # Create API instance
-        api = API(str(screenshots_dir))
+        api = API(str(screenshots_dir), str(temp_dir))
         
         print(f"\n[+] Launching viewer...")
         print(f"[+] Screenshots will be saved to: {screenshots_dir.absolute()}")
