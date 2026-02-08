@@ -1299,6 +1299,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       background: rgba(0,0,0,0.8); z-index: 2001; align-items: center; justify-content: center;
     }}
     #converting-modal.show {{ display: flex; }}
+
+    /* Loading overlay - visible by default */
+    #loading-overlay {{
+      display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15,15,25,0.95); z-index: 3000; align-items: center; justify-content: center;
+    }}
+    #loading-overlay.hidden {{ display: none; }}
     .progress-bar-container {{
       width: 100%; height: 8px; background: rgba(124, 58, 237, 0.2);
       border-radius: 4px; overflow: hidden; margin-top: 16px;
@@ -1354,6 +1361,18 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
   </style>
 </head>
 <body>
+  <!-- Loading overlay - visible by default -->
+  <div id="loading-overlay">
+    <div class="modal-content" style="min-width:340px;text-align:center;">
+      <h3 id="loading-title">⏳ Loading Model...</h3>
+      <p id="loading-step" style="color:#9ca3af;font-size:13px;">Initializing...</p>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="loading-progress" style="width:0%;margin-left:0;animation:none;transition:width 0.3s ease;"></div>
+      </div>
+      <p id="loading-detail" style="font-size:11px;color:#6b7280;margin-top:8px;"></p>
+    </div>
+  </div>
+
   <button id="controls-toggle" onclick="toggleControlsPanel()">☰</button>
   <div id="container"></div>
   <div id="info" class="panel">
@@ -1777,7 +1796,35 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       return new THREE.MeshStandardMaterial(matParams);
     }}
 
+    let loadingStartTime = Date.now();
+    let loadingTimerInterval = setInterval(() => {{
+      const el = document.getElementById('loading-detail');
+      if (el) {{
+        const s = ((Date.now() - loadingStartTime) / 1000).toFixed(0);
+        el.textContent = s + 's elapsed';
+      }}
+    }}, 500);
+
+    function updateLoadingProgress(step, detail, percent) {{
+      const stepEl = document.getElementById('loading-step');
+      const detailEl = document.getElementById('loading-detail');
+      const progressEl = document.getElementById('loading-progress');
+      if (stepEl) stepEl.textContent = step;
+      // Keep elapsed timer in detail but append extra info
+      const s = ((Date.now() - loadingStartTime) / 1000).toFixed(0);
+      if (detailEl) detailEl.textContent = (detail ? detail + ' · ' : '') + s + 's elapsed';
+      if (progressEl) progressEl.style.width = percent + '%';
+    }}
+
+    function hideLoadingOverlay() {{
+      if (loadingTimerInterval) {{ clearInterval(loadingTimerInterval); loadingTimerInterval = null; }}
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay) overlay.classList.add('hidden');
+    }}
+
     function init() {{
+      updateLoadingProgress('Setting up renderer...', '', 5);
+
       scene = new THREE.Scene();
       scene.background = new THREE.Color(CONFIG.INITIAL_BACKGROUND);
 
@@ -1801,16 +1848,46 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
       controls = new OrbitControls(camera, renderer.domElement);
 
-      // Load skeleton FIRST (before meshes need it)
-      loadSkeleton();
-      loadMeshes();
-      populateMeshList();
+      window.addEventListener('resize', onWindowResize);
+
+      // Chain loading steps with yields to allow UI updates
+      setTimeout(() => {{
+        updateLoadingProgress('Loading skeleton...', skeletonData ? skeletonData.length + ' bones' : '', 15);
+        setTimeout(() => {{
+          loadSkeleton();
+          updateLoadingProgress('Loading meshes...', data.length + ' meshes', 30);
+          setTimeout(() => {{
+            loadMeshes();
+            populateMeshList();
+            const animCount = animationsData ? animationsData.length : 0;
+            if (animCount > 0) {{
+              updateLoadingProgress('Building animations...', '0 / ' + animCount, 35);
+              buildAnimationClipsAsync((done, total) => {{
+                const pct = 35 + Math.round((done / total) * 50);
+                updateLoadingProgress('Building animations...', done + ' / ' + total, pct);
+              }}).then(() => {{
+                finishLoading();
+              }});
+            }} else {{
+              finishLoading();
+            }}
+          }}, 0);
+        }}, 0);
+      }}, 0);
+    }}
+
+    function finishLoading() {{
       updateStats();
       updateTextureStatus();
-
-      window.addEventListener('resize', onWindowResize);
-      document.getElementById('controls-toggle').classList.add('visible');
-      animate();
+      updateLoadingProgress('Finalizing...', '', 95);
+      setTimeout(() => {{
+        document.getElementById('controls-toggle').classList.add('visible');
+        updateLoadingProgress('Ready!', '', 100);
+        setTimeout(() => {{
+          hideLoadingOverlay();
+          animate();
+        }}, 200);
+      }}, 0);
     }}
 
     function loadMeshes() {{
@@ -2136,9 +2213,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
       console.log('=== SKELETON READY ===');
       
-      // Build real animation clips from MDL data
-      buildAnimationClips();
-      populateAnimationList();
+      // Animation clips are built separately in async init flow
     }}
 
     function updateSkeletonVis() {{
@@ -2255,6 +2330,61 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let animationClips = {{}};
     let currentAnimName = null;
 
+    function buildAnimationClipsAsync(onProgress) {{
+      return new Promise((resolve) => {{
+        if (!animationsData || !bones || bones.length === 0) {{ resolve(); return; }}
+        
+        const boneNameMap = {{}};
+        bones.forEach(b => {{ boneNameMap[b.name] = b; }});
+        
+        const total = animationsData.length;
+        let idx = 0;
+        const batchSize = 5; // Process N animations per frame
+        
+        function processBatch() {{
+          const end = Math.min(idx + batchSize, total);
+          for (; idx < end; idx++) {{
+            const anim = animationsData[idx];
+            const tracks = [];
+            
+            anim.channels.forEach(ch => {{
+              if (!boneNameMap[ch.bone]) return;
+              
+              const times = new Float32Array(ch.times);
+              const values = new Float32Array(ch.values);
+              
+              let track;
+              if (ch.type === 10) {{
+                track = new THREE.QuaternionKeyframeTrack(ch.bone + '.quaternion', times, values);
+              }} else if (ch.type === 9) {{
+                track = new THREE.VectorKeyframeTrack(ch.bone + '.position', times, values);
+              }} else if (ch.type === 11) {{
+                track = new THREE.VectorKeyframeTrack(ch.bone + '.scale', times, values);
+              }}
+              if (track) tracks.push(track);
+            }});
+            
+            if (tracks.length > 0) {{
+              animationClips[anim.name] = new THREE.AnimationClip(anim.name, anim.duration, tracks);
+            }}
+          }}
+          
+          if (onProgress) onProgress(idx, total);
+          
+          if (idx < total) {{
+            setTimeout(processBatch, 0);
+          }} else {{
+            console.log('Built', Object.keys(animationClips).length, 'animation clips');
+            populateAnimationList();
+            resolve();
+          }}
+        }}
+        
+        processBatch();
+      }});
+    }}
+
+    // Kept for compatibility but prefer async version
     function buildAnimationClips() {{
       if (!animationsData || !bones || bones.length === 0) return;
       
