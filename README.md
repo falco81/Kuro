@@ -29,21 +29,21 @@ for proper function it needs to have all necessary data extracted in the game da
 - **Physics improvements**
   - Still has known bugs
   - Physics now reacts to character movements with the mouse (requires physics display enabled in UI)
+---
+**Beta4**<br>
+Added controller support
+![viewer_mdl/viewer_anim4.gif](viewer_mdl/viewer_anim4.gif)
+![viewer_mdl/viewer_anim4.png](viewer_mdl/viewer_anim4.png)
 
-
-Beta4
-![viewer_mdl/viewer.png](viewer_mdl/viewer_anim4.png)
-![viewer_mdl/viewer.png](viewer_mdl/viewer_anim4.gif)
-
-Beta3
+**Beta3**<br>
 demo with collision on/off, physics intensity, and more
 ![viewer_mdl/viewer.png](viewer_mdl/viewer_anim3.gif)
 ![viewer_mdl/viewer.png](viewer_mdl/viewer_anim3.png)
 
-Beta2
+**Beta2**
 ![viewer_mdl/viewer.png](viewer_mdl/viewer_anim2.png)
 
-Beta1
+**Beta1**
 ![viewer_mdl/viewer.png](viewer_mdl/viewer_anim.png)
 
 **viewer_mdl_textured.exe**
