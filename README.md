@@ -19,15 +19,20 @@ for proper function it needs to have all necessary data extracted in the game da
         └───image
 ```
 
-## New Features in Beta3
+## New Features in Beta
 
 - **Bug fixes**
+- **Added controller support**
 - **Binary format support** – loading files from `model_info` with autodetection
 - **UI overhaul** – complete redesign of the entire interface
 - **Video recording** – including quality settings for video and screenshots
 - **Physics improvements**
   - Still has known bugs
   - Physics now reacts to character movements with the mouse (requires physics display enabled in UI)
+
+Beta4
+![viewer_mdl/viewer.png](viewer_mdl/viewer_anim4.gif)
+![viewer_mdl/viewer.png](viewer_mdl/viewer_anim4.png)
 
 Beta3
 demo with collision on/off, physics intensity, and more
