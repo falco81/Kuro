@@ -161,7 +161,7 @@ def load_mdl_direct(mdl_path: Path, use_original_normals: bool = False):
 # Generate HTML with compressed data
 # -----------------------------
 def generate_html_content(mdl_path: Path, meshes: list) -> str:
-    """Generate HTML content with compressed mesh data."""
+    """Generate HTML content with compressed mesh data and full UI from viewer_mdl.py."""
     
     meshes_data = []
     for m in meshes:
@@ -187,83 +187,275 @@ def generate_html_content(mdl_path: Path, meshes: list) -> str:
             "indices": base64.b64encode(gzip.compress(idxs_bytes)).decode('ascii')
         })
 
+    mdl_name = mdl_path.name
+    mdl_stem = mdl_path.stem
+
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Model Viewer - {mdl_path.name}</title>
+  <title>Model Viewer - {mdl_name}</title>
   <style>
     * {{ margin: 0; padding: 0; box-sizing: border-box; }}
     body {{ font-family: system-ui, -apple-system, sans-serif; overflow: hidden; background: #1a1a2e; }}
     #container {{ width: 100vw; height: 100vh; }}
     .panel {{ position: absolute; background: rgba(20,20,35,0.95); color: #e0e0e0;
               padding: 18px; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }}
-    #info {{ top: 20px; left: 20px; max-width: 300px; }}
-    #controls {{ top: 20px; right: 20px; max-height: 85vh; overflow-y: auto; }}
+    #info {{ top: 20px; left: 20px; max-width: 220px; }}
+    #controls {{ top: 20px; right: 20px; max-height: 85vh; overflow-y: auto;
+                 min-width: 240px; max-width: 400px; width: auto;
+                 transition: transform 0.3s ease; }}
+    #controls.collapsed {{ transform: translateX(calc(100% + 20px)); }}
+    #controls-toggle {{ position: absolute; top: 20px; right: 20px; width: 40px; height: 40px;
+                        background: rgba(124, 58, 237, 0.9); border: none; color: white;
+                        border-radius: 8px; cursor: pointer; font-size: 20px; z-index: 1000;
+                        display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }}
+    #controls-toggle:hover {{ background: rgba(168, 85, 247, 0.9); }}
+    #controls-toggle.visible {{ display: block; }}
     #stats {{ bottom: 20px; left: 20px; font-family: monospace; font-size: 12px; }}
     #loading {{ position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
                 background: rgba(124, 58, 237, 0.95); padding: 30px 50px; border-radius: 15px;
                 font-size: 18px; font-weight: bold; color: white; z-index: 1000; }}
     h3 {{ margin: 0 0 12px 0; color: #7c3aed; font-size: 16px; }}
-    h4 {{ margin: 15px 0 10px 0; padding-bottom: 8px; border-bottom: 1px solid rgba(124, 58, 237, 0.3);
-          font-size: 14px; color: #a78bfa; font-weight: 500; }}
-    button {{ background: linear-gradient(135deg, #7c3aed, #a855f7); border: none;
-             color: white; padding: 10px; margin: 5px 0; cursor: pointer;
-             border-radius: 6px; width: 100%; font-weight: 600; }}
-    button:hover {{ transform: translateY(-1px); }}
-    .mesh-toggle {{ display: flex; align-items: center; margin: 8px 0; padding: 8px;
-      background: rgba(124, 58, 237, 0.1); border-radius: 6px; transition: background 0.2s; }}
+
+    /* === Action buttons === */
+    .btn-action {{
+      background: linear-gradient(135deg, #6d28d9, #7c3aed, #9333ea); border: none;
+      color: white; padding: 11px 16px; margin: 4px 0; cursor: pointer;
+      border-radius: 8px; width: 100%; font-weight: 600; font-size: 13px;
+      display: flex; align-items: center; gap: 8px; justify-content: center;
+      transition: all 0.15s ease;
+    }}
+    .btn-action:hover {{ filter: brightness(1.15); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35); }}
+
+    /* === Toggle row (label + switch) === */
+    .toggle-row {{
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 14px; margin: 4px 0; background: rgba(124, 58, 237, 0.12);
+      border-radius: 8px; cursor: pointer; transition: background 0.15s;
+    }}
+    .toggle-row:hover {{ background: rgba(124, 58, 237, 0.22); }}
+    .toggle-row .label {{ display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; }}
+
+    /* === Toggle switch === */
+    .toggle-switch {{
+      position: relative; width: 42px; height: 22px; flex-shrink: 0;
+    }}
+    .toggle-switch input {{ opacity: 0; width: 0; height: 0; }}
+    .toggle-switch .slider {{
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(100, 100, 120, 0.5); border-radius: 22px;
+      transition: background 0.2s; cursor: pointer;
+    }}
+    .toggle-switch .slider::before {{
+      content: ''; position: absolute; width: 16px; height: 16px;
+      left: 3px; bottom: 3px; background: #888; border-radius: 50%;
+      transition: all 0.2s;
+    }}
+    .toggle-switch input:checked + .slider {{
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+    }}
+    .toggle-switch input:checked + .slider::before {{
+      transform: translateX(20px); background: white;
+    }}
+
+    /* === Cycle dots (3-state Colors) === */
+    .cycle-dots {{ display: flex; gap: 6px; align-items: center; flex-shrink: 0; }}
+    .cycle-dot {{
+      width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent;
+      transition: all 0.2s ease; opacity: 0.4;
+    }}
+    .cycle-dot.dot-off {{ background: #808080; }}
+    .cycle-dot.dot-color {{ background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #ffe66d); }}
+    .cycle-dot.dot-white {{ background: #ffffff; }}
+    .cycle-dot.current {{ opacity: 1; border-color: #a78bfa; transform: scale(1.15); box-shadow: 0 0 8px rgba(167, 139, 250, 0.5); }}
+
+    /* === Mesh toggles === */
+    .mesh-toggle {{
+      display: flex; align-items: center; margin: 4px 0; padding: 7px 10px;
+      background: rgba(124, 58, 237, 0.1); border-radius: 6px; transition: background 0.2s;
+    }}
     .mesh-toggle:hover {{ background: rgba(124, 58, 237, 0.2); }}
-    .mesh-toggle input {{ margin-right: 10px; cursor: pointer; width: 18px; height: 18px; }}
-    .mesh-toggle label {{ cursor: pointer; flex-grow: 1; font-size: 13px; }}
+    .mesh-toggle input {{ margin-right: 10px; cursor: pointer; width: 16px; height: 16px; accent-color: #7c3aed; }}
+    .mesh-toggle label {{ cursor: pointer; flex-grow: 1; font-size: 12px; }}
+
+    /* === Select / dropdown === */
+    .styled-select {{
+      width: 100%; padding: 9px 12px; margin-bottom: 6px;
+      background: #2a2a3e; color: #e0e0e0;
+      border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 8px;
+      font-size: 13px; cursor: pointer; outline: none;
+    }}
+    .styled-select:focus {{ border-color: #7c3aed; }}
+    .styled-select option {{ background: #2a2a3e; color: #e0e0e0; padding: 6px; }}
+
+    /* === Slider rows === */
+    .slider-row {{
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 14px; margin: 2px 0;
+    }}
+
+    /* === Section title (collapsible) === */
+    .section-title {{
+      font-size: 13px; font-weight: 600; color: #a78bfa; margin: 14px 0 8px 0;
+      padding-bottom: 6px; border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+      display: flex; align-items: center; gap: 6px;
+    }}
+
+    /* === Info helpers === */
+    .info-text {{ font-size: 11px; color: #9ca3af; }}
+    .info-badge {{
+      background: rgba(124, 58, 237, 0.15); padding: 10px; border-radius: 8px;
+      font-size: 11px; margin-bottom: 8px;
+    }}
+    .info-badge .row {{ display: flex; align-items: center; gap: 8px; }}
+    .info-badge .row + .row {{ margin-top: 6px; }}
+
+    /* === Modal === */
+    #screenshot-modal {{
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;
+    }}
+    #screenshot-modal.show {{ display: flex; }}
+    .modal-content {{
+      background: rgba(20,20,35,0.98); padding: 30px; border-radius: 12px;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.7); max-width: 500px; text-align: center;
+      border: 2px solid rgba(124, 58, 237, 0.5);
+    }}
+    .modal-content h3 {{ color: #7c3aed; margin-bottom: 20px; font-size: 20px; }}
+    .modal-content p {{ color: #e0e0e0; margin: 15px 0; font-size: 14px; line-height: 1.6; }}
+    .modal-content .filename {{
+      background: rgba(124, 58, 237, 0.2); padding: 10px; border-radius: 6px;
+      font-family: monospace; color: #a78bfa; word-break: break-all; margin: 15px 0;
+      cursor: pointer; transition: all 0.2s;
+    }}
+    .modal-content .filename:hover {{ background: rgba(124, 58, 237, 0.3); }}
+    .modal-content button {{ max-width: 200px; margin: 10px auto; }}
+
+    /* === Scrollbar === */
+    #controls::-webkit-scrollbar {{ width: 6px; }}
+    #controls::-webkit-scrollbar-track {{ background: transparent; }}
+    #controls::-webkit-scrollbar-thumb {{ background: rgba(124, 58, 237, 0.3); border-radius: 3px; }}
+    #controls::-webkit-scrollbar-thumb:hover {{ background: rgba(124, 58, 237, 0.5); }}
   </style>
 </head>
 <body>
   <div id="loading">Loading model...</div>
+  <button id="controls-toggle" onclick="toggleControlsPanel()">☰</button>
   <div id="container"></div>
   <div id="info" class="panel">
-    <h3>📦 Model Viewer</h3>
-    <p style="font-size: 13px; color: #b0b0b0; line-height: 1.5;">
-      Interactive 3D preview<br>
-      <strong style="color: #7c3aed;">{mdl_path.name}</strong>
+    <h3>🎮 Model Viewer</h3>
+    <p style="font-size: 13px; color: #b0b0b0; line-height: 1.5; margin-bottom: 12px;">
+      <strong style="color: #a78bfa;">{mdl_name}</strong><br>
+      <span style="font-size: 11px; color: #9ca3af;">direct .mdl (no .fmt/.ib/.vb)</span>
     </p>
+    <div class="info-badge">
+      <div class="row">
+        <span style="font-size: 16px;">🖱️</span>
+        <span style="color: #9ca3af;">Left: Rotate</span>
+      </div>
+      <div class="row">
+        <span style="font-size: 16px;">🖱️</span>
+        <span style="color: #9ca3af;">Right: Pan</span>
+      </div>
+      <div class="row">
+        <span style="font-size: 16px;">🔄</span>
+        <span style="color: #9ca3af;">Wheel: Zoom</span>
+      </div>
+    </div>
   </div>
   <div id="controls" class="panel">
-    <h4>🎮 Controls</h4>
-    <button onclick="toggleAllMeshes(true)">Show All</button>
-    <button onclick="toggleAllMeshes(false)">Hide All</button>
-    <button onclick="toggleColors()">Toggle Colors</button>
-    <button onclick="toggleWireframe()">Toggle Wireframe</button>
-    <button onclick="resetCamera()">Reset Camera</button>
-    <h4>🔧 Meshes</h4>
-    <div id="mesh-list"></div>
+    <div class="section-title">🎮 Controls</div>
+
+    <div class="toggle-row" onclick="toggleColors()">
+      <span class="label">🎨 Colors</span>
+      <span class="cycle-dots">
+        <span class="cycle-dot dot-color current" title="Per-mesh colors"></span>
+        <span class="cycle-dot dot-off" title="Gray"></span>
+        <span class="cycle-dot dot-white" title="HSL rainbow"></span>
+      </span>
+    </div>
+    <div class="toggle-row" onclick="toggleWireframe(); document.getElementById('swWire').checked = wireframeMode;">
+      <span class="label">📐 Wireframe Only</span>
+      <label class="toggle-switch" onclick="event.stopPropagation()">
+        <input type="checkbox" id="swWire" onchange="toggleWireframe()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row" onclick="toggleWireframeOverlay(); document.getElementById('swWireOver').checked = wireframeOverlayMode;">
+      <span class="label">🔲 Wireframe Overlay</span>
+      <label class="toggle-switch" onclick="event.stopPropagation()">
+        <input type="checkbox" id="swWireOver" onchange="toggleWireframeOverlay()">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <button class="btn-action" onclick="resetCamera()">🔄 Reset Camera</button>
+    <button class="btn-action" onclick="takeScreenshot()">📸 Screenshot</button>
+
+    <div class="section-title" style="cursor:pointer;user-select:none;" onclick="var el=document.getElementById('captureSettings'); el.style.display=el.style.display==='none'?'block':'none'; this.querySelector('.arrow').textContent=el.style.display==='none'?'▶':'▼';">⚙️ Capture Settings <span class="arrow" style="font-size:10px;margin-left:4px;">▶</span></div>
+    <div id="captureSettings" style="display:none;">
+      <div class="slider-row">
+        <span class="info-text" style="min-width:72px;">Screenshot:</span>
+        <select id="screenshotScale" class="styled-select" style="width:auto;flex:1;margin:0;padding:6px 8px;">
+          <option value="1">1× (native)</option>
+          <option value="2" selected>2× (double)</option>
+          <option value="4">4× (ultra)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section-title" style="cursor:pointer;user-select:none;" onclick="var el=document.getElementById('meshSection'); el.style.display=el.style.display==='none'?'block':'none'; this.querySelector('.arrow').textContent=el.style.display==='none'?'▶':'▼';">📦 Meshes <span class="arrow" style="font-size:10px;margin-left:4px;">▶</span></div>
+    <div id="meshSection" style="display:none;">
+      <button class="btn-action" onclick="toggleAllMeshes(true)">✅ Show All</button>
+      <button class="btn-action" onclick="toggleAllMeshes(false)">❌ Hide All</button>
+      <div id="mesh-list"></div>
+    </div>
   </div>
   <div id="stats" class="panel">
-    <div id="vertices"></div>
-    <div id="triangles"></div>
-    <div id="visible"></div>
-    <div id="fps"></div>
+    <div id="fps">FPS: 60</div>
+    <div>Vertices: <span id="vertices">0</span></div>
+    <div>Triangles: <span id="triangles">0</span></div>
+    <div>Visible: <span id="visible">0</span></div>
+  </div>
+
+  <div id="screenshot-modal">
+    <div class="modal-content">
+      <h3>Screenshot Saved</h3>
+      <p>Your screenshot has been saved to:</p>
+      <div class="filename" id="screenshot-path" onclick="openScreenshot()">filename.png</div>
+      <p style="font-size: 12px; color: #9ca3af;">Click filename to open file</p>
+      <button class="btn-action" onclick="closeScreenshotModal()">Close</button>
+    </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.4/pako.min.js"></script>
   <script>
-    const compressedData = {json.dumps(meshes_data)};
-    let scene, camera, renderer, controls, meshes = [];
-    let wireframeMode = false, colorMode = 0;
+    var CONFIG = {{
+      CAMERA_ZOOM: 1.5,
+      AUTO_HIDE_SHADOW: true,
+      INITIAL_BACKGROUND: 0x1a1a2e
+    }};
+
+    var compressedData = {json.dumps(meshes_data)};
+    var scene, camera, renderer, controls, meshes = [];
+    var wireframeMode = false, wireframeOverlayMode = false, colorMode = 0;
+    var wireframeMeshes = [];
+    var currentScreenshotPath = null;
 
     // Decompress data
     function decompressData(base64str) {{
-      const binary = atob(base64str);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      var binary = atob(base64str);
+      var bytes = new Uint8Array(binary.length);
+      for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
       return pako.inflate(bytes);
     }}
 
-    const data = compressedData.map(function(m) {{
-      const verts = new Float32Array(decompressData(m.vertices).buffer);
-      const norms = new Float32Array(decompressData(m.normals).buffer);
-      const idxs = new Uint32Array(decompressData(m.indices).buffer);
+    var data = compressedData.map(function(m) {{
+      var verts = new Float32Array(decompressData(m.vertices).buffer);
+      var norms = new Float32Array(decompressData(m.normals).buffer);
+      var idxs = new Uint32Array(decompressData(m.indices).buffer);
       return {{
         name: m.name,
         vertices: Array.from(verts),
@@ -272,96 +464,148 @@ def generate_html_content(mdl_path: Path, meshes: list) -> str:
       }};
     }});
 
+    function toggleControlsPanel() {{
+      var panel = document.getElementById('controls');
+      panel.classList.toggle('collapsed');
+    }}
+
+    // Minimal OrbitControls (custom, independent of three/examples)
     class OrbitControls {{
       constructor(camera, domElement) {{
-        this.camera = camera; this.domElement = domElement;
+        this.camera = camera;
+        this.domElement = domElement;
         this.target = new THREE.Vector3();
         this.spherical = new THREE.Spherical();
         this.sphericalDelta = new THREE.Spherical();
-        this.scale = 1; this.panOffset = new THREE.Vector3();
-        this.isMouseDown = false; this.rotateSpeed = 0.5; this.zoomSpeed = 1; this.panSpeed = 1;
+        this.scale = 1;
+        this.panOffset = new THREE.Vector3();
+        this.isMouseDown = false;
+        this.rotateSpeed = 0.5;
+        this.zoomSpeed = 1;
+        this.panSpeed = 1;
         this.mouseButtons = {{LEFT: 0, MIDDLE: 1, RIGHT: 2}};
+
         this.domElement.addEventListener('contextmenu', function(e) {{ e.preventDefault(); }});
         this.domElement.addEventListener('mousedown', this.onMouseDown.bind(this));
         this.domElement.addEventListener('mousemove', this.onMouseMove.bind(this));
         this.domElement.addEventListener('mouseup', this.onMouseUp.bind(this));
         this.domElement.addEventListener('wheel', this.onMouseWheel.bind(this));
       }}
-      onMouseDown(e) {{ this.isMouseDown = true; this.mouseButton = e.button; }}
-      onMouseUp() {{ this.isMouseDown = false; }}
+
+      onMouseDown(e) {{
+        this.isMouseDown = true;
+        this.mouseButton = e.button;
+        this.lastX = e.clientX;
+        this.lastY = e.clientY;
+      }}
+
+      onMouseUp() {{
+        this.isMouseDown = false;
+      }}
+
       onMouseMove(e) {{
         if (!this.isMouseDown) return;
-        const dx = e.movementX * this.rotateSpeed * 0.01;
-        const dy = e.movementY * this.rotateSpeed * 0.01;
-        if (this.mouseButton === this.mouseButtons.LEFT) {{
-          this.sphericalDelta.theta -= dx; this.sphericalDelta.phi -= dy;
-        }} else if (this.mouseButton === this.mouseButtons.RIGHT) {{
-          const cam = this.camera, right = new THREE.Vector3(cam.matrix.elements[0], cam.matrix.elements[1], cam.matrix.elements[2]);
-          const up = new THREE.Vector3(cam.matrix.elements[4], cam.matrix.elements[5], cam.matrix.elements[6]);
-          this.panOffset.add(right.multiplyScalar(-e.movementX * this.panSpeed * 0.003));
-          this.panOffset.add(up.multiplyScalar(e.movementY * this.panSpeed * 0.003));
+        var dx = e.clientX - this.lastX;
+        var dy = e.clientY - this.lastY;
+        this.lastX = e.clientX;
+        this.lastY = e.clientY;
+
+        if (this.mouseButton === 0) {{
+          this.sphericalDelta.theta -= 2 * Math.PI * dx / this.domElement.clientHeight * this.rotateSpeed;
+          this.sphericalDelta.phi -= 2 * Math.PI * dy / this.domElement.clientHeight * this.rotateSpeed;
+          this.update();
+        }} else if (this.mouseButton === 2) {{
+          var dist = this.camera.position.distanceTo(this.target);
+          var factor = dist * Math.tan((this.camera.fov / 2) * Math.PI / 180.0);
+          var left = new THREE.Vector3().setFromMatrixColumn(this.camera.matrix, 0);
+          left.multiplyScalar(-2 * dx * factor / this.domElement.clientHeight * this.panSpeed);
+          var up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrix, 1);
+          up.multiplyScalar(2 * dy * factor / this.domElement.clientHeight * this.panSpeed);
+          this.panOffset.add(left).add(up);
+          this.update();
         }}
       }}
+
       onMouseWheel(e) {{
-        e.preventDefault(); this.scale *= Math.pow(0.95, -e.deltaY * this.zoomSpeed * 0.05);
+        e.preventDefault();
+        this.scale *= (e.deltaY < 0) ? 0.95 : 1.05;
+        this.update();
       }}
+
       update() {{
-        const offset = new THREE.Vector3(), quat = new THREE.Quaternion().setFromUnitVectors(this.camera.up, new THREE.Vector3(0,1,0));
-        offset.copy(this.camera.position).sub(this.target); offset.applyQuaternion(quat);
+        var offset = new THREE.Vector3();
+        var quat = new THREE.Quaternion().setFromUnitVectors(this.camera.up, new THREE.Vector3(0,1,0));
+        offset.copy(this.camera.position).sub(this.target);
+        offset.applyQuaternion(quat);
         this.spherical.setFromVector3(offset);
-        this.spherical.theta += this.sphericalDelta.theta; this.spherical.phi += this.sphericalDelta.phi;
+        this.spherical.theta += this.sphericalDelta.theta;
+        this.spherical.phi += this.sphericalDelta.phi;
         this.spherical.phi = Math.max(0.01, Math.min(Math.PI - 0.01, this.spherical.phi));
         this.spherical.radius *= this.scale;
         this.target.add(this.panOffset);
-        offset.setFromSpherical(this.spherical); offset.applyQuaternion(quat.invert());
-        this.camera.position.copy(this.target).add(offset); this.camera.lookAt(this.target);
-        this.sphericalDelta.set(0,0,0); this.scale = 1; this.panOffset.set(0,0,0);
+        offset.setFromSpherical(this.spherical);
+        offset.applyQuaternion(quat.invert());
+        this.camera.position.copy(this.target).add(offset);
+        this.camera.lookAt(this.target);
+        this.sphericalDelta.set(0,0,0);
+        this.scale = 1;
+        this.panOffset.set(0,0,0);
       }}
     }}
 
     function init() {{
       document.getElementById('loading').style.display = 'none';
-      
-      scene = new THREE.Scene(); scene.background = new THREE.Color(0x2a2a3e);
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(CONFIG.INITIAL_BACKGROUND);
       camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
       camera.position.set(2, 1.2, 2);
-
-      renderer = new THREE.WebGLRenderer({{antialias: true}});
+      renderer = new THREE.WebGLRenderer({{antialias: true, preserveDrawingBuffer: true}});
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       document.getElementById('container').appendChild(renderer.domElement);
 
       scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-      const light = new THREE.DirectionalLight(0xffffff, 0.8);
-      light.position.set(5, 5, 5); scene.add(light);
+      var light = new THREE.DirectionalLight(0xffffff, 0.8);
+      light.position.set(5, 5, 5);
+      scene.add(light);
 
-      const colors = [0xE8B4B8, 0xB8D4E8, 0xC8E8B8, 0xE8D4B8, 0xD8B8E8, 0xE8E8B8];
-      let totalVerts = 0, totalTriangles = 0;
-      const meshListDiv = document.getElementById('mesh-list');
+      var colors = [0xE8B4B8, 0xB8D4E8, 0xC8E8B8, 0xE8D4B8, 0xD8B8E8, 0xE8E8B8];
+      var totalVerts = 0;
+      var totalTriangles = 0;
+      var meshListDiv = document.getElementById('mesh-list');
 
       data.forEach(function(m, i) {{
-        const geo = new THREE.BufferGeometry();
+        var geo = new THREE.BufferGeometry();
         geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(m.vertices), 3));
-        geo.setAttribute('normal',   new THREE.BufferAttribute(new Float32Array(m.normals), 3));
+        geo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(m.normals), 3));
         geo.setIndex(new THREE.BufferAttribute(new Uint32Array(m.indices), 1));
 
-        const mat = new THREE.MeshPhongMaterial({{
+        var mat = new THREE.MeshPhongMaterial({{
           color: colors[i % colors.length],
           side: THREE.DoubleSide,
           flatShading: false,
           shininess: 30
         }});
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.name = m.name;
-        scene.add(mesh); meshes.push(mesh);
 
+        var mesh = new THREE.Mesh(geo, mat);
+        mesh.name = m.name;
+        mesh.userData.baseColor = colors[i % colors.length];
+
+        // Auto-hide shadow meshes
+        if (CONFIG.AUTO_HIDE_SHADOW && m.name.toLowerCase().indexOf('shadow') !== -1) {{
+          mesh.visible = false;
+        }}
+
+        scene.add(mesh);
+        meshes.push(mesh);
         totalVerts += m.vertices.length / 3;
         totalTriangles += m.indices.length / 3;
 
-        const toggleDiv = document.createElement('div');
+        var toggleDiv = document.createElement('div');
         toggleDiv.className = 'mesh-toggle';
         toggleDiv.innerHTML =
-          '<input type="checkbox" id="mesh-' + i + '" checked onchange="toggleMesh(' + i + ')">' +
+          '<input type="checkbox" id="mesh-' + i + '" ' + (mesh.visible ? 'checked' : '') + ' onchange="toggleMesh(' + i + ')">' +
           '<label for="mesh-' + i + '">' + m.name + '</label>';
         meshListDiv.appendChild(toggleDiv);
       }});
@@ -369,18 +613,20 @@ def generate_html_content(mdl_path: Path, meshes: list) -> str:
       controls = new OrbitControls(camera, renderer.domElement);
       scene.add(new THREE.GridHelper(10, 10, 0x444444, 0x222222));
 
-      const box = new THREE.Box3();
-      meshes.forEach(function(m) {{ box.expandByObject(m); }});
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      const dist = Math.max(size.x, size.y, size.z) * 2;
+      var box = new THREE.Box3();
+      meshes.forEach(function(m) {{ if (m.visible) box.expandByObject(m); }});
+      var center = box.getCenter(new THREE.Vector3());
+      var size = box.getSize(new THREE.Vector3());
+      var dist = Math.max(size.x, size.y, size.z) * CONFIG.CAMERA_ZOOM;
       camera.position.set(center.x + dist*0.5, center.y + dist*0.5, center.z + dist*0.5);
       camera.lookAt(center);
-      controls.target.copy(center); controls.update();
+      controls.target.copy(center);
+      controls.update();
 
-      document.getElementById('vertices').textContent = 'Vertices: ' + totalVerts.toLocaleString();
-      document.getElementById('triangles').textContent = 'Triangles: ' + totalTriangles.toLocaleString();
-      document.getElementById('visible').textContent = 'Visible: ' + meshes.length + '/' + meshes.length;
+      document.getElementById('vertices').textContent = totalVerts.toLocaleString();
+      document.getElementById('triangles').textContent = totalTriangles.toLocaleString();
+      var visibleCount = meshes.filter(function(m) {{ return m.visible; }}).length;
+      document.getElementById('visible').textContent = visibleCount + '/' + meshes.length;
 
       window.addEventListener('resize', function() {{
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -392,71 +638,296 @@ def generate_html_content(mdl_path: Path, meshes: list) -> str:
     }}
 
     function toggleMesh(index) {{
-      const cb = document.getElementById('mesh-' + index);
-      if (cb) {{ meshes[index].visible = cb.checked; }}
-      const visibleCount = meshes.filter(function(m) {{ return m.visible; }}).length;
-      document.getElementById('visible').textContent = 'Visible: ' + visibleCount + '/' + meshes.length;
+      meshes[index].visible = document.getElementById('mesh-' + index).checked;
+      var visibleCount = meshes.filter(function(m) {{ return m.visible; }}).length;
+      document.getElementById('visible').textContent = visibleCount + '/' + meshes.length;
     }}
 
     function toggleAllMeshes(visible) {{
       meshes.forEach(function(mesh, index) {{
         mesh.visible = visible;
-        const cb = document.getElementById('mesh-' + index);
-        if (cb) cb.checked = visible;
+        document.getElementById('mesh-' + index).checked = visible;
       }});
-      document.getElementById('visible').textContent = 'Visible: ' + (visible ? meshes.length : 0) + '/' + meshes.length;
+      document.getElementById('visible').textContent = (visible ? meshes.length : 0) + '/' + meshes.length;
     }}
 
     function toggleColors() {{
       colorMode = (colorMode + 1) % 3;
-      meshes.forEach(function (mesh, index) {{
+      var dots = document.querySelectorAll('.cycle-dot');
+      dots.forEach(function(d) {{ d.classList.remove('current'); }});
+      dots[colorMode].classList.add('current');
+
+      meshes.forEach(function(mesh, index) {{
         if (colorMode === 0) {{
-          const palette = [0xE8B4B8, 0xB8D4E8, 0xC8E8B8, 0xE8D4B8, 0xD8B8E8, 0xE8E8B8];
-          mesh.material.color.setHex(palette[index % palette.length]);
+          mesh.material.color.setHex(mesh.userData.baseColor);
         }} else if (colorMode === 1) {{
           mesh.material.color.setHex(0xCCCCCC);
         }} else {{
-          const hue = index / Math.max(1, meshes.length);
-          const color = new THREE.Color().setHSL(hue, 0.7, 0.6);
-          mesh.material.color.copy(color);
+          mesh.material.color.setHSL(index / meshes.length, 0.7, 0.6);
         }}
       }});
     }}
 
     function toggleWireframe() {{
       wireframeMode = !wireframeMode;
+      document.getElementById('swWire').checked = wireframeMode;
       meshes.forEach(function(m) {{ m.material.wireframe = wireframeMode; }});
+      // Disable overlay if wireframe-only is on
+      if (wireframeMode && wireframeOverlayMode) {{
+        wireframeOverlayMode = false;
+        document.getElementById('swWireOver').checked = false;
+        wireframeMeshes.forEach(function(wm) {{ scene.remove(wm); wm.geometry.dispose(); wm.material.dispose(); }});
+        wireframeMeshes = [];
+      }}
+    }}
+
+    function toggleWireframeOverlay() {{
+      wireframeOverlayMode = !wireframeOverlayMode;
+      document.getElementById('swWireOver').checked = wireframeOverlayMode;
+      if (wireframeOverlayMode) {{
+        // Disable wireframe-only if overlay is on
+        if (wireframeMode) {{
+          wireframeMode = false;
+          document.getElementById('swWire').checked = false;
+          meshes.forEach(function(m) {{ m.material.wireframe = false; }});
+        }}
+        meshes.forEach(function(m) {{
+          var wGeo = m.geometry.clone();
+          var wMat = new THREE.MeshBasicMaterial({{
+            color: 0x000000, wireframe: true, transparent: true, opacity: 0.15
+          }});
+          var wMesh = new THREE.Mesh(wGeo, wMat);
+          wMesh.position.copy(m.position);
+          wMesh.rotation.copy(m.rotation);
+          wMesh.scale.copy(m.scale);
+          wMesh.visible = m.visible;
+          scene.add(wMesh);
+          wireframeMeshes.push(wMesh);
+        }});
+      }} else {{
+        wireframeMeshes.forEach(function(wm) {{ scene.remove(wm); wm.geometry.dispose(); wm.material.dispose(); }});
+        wireframeMeshes = [];
+      }}
     }}
 
     function resetCamera() {{
-      const box = new THREE.Box3();
-      meshes.forEach(function(m) {{ box.expandByObject(m); }});
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      const dist = Math.max(size.x, size.y, size.z) * 2;
+      var box = new THREE.Box3();
+      meshes.forEach(function(m) {{ if (m.visible) box.expandByObject(m); }});
+      var center = box.getCenter(new THREE.Vector3());
+      var size = box.getSize(new THREE.Vector3());
+      var dist = Math.max(size.x, size.y, size.z) * CONFIG.CAMERA_ZOOM;
       camera.position.set(center.x + dist*0.5, center.y + dist*0.5, center.z + dist*0.5);
       camera.lookAt(center);
-      controls.target.copy(center); controls.update();
+      controls.target.copy(center);
+      controls.update();
     }}
 
-    let lastTime = performance.now(), frames = 0;
+    function takeScreenshot() {{
+      var scale = parseInt(document.getElementById('screenshotScale').value) || 2;
+      var w = window.innerWidth;
+      var h = window.innerHeight;
+      var targetW = w * scale;
+      var targetH = h * scale;
+
+      if (scale <= 1) {{
+        renderer.render(scene, camera);
+        finishScreenshot(renderer.domElement.toDataURL('image/png'));
+        return;
+      }}
+
+      // High-res: render to offscreen WebGLRenderTarget
+      var rt = new THREE.WebGLRenderTarget(targetW, targetH, {{
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        format: THREE.RGBAFormat
+      }});
+
+      renderer.setRenderTarget(rt);
+      renderer.render(scene, camera);
+
+      // Read pixels from render target
+      var pixels = new Uint8Array(targetW * targetH * 4);
+      renderer.readRenderTargetPixels(rt, 0, 0, targetW, targetH, pixels);
+      renderer.setRenderTarget(null);
+      rt.dispose();
+
+      // Flip Y (WebGL is bottom-up) and write to canvas
+      var tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = targetW;
+      tmpCanvas.height = targetH;
+      var tmpCtx = tmpCanvas.getContext('2d');
+      var imageData = tmpCtx.createImageData(targetW, targetH);
+      for (var y = 0; y < targetH; y++) {{
+        var srcRow = (targetH - 1 - y) * targetW * 4;
+        var dstRow = y * targetW * 4;
+        imageData.data.set(pixels.subarray(srcRow, srcRow + targetW * 4), dstRow);
+      }}
+      tmpCtx.putImageData(imageData, 0, 0);
+
+      finishScreenshot(tmpCanvas.toDataURL('image/png'));
+    }}
+
+    function finishScreenshot(dataURL) {{
+      if (window.pywebview && window.pywebview.api) {{
+        window.pywebview.api.save_screenshot(dataURL).then(function(result) {{
+          if (result.success) {{
+            currentScreenshotPath = result.filepath;
+            document.getElementById('screenshot-path').textContent = result.filepath;
+            document.getElementById('screenshot-modal').classList.add('show');
+          }} else {{
+            alert('Screenshot failed: ' + result.error);
+          }}
+        }}).catch(function(error) {{
+          alert('Error: ' + error);
+        }});
+      }} else {{
+        // Fallback: browser download
+        var timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        var filename = '{mdl_stem}_' + timestamp + '.png';
+        var link = document.createElement('a');
+        link.download = filename;
+        link.href = dataURL;
+        link.click();
+        document.getElementById('screenshot-path').textContent = 'Downloads/' + filename;
+        document.getElementById('screenshot-modal').classList.add('show');
+      }}
+    }}
+
+    function openScreenshot() {{
+      if (currentScreenshotPath && window.pywebview && window.pywebview.api) {{
+        window.pywebview.api.open_file(currentScreenshotPath).then(function(result) {{
+          if (!result.success) {{
+            alert('Error opening file: ' + result.error);
+          }}
+        }}).catch(function(error) {{
+          console.error('Error opening screenshot:', error);
+        }});
+      }}
+    }}
+
+    function closeScreenshotModal() {{
+      document.getElementById('screenshot-modal').classList.remove('show');
+    }}
+
+    var lastTime = performance.now(), frames = 0;
     function animate() {{
       requestAnimationFrame(animate);
       controls.update();
+      // Sync wireframe overlay visibility
+      if (wireframeOverlayMode) {{
+        wireframeMeshes.forEach(function(wm, i) {{ if (i < meshes.length) wm.visible = meshes[i].visible; }});
+      }}
       renderer.render(scene, camera);
       frames++;
-      const time = performance.now();
+      var time = performance.now();
       if (time >= lastTime + 1000) {{
         document.getElementById('fps').textContent = 'FPS: ' + Math.round(frames * 1000 / (time - lastTime));
         frames = 0; lastTime = time;
       }}
     }}
+
     init();
   </script>
 </body>
 </html>"""
     
     return html
+
+
+# -----------------------------
+# WebView API for screenshots
+# -----------------------------
+class Api:
+    """API for communication between JavaScript and Python."""
+    
+    def __init__(self, screenshot_dir: str):
+        import os
+        if os.name == 'nt':  # Windows
+            downloads = Path.home() / 'Downloads'
+        else:  # Linux/Mac
+            downloads = Path.home() / 'Downloads'
+        
+        self.screenshot_dir = str(downloads)
+    
+    def save_screenshot(self, image_data: str) -> dict:
+        """
+        Save screenshot to Downloads folder.
+        
+        Args:
+            image_data: Base64 encoded PNG image data (with data:image/png;base64, prefix)
+        
+        Returns:
+            dict with 'success', 'filepath', and 'filename'
+        """
+        try:
+            import base64 as b64
+            
+            # Remove data URL prefix
+            if ',' in image_data:
+                image_data = image_data.split(',', 1)[1]
+            
+            # Decode base64
+            image_bytes = b64.b64decode(image_data)
+            
+            # Generate filename with timestamp
+            timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+            filename = f"screenshot_{timestamp}.png"
+            filepath = Path(self.screenshot_dir) / filename
+            
+            # Save file
+            with open(filepath, 'wb') as f:
+                f.write(image_bytes)
+            
+            print(f"[Screenshot] Saved to: {filepath}")
+            
+            return {
+                'success': True,
+                'filepath': str(filepath.absolute()),
+                'filename': filename
+            }
+        
+        except Exception as e:
+            print(f"[Screenshot] Error: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def open_file(self, filepath: str) -> dict:
+        """
+        Open file in default system viewer.
+        
+        Args:
+            filepath: Path to the file to open
+            
+        Returns:
+            dict with 'success'
+        """
+        try:
+            import subprocess
+            import os
+            
+            filepath = Path(filepath)
+            
+            if not filepath.exists():
+                return {'success': False, 'error': 'File not found'}
+            
+            # Open file with default application
+            if os.name == 'nt':  # Windows
+                os.startfile(filepath)
+            elif sys.platform == 'darwin':  # macOS
+                subprocess.run(['open', str(filepath)])
+            else:  # Linux
+                subprocess.run(['xdg-open', str(filepath)])
+            
+            print(f"[Screenshot] Opened: {filepath}")
+            return {'success': True}
+            
+        except Exception as e:
+            print(f"[Screenshot] Error opening file: {e}")
+            return {'success': False, 'error': str(e)}
 
 
 # -----------------------------
@@ -500,6 +971,9 @@ def main():
                 f.write(html_content)
             TEMP_FILES.append(temp_file)
             
+            # Create API instance
+            api = Api(str(mdl_path.parent.absolute()))
+            
             # Create window with file URL
             window = webview.create_window(
                 f'Model Viewer - {mdl_path.name}',
@@ -507,7 +981,9 @@ def main():
                 width=1280,
                 height=800,
                 resizable=True,
-                fullscreen=False
+                fullscreen=False,
+                maximized=True,
+                js_api=api
             )
             
             print("[OK] Window opened. Close it to exit.")
