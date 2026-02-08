@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-viewer_mdl_textured.py — Direct .mdl preview with TEXTURE SUPPORT + SKELETON + ANIMATIONS
+viewer_mdl_textured_anim.py — Direct .mdl preview with TEXTURE SUPPORT + SKELETON + ANIMATIONS
 
 FEATURES:
 - Loads and displays textures from DDS files
@@ -16,7 +16,7 @@ REQUIREMENTS:
   pip install pywebview Pillow
 
 USAGE:
-  python viewer_mdl_textured.py /path/to/model.mdl [--recompute-normals] [--debug]
+  python viewer_mdl_textured_anim.py /path/to/model.mdl [--recompute-normals] [--debug]
   
   --recompute-normals  Recompute smooth normals instead of using originals from MDL
                        (slower loading, typically no visual difference)
@@ -479,6 +479,80 @@ def load_skeleton_from_mdl(mdl_data: bytes) -> list:
 # -----------------------------
 # Load Model Info (MI/JSON)
 # -----------------------------
+def decode_binary_mi(data: bytes) -> dict:
+    """
+    Decode FDK binary JSON format (.mi files from PS4/NX).
+    Based on kuro_decode_bin_json.py by eArmada8.
+    """
+    import struct, io as _io
+    f = _io.BytesIO(data)
+    
+    def read_null_terminated_string(fh):
+        result = b''
+        while True:
+            b = fh.read(1)
+            if b == b'\x00' or not b:
+                break
+            result += b
+        return result.decode('utf-8')
+    
+    def read_string_from_dict(fh):
+        addr, = struct.unpack("<I", fh.read(4))
+        return_address = fh.tell()
+        fh.seek(addr)
+        fh.seek(4, 1)  # skip CRC32
+        s = read_null_terminated_string(fh)
+        fh.seek(return_address)
+        return s
+    
+    def read_value(fh):
+        dat_type, = struct.unpack("<B", fh.read(1))
+        name = read_string_from_dict(fh) if dat_type < 0x10 else ''
+        if dat_type in (0x02, 0x12):
+            return name, read_null_terminated_string(fh)
+        elif dat_type in (0x03, 0x13):
+            val, = struct.unpack("<d", fh.read(8))
+            return name, int(val) if round(val) == val else val
+        elif dat_type in (0x04, 0x14):
+            num, = struct.unpack("<I", fh.read(4))
+            addrs = struct.unpack(f"<{num}I", fh.read(4 * num))
+            end_off = fh.tell()
+            result = {}
+            for a in addrs:
+                fh.seek(a)
+                k, v = read_value(fh)
+                result[k] = v
+                end_off = max(fh.tell(), end_off)
+            fh.seek(end_off)
+            return name, result
+        elif dat_type in (0x05, 0x15):
+            num, = struct.unpack("<I", fh.read(4))
+            addrs = struct.unpack(f"<{num}I", fh.read(4 * num))
+            end_off = fh.tell()
+            result = []
+            for a in addrs:
+                fh.seek(a)
+                _, v = read_value(fh)
+                result.append(v)
+                end_off = max(fh.tell(), end_off)
+            fh.seek(end_off)
+            return name, result
+        elif dat_type in (0x06, 0x16):
+            return name, bool(struct.unpack("<B", fh.read(1))[0])
+        else:
+            raise ValueError(f"Unknown binary MI op code: {hex(dat_type)} at {hex(fh.tell()-1)}")
+    
+    # Parse header
+    magic = f.read(4)
+    if magic != b'JSON':
+        raise ValueError("Not a binary MI file")
+    f.read(4)  # unknown
+    dat_start, = struct.unpack("<I", f.read(4))
+    f.seek(dat_start)
+    _, result = read_value(f)
+    return result
+
+
 def load_model_info(mdl_path: Path) -> dict:
     """
     Load external MI or JSON file containing IK, physics, colliders, dynamic bones.
@@ -518,8 +592,15 @@ def load_model_info(mdl_path: Path) -> dict:
         if mi_path.exists():
             print(f"[+] Loading model info: {mi_path.name}")
             try:
-                with open(mi_path, 'r', encoding='utf-8') as f:
-                    mi_data = json.load(f)
+                with open(mi_path, 'rb') as f:
+                    raw = f.read()
+                
+                # Detect binary MI (FDK binary JSON: starts with b'JSON')
+                if raw[:4] == b'JSON':
+                    print(f"    (binary MI format detected, decoding...)")
+                    mi_data = decode_binary_mi(raw)
+                else:
+                    mi_data = json.loads(raw.decode('utf-8'))
                 
                 # Print summary
                 print(f"    Model info sections:")
@@ -1104,7 +1185,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
               padding: 18px; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }}
     #info {{ top: 20px; left: 20px; max-width: 220px; }}
     #controls {{ top: 20px; right: 20px; max-height: 85vh; overflow-y: auto; 
-                 min-width: 200px; max-width: 400px; width: auto;
+                 min-width: 240px; max-width: 400px; width: auto;
                  transition: transform 0.3s ease; }}
     #controls.collapsed {{ transform: translateX(calc(100% + 20px)); }}
     #controls-toggle {{ position: absolute; top: 20px; right: 20px; width: 40px; height: 40px; 
@@ -1117,22 +1198,94 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     h3 {{ margin: 0 0 12px 0; color: #7c3aed; font-size: 16px; }}
     h4 {{ margin: 15px 0 10px 0; padding-bottom: 8px; border-bottom: 1px solid rgba(124, 58, 237, 0.3);
           font-size: 14px; color: #a78bfa; font-weight: 500; }}
-    button {{ background: linear-gradient(135deg, #7c3aed, #a855f7); border: none;
-             color: white; padding: 10px; margin: 5px 0; cursor: pointer;
-             border-radius: 6px; width: 100%; font-weight: 600; font-size: 13px; }}
-    button:hover {{ transform: translateY(-1px); box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4); }}
-    button.active {{ background: linear-gradient(135deg, #10b981, #34d399); }}
+
+    /* === Action buttons (full width gradient) === */
+    .btn-action {{
+      background: linear-gradient(135deg, #6d28d9, #7c3aed, #9333ea); border: none;
+      color: white; padding: 11px 16px; margin: 4px 0; cursor: pointer;
+      border-radius: 8px; width: 100%; font-weight: 600; font-size: 13px;
+      display: flex; align-items: center; gap: 8px; justify-content: center;
+      transition: all 0.15s ease;
+    }}
+    .btn-action:hover {{ filter: brightness(1.15); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35); }}
+    .btn-action.active {{ background: linear-gradient(135deg, #059669, #10b981, #34d399); }}
+
+    /* === Toggle row (label + switch) === */
+    .toggle-row {{
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 14px; margin: 4px 0; background: rgba(124, 58, 237, 0.12);
+      border-radius: 8px; cursor: pointer; transition: background 0.15s;
+    }}
+    .toggle-row:hover {{ background: rgba(124, 58, 237, 0.22); }}
+    .toggle-row .label {{ display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; }}
+
+    /* === Toggle switch === */
+    .toggle-switch {{
+      position: relative; width: 42px; height: 22px; flex-shrink: 0;
+    }}
+    .toggle-switch input {{ opacity: 0; width: 0; height: 0; }}
+    .toggle-switch .slider {{
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(100, 100, 120, 0.5); border-radius: 22px;
+      transition: background 0.2s; cursor: pointer;
+    }}
+    .toggle-switch .slider::before {{
+      content: ''; position: absolute; width: 16px; height: 16px;
+      left: 3px; bottom: 3px; background: #888; border-radius: 50%;
+      transition: all 0.2s;
+    }}
+    .toggle-switch input:checked + .slider {{
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+    }}
+    .toggle-switch input:checked + .slider::before {{
+      transform: translateX(20px); background: white;
+    }}
+
+    /* === Slider rows === */
+    .slider-row {{
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 14px; margin: 2px 0;
+    }}
+    .slider-row input[type="range"] {{
+      flex: 1; cursor: pointer; accent-color: #7c3aed;
+    }}
+
+    /* === Mesh toggles === */
     .mesh-toggle {{
-      display: flex; align-items: center; margin: 8px 0; padding: 8px;
+      display: flex; align-items: center; margin: 4px 0; padding: 7px 10px;
       background: rgba(124, 58, 237, 0.1); border-radius: 6px; transition: background 0.2s;
     }}
     .mesh-toggle:hover {{ background: rgba(124, 58, 237, 0.2); }}
-    .mesh-toggle input {{ margin-right: 10px; cursor: pointer; width: 18px; height: 18px; }}
-    .mesh-toggle label {{ cursor: pointer; flex-grow: 1; font-size: 13px; }}
+    .mesh-toggle input {{ margin-right: 10px; cursor: pointer; width: 16px; height: 16px; accent-color: #7c3aed; }}
+    .mesh-toggle label {{ cursor: pointer; flex-grow: 1; font-size: 12px; }}
     .texture-indicator {{
       display: inline-block; width: 12px; height: 12px; border-radius: 3px;
       margin-left: 6px; background: linear-gradient(135deg, #10b981, #34d399);
     }}
+
+    /* === Select / dropdown === */
+    .styled-select {{
+      width: 100%; padding: 9px 12px; margin-bottom: 6px;
+      background: #2a2a3e; color: #e0e0e0;
+      border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 8px;
+      font-size: 13px; cursor: pointer; outline: none;
+    }}
+    .styled-select:focus {{ border-color: #7c3aed; }}
+    .styled-select option {{
+      background: #2a2a3e; color: #e0e0e0; padding: 6px;
+    }}
+
+    /* === Recording button === */
+    #btnRecord.recording {{
+      background: linear-gradient(135deg, #dc2626, #ef4444) !important;
+      animation: pulse-red 1s infinite;
+    }}
+    @keyframes pulse-red {{
+      0%, 100% {{ opacity: 1; }}
+      50% {{ opacity: 0.6; }}
+    }}
+
+    /* === Modal === */
     #screenshot-modal {{
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;
@@ -1150,116 +1303,220 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       font-family: monospace; color: #a78bfa; word-break: break-all; margin: 15px 0;
       cursor: pointer; transition: all 0.2s;
     }}
-    .modal-content .filename:hover {{
-      background: rgba(124, 58, 237, 0.3); color: #c4b5fd;
+    .modal-content .filename:hover {{ background: rgba(124, 58, 237, 0.3); }}
+    .modal-content button {{ max-width: 200px; margin: 10px auto; }}
+
+    /* === Info panel hints === */
+    .info-badge {{
+      background: rgba(124, 58, 237, 0.15); padding: 10px; border-radius: 8px;
+      font-size: 11px; margin-bottom: 8px;
     }}
-    .modal-content button {{
-      margin-top: 20px; padding: 12px 30px; font-size: 14px; width: auto;
-      min-width: 120px;
+    .info-badge .row {{ display: flex; align-items: center; gap: 8px; }}
+    .info-badge .row + .row {{ margin-top: 6px; }}
+
+    /* === Section subtitle === */
+    .section-title {{
+      font-size: 13px; font-weight: 600; color: #a78bfa; margin: 14px 0 8px 0;
+      padding-bottom: 6px; border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+      display: flex; align-items: center; gap: 6px;
     }}
+
+    /* === Small info text === */
+    .info-text {{ font-size: 11px; color: #9ca3af; }}
+
+    /* Scrollbar styling */
+    #controls::-webkit-scrollbar {{ width: 6px; }}
+    #controls::-webkit-scrollbar-track {{ background: transparent; }}
+    #controls::-webkit-scrollbar-thumb {{ background: rgba(124, 58, 237, 0.3); border-radius: 3px; }}
+    #controls::-webkit-scrollbar-thumb:hover {{ background: rgba(124, 58, 237, 0.5); }}
   </style>
 </head>
 <body>
   <button id="controls-toggle" onclick="toggleControlsPanel()">☰</button>
   <div id="container"></div>
   <div id="info" class="panel">
-    <h3>📦 Model Viewer</h3>
+    <h3>🎮 Model Viewer</h3>
     <p style="font-size: 13px; color: #b0b0b0; line-height: 1.5; margin-bottom: 12px;">
-      <strong style="color: #7c3aed;">{mdl_path.name}</strong>
+      <strong style="color: #a78bfa;">{mdl_path.name}</strong>
     </p>
-    <div id="texture-status" style="background: rgba(124, 58, 237, 0.15); padding: 10px; border-radius: 8px; font-size: 11px; margin-bottom: 12px;">
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 16px;">🎨</span>
+    <div class="info-badge">
+      <div class="row">
+        <span style="font-size: 14px;">🎨</span>
         <span style="color: #9ca3af;" id="texture-info">Loading textures...</span>
       </div>
     </div>
-    <div id="skeleton-status" style="background: rgba(124, 58, 237, 0.15); padding: 10px; border-radius: 8px; font-size: 11px; margin-bottom: 12px;">
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 16px;">🦴</span>
+    <div class="info-badge">
+      <div class="row">
+        <span style="font-size: 14px;">🦴</span>
         <span style="color: #9ca3af;" id="skeleton-info">No skeleton</span>
       </div>
     </div>
-    <div style="background: rgba(124, 58, 237, 0.15); padding: 10px; border-radius: 8px; font-size: 11px;">
-      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-        <span style="font-size: 16px;">🖱️</span>
-        <span style="color: #9ca3af;">Left: Rotate</span>
-      </div>
-      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-        <span style="font-size: 16px;">🖱️</span>
-        <span style="color: #9ca3af;">Right: Pan</span>
-      </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 16px;">🔄</span>
-        <span style="color: #9ca3af;">Wheel: Zoom</span>
-      </div>
+    <div class="info-badge">
+      <div class="row"><span>🖱️</span> <span style="color:#9ca3af;">Left: Rotate</span></div>
+      <div class="row"><span>🖱️</span> <span style="color:#9ca3af;">Right: Pan</span></div>
+      <div class="row"><span>🔄</span> <span style="color:#9ca3af;">Wheel: Zoom</span></div>
     </div>
   </div>
   <div id="controls" class="panel">
-    <h4>🎮 Controls</h4>
-    <button onclick="toggleAllMeshes(true)">✅ Show All</button>
-    <button onclick="toggleAllMeshes(false)">❌ Hide All</button>
-    <button id="btnColors" onclick="toggleColors()">🎨 Colors</button>
-    <button id="btnTex" class="active" onclick="toggleTextures()">🖼️ Textures</button>
-    <button id="btnWire" onclick="toggleWireframe()">📐 Wireframe</button>
-    <button id="btnWireOver" onclick="toggleWireframeOverlay()">🔲 Wireframe Overlay</button>
-    <button onclick="resetView()">🔄 Reset View</button>
-    <button onclick="requestScreenshot()">📸 Save Screenshot</button>
-    <div class="slider-row" style="display:flex;align-items:center;gap:8px;margin:8px 0;">
-      <label style="font-size:12px;white-space:nowrap;">Mesh opacity:</label>
+    <div class="section-title">🎮 Controls</div>
+
+    <div class="toggle-row" onclick="toggleColors(); document.getElementById('swColors').checked = colorMode;">
+      <span class="label">🎨 Colors</span>
+      <label class="toggle-switch" onclick="event.stopPropagation()">
+        <input type="checkbox" id="swColors" onchange="toggleColors()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row" onclick="toggleTextures(); document.getElementById('swTex').checked = textureMode;">
+      <span class="label">🖼️ Toggle Textures</span>
+      <label class="toggle-switch" onclick="event.stopPropagation()">
+        <input type="checkbox" id="swTex" checked onchange="toggleTextures()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row" onclick="toggleWireframe(); document.getElementById('swWire').checked = wireframeMode;">
+      <span class="label">📐 Wireframe Only</span>
+      <label class="toggle-switch" onclick="event.stopPropagation()">
+        <input type="checkbox" id="swWire" onchange="toggleWireframe()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row" onclick="toggleWireframeOverlay(); document.getElementById('swWireOver').checked = wireframeOverlayMode;">
+      <span class="label">🔲 Wireframe Overlay</span>
+      <label class="toggle-switch" onclick="event.stopPropagation()">
+        <input type="checkbox" id="swWireOver" onchange="toggleWireframeOverlay()">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="slider-row">
+      <span class="info-text" style="min-width:52px;">Opacity:</span>
       <input type="range" id="meshOpacity" min="0" max="1" step="0.05" value="1"
              style="flex:1;" oninput="setMeshOpacity(this.value); document.getElementById('meshOpVal').textContent=parseFloat(this.value).toFixed(2)">
-      <span id="meshOpVal" style="font-size:11px;min-width:28px;">1</span>
+      <span id="meshOpVal" class="info-text" style="min-width:28px;text-align:right;color:#a78bfa;">1</span>
     </div>
-    
-    <div id="skeleton-controls">
-      <h4>🦴 Skeleton</h4>
-      <div id="skeleton-available" style="display: none;">
-        <button id="btnSkel" onclick="toggleSkeleton()">🦴 Toggle Skeleton</button>
-        <button id="btnJoints" onclick="toggleJoints()">⚪ Toggle Joints</button>
-        <button id="btnBoneNames" onclick="toggleBoneNames()">🏷️ Toggle Bone Names</button>
-      </div>
-      <div id="skeleton-unavailable" style="display: block; padding: 10px; background: rgba(124, 58, 237, 0.1); border-radius: 6px; font-size: 12px; color: #9ca3af;">
-        ⚠️ Skeleton not loaded. Run <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;">kuro_mdl_export_meshes.py</code> first to extract skeleton.json
-      </div>
-      
-      <h4>🎬 Animations</h4>
-      <div id="animations-available" style="display: none;">
-        <select id="animation-select" onchange="if(this.value) playAnimation(this.value)" style="width:100%;padding:8px;margin-bottom:8px;background:#2a2a3e;color:#e0e0e0;border:1px solid #7c3aed;border-radius:6px;font-size:13px;cursor:pointer;">
-          <option value="">— Select animation —</option>
+
+    <button class="btn-action" onclick="resetView()">🔄 Reset Camera</button>
+    <button class="btn-action" onclick="requestScreenshot()">📸 Screenshot</button>
+    <button class="btn-action" id="btnRecord" onclick="toggleRecording()">🔴 Record Video</button>
+
+    <div class="section-title" style="cursor:pointer;user-select:none;" onclick="const el=document.getElementById('captureSettings'); el.style.display=el.style.display==='none'?'block':'none'; this.querySelector('.arrow').textContent=el.style.display==='none'?'▶':'▼';">⚙️ Capture Settings <span class="arrow" style="font-size:10px;margin-left:4px;">▶</span></div>
+    <div id="captureSettings" style="display:none;">
+      <div class="slider-row">
+        <span class="info-text" style="min-width:72px;">Screenshot:</span>
+        <select id="screenshotScale" class="styled-select" style="width:auto;flex:1;margin:0;padding:6px 8px;">
+          <option value="1">1× (native)</option>
+          <option value="2" selected>2× (double)</option>
+          <option value="4">4× (ultra)</option>
         </select>
-        <button id="btnAnimToggle" onclick="toggleAnimPlayback()">⏹️ Stop</button>
-        <div class="slider-row" style="display:flex;align-items:center;gap:8px;margin:8px 0;">
-          <span id="animTimeLabel" style="font-size:11px;min-width:60px;color:#9ca3af;">0.00 / 0.00</span>
-          <input type="range" id="animTimeline" min="0" max="1" step="0.001" value="0"
-                 style="flex:1;" oninput="scrubAnimation(this.value)">
-        </div>
-        <div class="slider-row" style="display:flex;align-items:center;gap:6px;margin:4px 0 8px 0;">
-          <span style="font-size:11px;color:#9ca3af;min-width:52px;">Speed:</span>
-          <input type="range" id="animSpeedSlider" min="-100" max="100" step="5" value="0"
-                 style="flex:1;cursor:pointer;" oninput="updateAnimSpeed(this.value)">
-          <span id="animSpeedLabel" style="font-size:11px;color:#a78bfa;min-width:32px;text-align:right;">1.0x</span>
-        </div>
-        <button id="btnDynBones" onclick="toggleDynamicBones()" style="margin-top:4px;">&#9889; Dynamic Bones</button>
-        <span id="dynBonesInfo" style="font-size:11px;color:#9ca3af;margin-left:8px;"></span>
-        <div id="dynIntensityRow" style="display:none;margin-top:6px;">
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span style="font-size:11px;color:#9ca3af;min-width:52px;">Intensity:</span>
-            <input type="range" id="dynIntensitySlider" min="-400" max="400" step="5" value="0"
-                   style="flex:1;cursor:pointer;" oninput="updateDynIntensity(this.value)">
-            <span id="dynIntensityLabel" style="font-size:11px;color:#a78bfa;min-width:32px;text-align:right;">+0</span>
-          </div>
-          <div style="margin-top:4px;">
-            <button id="btnCollisions" class="active" onclick="toggleCollisions()" style="font-size:12px;padding:4px 10px;">💥 Collisions</button>
-          </div>
-        </div>
       </div>
-      <div id="animations-unavailable" style="display: block; padding: 10px; background: rgba(124, 58, 237, 0.1); border-radius: 6px; font-size: 12px; color: #9ca3af;">
-        ⚠️ No animation files found
+      <div class="slider-row">
+        <span class="info-text" style="min-width:72px;">Video quality:</span>
+        <select id="videoQuality" class="styled-select" style="width:auto;flex:1;margin:0;padding:6px 8px;">
+          <option value="4000000">Low (4 Mbps)</option>
+          <option value="8000000" selected>Medium (8 Mbps)</option>
+          <option value="16000000">High (16 Mbps)</option>
+          <option value="32000000">Ultra (32 Mbps)</option>
+        </select>
+      </div>
+      <div class="slider-row">
+        <span class="info-text" style="min-width:72px;">Video FPS:</span>
+        <select id="videoFps" class="styled-select" style="width:auto;flex:1;margin:0;padding:6px 8px;">
+          <option value="30">30 FPS</option>
+          <option value="60" selected>60 FPS</option>
+        </select>
       </div>
     </div>
 
-    <h4>📦 Meshes</h4>
-    <div id="mesh-list"></div>
+    
+    <div id="skeleton-controls">
+      <div class="section-title" style="cursor:pointer;user-select:none;" onclick="const el=document.getElementById('skeletonSection'); el.style.display=el.style.display==='none'?'block':'none'; this.querySelector('.arrow').textContent=el.style.display==='none'?'▶':'▼';">🦴 Skeleton <span class="arrow" style="font-size:10px;margin-left:4px;">▶</span></div>
+      <div id="skeletonSection" style="display:none;">
+        <div id="skeleton-available" style="display: none;">
+          <div class="toggle-row" onclick="toggleSkeleton(); document.getElementById('swSkel').checked = showSkeleton;">
+            <span class="label">🦴 Skeleton</span>
+            <label class="toggle-switch" onclick="event.stopPropagation()">
+              <input type="checkbox" id="swSkel" onchange="toggleSkeleton()">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row" onclick="toggleJoints(); document.getElementById('swJoints').checked = showJoints;">
+            <span class="label">⚪ Joints</span>
+            <label class="toggle-switch" onclick="event.stopPropagation()">
+              <input type="checkbox" id="swJoints" onchange="toggleJoints()">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row" onclick="toggleBoneNames(); document.getElementById('swBoneNames').checked = showBoneNames;">
+            <span class="label">🏷️ Bone Names</span>
+            <label class="toggle-switch" onclick="event.stopPropagation()">
+              <input type="checkbox" id="swBoneNames" onchange="toggleBoneNames()">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+        <div id="skeleton-unavailable" style="display: block; padding: 10px; background: rgba(124, 58, 237, 0.08); border-radius: 8px; font-size: 11px; color: #9ca3af;">
+          ⚠️ Skeleton not loaded
+        </div>
+      </div>
+      
+      <div class="section-title" style="cursor:pointer;user-select:none;" onclick="const el=document.getElementById('animationsSection'); el.style.display=el.style.display==='none'?'block':'none'; this.querySelector('.arrow').textContent=el.style.display==='none'?'▶':'▼';">🎬 Animations <span class="arrow" style="font-size:10px;margin-left:4px;">▶</span></div>
+      <div id="animationsSection" style="display:none;">
+        <div id="animations-available" style="display: none;">
+          <select id="animation-select" class="styled-select" onchange="if(this.value) playAnimation(this.value)">
+            <option value="">— Select animation —</option>
+          </select>
+          <button class="btn-action" id="btnAnimToggle" onclick="toggleAnimPlayback()">⏹️ Stop</button>
+          <div class="slider-row">
+            <span id="animTimeLabel" class="info-text" style="min-width:60px;">0.00 / 0.00</span>
+            <input type="range" id="animTimeline" min="0" max="1" step="0.001" value="0"
+                   style="flex:1;" oninput="scrubAnimation(this.value)">
+          </div>
+          <div class="slider-row">
+            <span class="info-text" style="min-width:52px;">Speed:</span>
+            <input type="range" id="animSpeedSlider" min="-100" max="100" step="5" value="0"
+                   style="flex:1;cursor:pointer;" oninput="updateAnimSpeed(this.value)">
+            <span id="animSpeedLabel" class="info-text" style="min-width:32px;text-align:right;color:#a78bfa;">1.0x</span>
+          </div>
+        </div>
+        <div id="animations-unavailable" style="display: block; padding: 10px; background: rgba(124, 58, 237, 0.08); border-radius: 8px; font-size: 11px; color: #9ca3af;">
+          ⚠️ No animation files found
+        </div>
+        
+        <div id="dynBonesSection" style="display:none;margin-top:8px;">
+          <div class="toggle-row" onclick="toggleDynamicBones(); document.getElementById('swDynBones').checked = dynamicBonesEnabled;">
+            <span class="label">⚡ Dynamic Bones</span>
+            <label class="toggle-switch" onclick="event.stopPropagation()">
+              <input type="checkbox" id="swDynBones" onchange="toggleDynamicBones()">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <span id="dynBonesInfo" class="info-text" style="margin-left:14px;"></span>
+          <div id="dynIntensityRow" style="display:none;margin-top:4px;">
+            <div class="slider-row">
+              <span class="info-text" style="min-width:52px;">Intensity:</span>
+              <input type="range" id="dynIntensitySlider" min="-400" max="400" step="5" value="0"
+                     style="flex:1;cursor:pointer;" oninput="updateDynIntensity(this.value)">
+              <span id="dynIntensityLabel" class="info-text" style="min-width:32px;text-align:right;color:#a78bfa;">+0</span>
+            </div>
+            <div class="toggle-row" onclick="toggleCollisions(); document.getElementById('swCollisions').checked = dynCollisionsEnabled;" style="margin-top:2px;">
+              <span class="label">💥 Collisions</span>
+              <label class="toggle-switch" onclick="event.stopPropagation()">
+                <input type="checkbox" id="swCollisions" checked onchange="toggleCollisions()">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title" style="cursor:pointer;user-select:none;" onclick="const el=document.getElementById('meshSection'); el.style.display=el.style.display==='none'?'block':'none'; this.querySelector('.arrow').textContent=el.style.display==='none'?'▶':'▼';">📦 Meshes <span class="arrow" style="font-size:10px;margin-left:4px;">▶</span></div>
+    <div id="meshSection" style="display:none;">
+      <button class="btn-action" onclick="toggleAllMeshes(true)">✅ Show All</button>
+      <button class="btn-action" onclick="toggleAllMeshes(false)">❌ Hide All</button>
+      <div id="mesh-list"></div>
+    </div>
   </div>
   
   <div id="stats" class="panel">
@@ -1275,7 +1532,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       <p>Your screenshot has been saved to:</p>
       <div class="filename" id="screenshot-filename" onclick="openScreenshotFile()">filename.png</div>
       <p style="font-size: 12px; color: #9ca3af;">Click filename to open file</p>
-      <button onclick="closeScreenshotModal()">Close</button>
+      <button class="btn-action" onclick="closeScreenshotModal()">Close</button>
     </div>
   </div>
 
@@ -1488,7 +1745,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
       camera.position.set(0, 2, 5);
 
-      renderer = new THREE.WebGLRenderer({{ antialias: true }});
+      renderer = new THREE.WebGLRenderer({{ antialias: true, preserveDrawingBuffer: true }});
       renderer.setSize(window.innerWidth, window.innerHeight);
       document.getElementById('container').appendChild(renderer.domElement);
 
@@ -1716,6 +1973,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         document.getElementById('animations-available').style.display = 'block';
         document.getElementById('animations-unavailable').style.display = 'none';
       }}
+      // Show dynamic bones controls if MI data has physics chains
+      if (modelInfo && modelInfo.DynamicBone && modelInfo.DynamicBone.length > 0) {{
+        document.getElementById('dynBonesSection').style.display = 'block';
+      }}
 
       // STEP 1: Create all bones with LOCAL transforms
       bones = skeletonData.map((boneData, idx) => {{
@@ -1889,23 +2150,20 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     function toggleSkeleton() {{
       showSkeleton = !showSkeleton;
       skeletonGroup.visible = showSkeleton;
-      const btn = document.getElementById('btnSkel');
-      if (btn) btn.className = showSkeleton ? 'active' : '';
+      const sw = document.getElementById('swSkel'); if (sw) sw.checked = showSkeleton;
       if (showSkeleton) updateSkeletonVis();
     }}
 
     function toggleJoints() {{
       showJoints = !showJoints;
       jointsGroup.visible = showJoints;
-      const btn = document.getElementById('btnJoints');
-      if (btn) btn.className = showJoints ? 'active' : '';
+      const sw = document.getElementById('swJoints'); if (sw) sw.checked = showJoints;
       updateSkeletonVis();
     }}
 
     function toggleBoneNames() {{
       showBoneNames = !showBoneNames;
-      const btn = document.getElementById('btnBoneNames');
-      if (btn) btn.className = showBoneNames ? 'active' : '';
+      const sw = document.getElementById('swBoneNames'); if (sw) sw.checked = showBoneNames;
       let overlay = document.getElementById('bone-names-overlay');
       if (showBoneNames) {{
         if (!overlay) {{
@@ -2039,7 +2297,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       
       // Update toggle button
       const btn = document.getElementById('btnAnimToggle');
-      if (btn) {{ btn.textContent = '⏸️ Pause'; btn.className = 'active'; }}
+      if (btn) {{ btn.textContent = '⏸️ Pause'; btn.className = 'btn-action active'; }}
       
       // Reset dynamic bone particles to new animated pose after one frame
       if (dynamicBonesEnabled) {{
@@ -2071,10 +2329,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const btn = document.getElementById('btnAnimToggle');
       if (currentAnimation.paused) {{
         currentAnimation.paused = false;
-        if (btn) {{ btn.textContent = '⏸️ Pause'; btn.className = 'active'; }}
+        if (btn) {{ btn.textContent = '⏸️ Pause'; btn.className = 'btn-action active'; }}
       }} else {{
         currentAnimation.paused = true;
-        if (btn) {{ btn.textContent = '▶️ Play'; btn.className = ''; }}
+        if (btn) {{ btn.textContent = '▶️ Play'; btn.className = 'btn-action'; }}
       }}
     }}
 
@@ -2090,7 +2348,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const sel = document.getElementById('animation-select');
       if (sel) sel.value = '';
       const btn = document.getElementById('btnAnimToggle');
-      if (btn) {{ btn.textContent = '⏹️ Stop'; btn.className = ''; }}
+      if (btn) {{ btn.textContent = '⏹️ Stop'; btn.className = 'btn-action'; }}
       const slider = document.getElementById('animTimeline');
       if (slider) slider.value = 0;
       const label = document.getElementById('animTimeLabel');
@@ -2119,6 +2377,14 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }});
       
       debug('Reset to bind pose');
+      
+      // Reset dynamic bones state to match bind pose
+      // Without this, savedLocalQuat holds stale animation quats
+      // which overwrites the bind pose on next frame, freezing physics
+      if (dynamicBonesEnabled && dynChains.length > 0) {{
+        if (bones.length > 0) bones[0].updateMatrixWorld(true);
+        resetDynamicBones();
+      }}
     }}
 
     function scrubAnimation(val) {{
@@ -2129,7 +2395,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (!currentAnimation.paused) {{
         currentAnimation.paused = true;
         const btn = document.getElementById('btnAnimToggle');
-        if (btn) {{ btn.textContent = '▶️ Play'; btn.className = ''; }}
+        if (btn) {{ btn.textContent = '▶️ Play'; btn.className = 'btn-action'; }}
       }}
       currentAnimation.time = t;
       animationMixer.update(0);  // Force pose update at new time
@@ -2335,8 +2601,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
     function toggleDynamicBones() {{
       dynamicBonesEnabled = !dynamicBonesEnabled;
-      const btn = document.getElementById('btnDynBones');
-      if (btn) btn.classList.toggle('active', dynamicBonesEnabled);
+      const sw = document.getElementById('swDynBones'); if (sw) sw.checked = dynamicBonesEnabled;
       if (dynamicBonesEnabled && dynChains.length === 0) initDynamicBones();
       
       // Show/hide intensity slider
@@ -2359,8 +2624,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
     function toggleCollisions() {{
       dynCollisionsEnabled = !dynCollisionsEnabled;
-      const btn = document.getElementById('btnCollisions');
-      if (btn) btn.classList.toggle('active', dynCollisionsEnabled);
+      const sw = document.getElementById('swCollisions'); if (sw) sw.checked = dynCollisionsEnabled;
     }}
 
     function updateDynIntensity(val) {{
@@ -2394,6 +2658,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }});
       }});
       dynLastAnimTime = -1;
+      dynPrevCamPos = null;
       
       // Compute collision exemptions: particles that START inside a collider
       // in their natural bind/animated pose should never be pushed out by that collider.
@@ -2452,8 +2717,43 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }});
     }}
 
+    // Track camera for virtual inertia (physics reacts to mouse rotation)
+    let dynPrevCamPos = null;
+    
     function updateDynamicBones(dt) {{
       if (!dynamicBonesEnabled || dynChains.length === 0 || dt <= 0) return;
+      
+      // ============================================================
+      // Virtual inertia: when camera orbits, model appears to rotate.
+      // Shift particle prevPos to simulate the model moving, creating
+      // Verlet velocity that makes physics react to mouse dragging.
+      // ============================================================
+      if (dynPrevCamPos) {{
+        const curCamPos = camera.position.clone();
+        const pivot = controls.target;
+        
+        // Compute rotation from prev camera to current camera around pivot
+        const prevDir = new THREE.Vector3().subVectors(dynPrevCamPos, pivot).normalize();
+        const curDir = new THREE.Vector3().subVectors(curCamPos, pivot).normalize();
+        const dot = THREE.MathUtils.clamp(prevDir.dot(curDir), -1, 1);
+        
+        if (dot < 0.99999) {{
+          // Camera moved — compute rotation quaternion
+          const axis = new THREE.Vector3().crossVectors(prevDir, curDir).normalize();
+          const angle = Math.acos(dot);
+          // Inverse rotation: if camera went right, model "swung" left
+          const invQ = new THREE.Quaternion().setFromAxisAngle(axis, -angle);
+          
+          dynChains.forEach(chain => {{
+            for (let i = 0; i < chain.particles.length; i++) {{
+              if (chain.parentIdx[i] < 0) continue; // skip root
+              // Rotate prevPos around pivot by inverse camera rotation
+              chain.particles[i].prevPos.sub(pivot).applyQuaternion(invQ).add(pivot);
+            }}
+          }});
+        }}
+      }}
+      dynPrevCamPos = camera.position.clone();
       
       // ============================================================
       // Phase 1: Capture clean animated state
@@ -2897,7 +3197,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
     function toggleColors() {{
       colorMode = !colorMode;
-      document.getElementById('btnColors').className = colorMode ? 'active' : '';
+      const sw = document.getElementById('swColors'); if (sw) sw.checked = colorMode;
       meshes.forEach(m => {{
         if (colorMode) {{
           m.material.color.setHex(m.userData.originalColor);
@@ -2912,7 +3212,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
     function toggleTextures() {{
       textureMode = !textureMode;
-      document.getElementById('btnTex').className = textureMode ? 'active' : '';
+      const sw = document.getElementById('swTex'); if (sw) sw.checked = textureMode;
       meshes.forEach(m => {{
         if (textureMode) {{
           if (m.userData.originalMap) {{
@@ -2933,11 +3233,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
     function toggleWireframe() {{
       wireframeMode = !wireframeMode;
-      document.getElementById('btnWire').className = wireframeMode ? 'active' : '';
+      const sw = document.getElementById('swWire'); if (sw) sw.checked = wireframeMode;
       // Turn off overlay if wireframe on
       if (wireframeMode && wireframeOverlayMode) {{
         wireframeOverlayMode = false;
-        document.getElementById('btnWireOver').className = '';
+        const sw2 = document.getElementById('swWireOver'); if (sw2) sw2.checked = false;
         meshes.forEach(m => {{ if (m.userData.wireframeOverlay) m.userData.wireframeOverlay.visible = false; }});
       }}
       meshes.forEach(m => {{
@@ -2948,11 +3248,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
     function toggleWireframeOverlay() {{
       wireframeOverlayMode = !wireframeOverlayMode;
-      document.getElementById('btnWireOver').className = wireframeOverlayMode ? 'active' : '';
+      const sw = document.getElementById('swWireOver'); if (sw) sw.checked = wireframeOverlayMode;
       // Turn off wireframe if overlay on
       if (wireframeOverlayMode && wireframeMode) {{
         wireframeMode = false;
-        document.getElementById('btnWire').className = '';
+        const sw2 = document.getElementById('swWire'); if (sw2) sw2.checked = false;
         meshes.forEach(m => {{ m.material.wireframe = false; m.material.needsUpdate = true; }});
       }}
       if (wireframeOverlayMode) {{
@@ -3097,9 +3397,122 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     }}
 
     function requestScreenshot() {{
-      if (window.pywebview) {{
+      const scale = parseInt(document.getElementById('screenshotScale').value) || 2;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const targetW = w * scale;
+      const targetH = h * scale;
+      
+      if (scale <= 1) {{
+        // Native: just capture current frame
         renderer.render(scene, camera);
-        const dataURL = renderer.domElement.toDataURL('image/png');
+        const tmpCanvas = document.createElement('canvas');
+        tmpCanvas.width = renderer.domElement.width;
+        tmpCanvas.height = renderer.domElement.height;
+        const tmpCtx = tmpCanvas.getContext('2d');
+        drawComposite(tmpCtx, tmpCanvas.width, tmpCanvas.height);
+        finishScreenshot(tmpCanvas.toDataURL('image/png'));
+        return;
+      }}
+      
+      // High-res: render to offscreen WebGLRenderTarget
+      const rt = new THREE.WebGLRenderTarget(targetW, targetH, {{
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        format: THREE.RGBAFormat
+      }});
+      
+      renderer.setRenderTarget(rt);
+      renderer.render(scene, camera);
+      
+      // Read pixels from render target
+      const pixels = new Uint8Array(targetW * targetH * 4);
+      renderer.readRenderTargetPixels(rt, 0, 0, targetW, targetH, pixels);
+      renderer.setRenderTarget(null);
+      rt.dispose();
+      
+      // Flip Y (WebGL is bottom-up) and write to canvas
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = targetW;
+      tmpCanvas.height = targetH;
+      const tmpCtx = tmpCanvas.getContext('2d');
+      const imageData = tmpCtx.createImageData(targetW, targetH);
+      for (let y = 0; y < targetH; y++) {{
+        const srcRow = (targetH - 1 - y) * targetW * 4;
+        const dstRow = y * targetW * 4;
+        imageData.data.set(pixels.subarray(srcRow, srcRow + targetW * 4), dstRow);
+      }}
+      tmpCtx.putImageData(imageData, 0, 0);
+      
+      // Draw overlays (bone names, skeleton, joints) on top
+      const sf = scale;
+      if (showJoints) {{
+        for (let i = 0; i < skeletonData.length; i++) {{
+          const bd = skeletonData[i];
+          if (bd.type !== 1) continue;
+          const bone = bones[i];
+          if (!bone) continue;
+          const pos = new THREE.Vector3();
+          bone.getWorldPosition(pos);
+          pos.project(camera);
+          if (pos.z > 1) continue;
+          const x = (pos.x * 0.5 + 0.5) * targetW;
+          const y = (-pos.y * 0.5 + 0.5) * targetH;
+          tmpCtx.beginPath();
+          tmpCtx.arc(x, y, 3 * sf, 0, Math.PI * 2);
+          tmpCtx.fillStyle = '#ff4444';
+          tmpCtx.fill();
+          tmpCtx.lineWidth = sf;
+          tmpCtx.strokeStyle = '#aa0000';
+          tmpCtx.stroke();
+        }}
+      }}
+      if (showSkeleton) {{
+        tmpCtx.strokeStyle = '#00ff88';
+        tmpCtx.lineWidth = sf;
+        for (let i = 0; i < skeletonData.length; i++) {{
+          const bd = skeletonData[i];
+          if (bd.type !== 1 || bd.parent_id < 0) continue;
+          const bone = bones[i];
+          const parent = bones[bd.parent_id];
+          if (!bone || !parent) continue;
+          const pos = new THREE.Vector3(); bone.getWorldPosition(pos); pos.project(camera);
+          const ppos = new THREE.Vector3(); parent.getWorldPosition(ppos); ppos.project(camera);
+          if (pos.z > 1 && ppos.z > 1) continue;
+          tmpCtx.beginPath();
+          tmpCtx.moveTo((ppos.x*0.5+0.5)*targetW, (-ppos.y*0.5+0.5)*targetH);
+          tmpCtx.lineTo((pos.x*0.5+0.5)*targetW, (-pos.y*0.5+0.5)*targetH);
+          tmpCtx.stroke();
+        }}
+      }}
+      if (showBoneNames) {{
+        tmpCtx.font = Math.round(9 * sf) + 'px monospace';
+        tmpCtx.textAlign = 'center';
+        for (let i = 0; i < skeletonData.length; i++) {{
+          const bd = skeletonData[i];
+          if (bd.type !== 1) continue;
+          const bone = bones[i];
+          if (!bone) continue;
+          const pos = new THREE.Vector3();
+          bone.getWorldPosition(pos);
+          pos.project(camera);
+          if (pos.z > 1) continue;
+          const x = (pos.x * 0.5 + 0.5) * targetW;
+          const y = (-pos.y * 0.5 + 0.5) * targetH;
+          tmpCtx.fillStyle = '#000';
+          tmpCtx.fillText(bd.name, x + sf, y + sf);
+          tmpCtx.fillText(bd.name, x - sf, y - sf);
+          tmpCtx.fillStyle = '#00ff88';
+          tmpCtx.fillText(bd.name, x, y);
+        }}
+      }}
+      
+      finishScreenshot(tmpCanvas.toDataURL('image/png'));
+    }}
+    
+    function finishScreenshot(dataURL) {{
+      
+      if (window.pywebview) {{
         window.pywebview.api.save_screenshot(dataURL).then(result => {{
           if (result.success) {{
             showScreenshotModal(result.filepath);
@@ -3108,7 +3521,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           }}
         }});
       }} else {{
-        alert('Screenshot functionality requires pywebview');
+        // Fallback: browser download
+        const a = document.createElement('a');
+        a.href = dataURL;
+        a.download = 'screenshot_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0,19) + '.png';
+        a.click();
       }}
     }}
 
@@ -3142,6 +3559,231 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         elem.textContent = 'Copied!';
         setTimeout(() => elem.textContent = original, 1000);
       }});
+    }}
+
+    // ============================================
+    // Video Recording (WebM via MediaRecorder API)
+    // ============================================
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let recordingStartTime = 0;
+    let compositeCanvas = null;
+    let compositeCtx = null;
+
+    function toggleRecording() {{
+      if (mediaRecorder && mediaRecorder.state === 'recording') {{
+        stopRecording();
+      }} else {{
+        startRecording();
+      }}
+    }}
+
+    function startRecording() {{
+      try {{
+        // Create composite canvas for recording (WebGL + overlays)
+        compositeCanvas = document.createElement('canvas');
+        compositeCanvas.width = renderer.domElement.width;
+        compositeCanvas.height = renderer.domElement.height;
+        compositeCtx = compositeCanvas.getContext('2d');
+        
+        const fps = parseInt(document.getElementById('videoFps').value) || 60;
+        const bitrate = parseInt(document.getElementById('videoQuality').value) || 8000000;
+        const stream = compositeCanvas.captureStream(fps);
+        
+        const mimeTypes = [
+          'video/webm;codecs=vp9',
+          'video/webm;codecs=vp8',
+          'video/webm'
+        ];
+        let selectedMime = '';
+        for (const mime of mimeTypes) {{
+          if (MediaRecorder.isTypeSupported(mime)) {{
+            selectedMime = mime;
+            break;
+          }}
+        }}
+        
+        if (!selectedMime) {{
+          alert('Video recording not supported in this browser');
+          return;
+        }}
+        
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(stream, {{
+          mimeType: selectedMime,
+          videoBitsPerSecond: bitrate
+        }});
+        
+        mediaRecorder.ondataavailable = (e) => {{
+          if (e.data.size > 0) recordedChunks.push(e.data);
+        }};
+        
+        mediaRecorder.onstop = () => {{
+          const blob = new Blob(recordedChunks, {{ type: selectedMime }});
+          saveRecording(blob);
+          compositeCanvas = null;
+          compositeCtx = null;
+        }};
+        
+        mediaRecorder.start(100);
+        recordingStartTime = Date.now();
+        
+        const btn = document.getElementById('btnRecord');
+        if (btn) {{
+          btn.classList.add('recording');
+          btn.textContent = '⏹ Stop Recording';
+        }}
+        updateRecordTimer();
+        debug('Recording started:', selectedMime, fps + 'fps', (bitrate/1000000) + 'Mbps');
+      }} catch (e) {{
+        alert('Recording failed: ' + e.message);
+      }}
+    }}
+
+    // Called each frame from animate() to composite WebGL + overlays
+    function updateCompositeFrame() {{
+      if (!compositeCtx || !compositeCanvas) return;
+      const c = compositeCanvas;
+      const ctx = compositeCtx;
+      // Resize if needed
+      if (c.width !== renderer.domElement.width || c.height !== renderer.domElement.height) {{
+        c.width = renderer.domElement.width;
+        c.height = renderer.domElement.height;
+      }}
+      drawComposite(ctx, c.width, c.height);
+    }}
+
+    // Composite WebGL canvas + joints + bone names onto a 2D context
+    function drawComposite(ctx, w, h) {{
+      // Scale factor relative to native window size
+      const sf = w / window.innerWidth || 1;
+      // Draw WebGL canvas
+      ctx.drawImage(renderer.domElement, 0, 0);
+      
+      // Draw joints if visible
+      if (showJoints) {{
+        for (let i = 0; i < skeletonData.length; i++) {{
+          const bd = skeletonData[i];
+          if (bd.type !== 1) continue;
+          const bone = bones[i];
+          if (!bone) continue;
+          const pos = new THREE.Vector3();
+          bone.getWorldPosition(pos);
+          pos.project(camera);
+          if (pos.z > 1) continue;
+          const x = (pos.x * 0.5 + 0.5) * w;
+          const y = (-pos.y * 0.5 + 0.5) * h;
+          ctx.beginPath();
+          ctx.arc(x, y, 3 * sf, 0, Math.PI * 2);
+          ctx.fillStyle = '#ff4444';
+          ctx.fill();
+          ctx.lineWidth = 1 * sf;
+          ctx.strokeStyle = '#aa0000';
+          ctx.stroke();
+        }}
+      }}
+      
+      // Draw skeleton lines if visible
+      if (showSkeleton) {{
+        ctx.strokeStyle = '#00ff88';
+        ctx.lineWidth = 1 * sf;
+        for (let i = 0; i < skeletonData.length; i++) {{
+          const bd = skeletonData[i];
+          if (bd.type !== 1) continue;
+          const bone = bones[i];
+          if (!bone) continue;
+          const parentIdx = window._boneParentMap[i];
+          if (parentIdx === undefined || !bones[parentIdx]) continue;
+          
+          const pos = new THREE.Vector3();
+          bone.getWorldPosition(pos);
+          pos.project(camera);
+          if (pos.z > 1) continue;
+          
+          const ppos = new THREE.Vector3();
+          bones[parentIdx].getWorldPosition(ppos);
+          ppos.project(camera);
+          if (ppos.z > 1) continue;
+          
+          const x1 = (pos.x * 0.5 + 0.5) * w;
+          const y1 = (-pos.y * 0.5 + 0.5) * h;
+          const x2 = (ppos.x * 0.5 + 0.5) * w;
+          const y2 = (-ppos.y * 0.5 + 0.5) * h;
+          
+          ctx.beginPath();
+          ctx.moveTo(x2, y2);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+        }}
+      }}
+      
+      // Draw bone names if visible
+      if (showBoneNames) {{
+        ctx.font = Math.round(9 * sf) + 'px monospace';
+        ctx.textAlign = 'center';
+        for (let i = 0; i < skeletonData.length; i++) {{
+          const bd = skeletonData[i];
+          if (bd.type !== 1) continue;
+          const bone = bones[i];
+          if (!bone) continue;
+          const pos = new THREE.Vector3();
+          bone.getWorldPosition(pos);
+          pos.project(camera);
+          if (pos.z > 1) continue;
+          const x = (pos.x * 0.5 + 0.5) * w;
+          const y = (-pos.y * 0.5 + 0.5) * h;
+          // Text shadow
+          ctx.fillStyle = '#000';
+          ctx.fillText(bd.name, x + sf, y + sf);
+          ctx.fillText(bd.name, x - sf, y - sf);
+          // Text
+          ctx.fillStyle = '#00ff88';
+          ctx.fillText(bd.name, x, y);
+        }}
+      }}
+    }}
+
+    function updateRecordTimer() {{
+      if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+      const elapsed = ((Date.now() - recordingStartTime) / 1000).toFixed(1);
+      const btn = document.getElementById('btnRecord');
+      if (btn) btn.textContent = '⏹ Stop (' + elapsed + 's)';
+      requestAnimationFrame(updateRecordTimer);
+    }}
+
+    function stopRecording() {{
+      if (mediaRecorder && mediaRecorder.state === 'recording') {{
+        mediaRecorder.stop();
+      }}
+      const btn = document.getElementById('btnRecord');
+      if (btn) {{
+        btn.classList.remove('recording');
+        btn.textContent = '🔴 Record Video';
+      }}
+    }}
+
+    function saveRecording(blob) {{
+      if (window.pywebview) {{
+        const reader = new FileReader();
+        reader.onload = () => {{
+          const base64 = reader.result.split(',')[1];
+          window.pywebview.api.save_video(base64).then(result => {{
+            if (result.success) {{
+              showScreenshotModal(result.filepath);
+            }} else {{
+              alert('Save failed: ' + result.error);
+            }}
+          }});
+        }};
+        reader.readAsDataURL(blob);
+      }} else {{
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'recording_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0,19) + '.webm';
+        a.click();
+        URL.revokeObjectURL(url);
+      }}
     }}
 
     function onWindowResize() {{
@@ -3202,6 +3844,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       controls.update();
       renderer.render(scene, camera);
       
+      // Composite frame for video recording (WebGL + bone names overlay)
+      if (mediaRecorder && mediaRecorder.state === 'recording') {{
+        updateCompositeFrame();
+      }}
+      
       // Update stats (FPS, triangles, etc)
       updateStats();
       
@@ -3231,6 +3878,7 @@ class API:
         # Ensure directory exists
         Path(screenshot_dir).mkdir(parents=True, exist_ok=True)
         self.screenshot_counter = 0
+        self.video_counter = 0
 
     def save_screenshot(self, image_data: str) -> dict:
         """Save screenshot from base64 data URL."""
@@ -3256,6 +3904,27 @@ class API:
                 f.write(img_data)
             
             print(f"[Screenshot] Saved: {filepath}")
+            return {"success": True, "filepath": str(filepath.absolute())}
+            
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def save_video(self, base64_data: str) -> dict:
+        """Save video recording from base64 WebM data."""
+        try:
+            import base64
+            
+            video_data = base64.b64decode(base64_data)
+            
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            self.video_counter += 1
+            filename = f"recording_{timestamp}_{self.video_counter:03d}.webm"
+            filepath = Path(self.screenshot_dir_str) / filename
+            
+            with open(filepath, 'wb') as f:
+                f.write(video_data)
+            
+            print(f"[Recording] Saved: {filepath} ({len(video_data) / 1024 / 1024:.1f} MB)")
             return {"success": True, "filepath": str(filepath.absolute())}
             
         except Exception as e:
