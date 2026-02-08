@@ -16,11 +16,12 @@ REQUIREMENTS:
   pip install pywebview Pillow
 
 USAGE:
-  python viewer_mdl_textured_anim.py /path/to/model.mdl [--recompute-normals] [--debug]
+  python viewer_mdl_textured_anim.py /path/to/model.mdl [--recompute-normals] [--debug] [--skip-popup]
   
   --recompute-normals  Recompute smooth normals instead of using originals from MDL
                        (slower loading, typically no visual difference)
   --debug              Enable verbose console logging in browser
+  --skip-popup         Skip loading progress popup on startup
 """
 
 from pathlib import Path
@@ -1127,7 +1128,8 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
 # -----------------------------
 def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_map: dict, 
                                 skeleton_data: dict, model_info: dict, debug_mode: bool = False,
-                                bind_matrices: dict = None, animations_data: list = None) -> str:
+                                bind_matrices: dict = None, animations_data: list = None,
+                                skip_popup: bool = False) -> str:
     """Generate HTML content with texture and skeleton support."""
     
     meshes_data = []
@@ -1362,7 +1364,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 </head>
 <body>
   <!-- Loading overlay - visible by default -->
-  <div id="loading-overlay">
+  <div id="loading-overlay" {'class="hidden"' if skip_popup else ''}>
     <div class="modal-content" style="min-width:340px;text-align:center;">
       <h3 id="loading-title">⏳ Loading Model...</h3>
       <p id="loading-step" style="color:#9ca3af;font-size:13px;">Initializing...</p>
@@ -4388,12 +4390,13 @@ class API:
 # -----------------------------
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python viewer_mdl_textured.py <path_to_model.mdl> [--recompute-normals] [--debug]")
+        print("Usage: python viewer_mdl_textured.py <path_to_model.mdl> [--recompute-normals] [--debug] [--skip-popup]")
         sys.exit(1)
 
     mdl_path = Path(sys.argv[1])
     recompute_normals = '--recompute-normals' in sys.argv
     debug_mode = '--debug' in sys.argv
+    skip_popup = '--skip-popup' in sys.argv
     
     if debug_mode:
         print("[DEBUG MODE] Verbose console logging enabled")
@@ -4452,7 +4455,7 @@ def main():
     # Generate HTML
     html_content = generate_html_with_skeleton(
         mdl_path, meshes, material_texture_map, skeleton_data, model_info, debug_mode, bind_matrices,
-        animations_data=animations_data
+        animations_data=animations_data, skip_popup=skip_popup
     )
 
     # Save HTML to temp
