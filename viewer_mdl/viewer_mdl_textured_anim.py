@@ -1431,6 +1431,30 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         <span class="slider"></span>
       </label>
     </div>
+    <div class="toggle-row" onclick="toggleGamepad(); document.getElementById('swGamepad').checked = gamepadEnabled;">
+      <span class="label">🎮 Controller</span>
+      <label class="toggle-switch" onclick="event.stopPropagation()">
+        <input type="checkbox" id="swGamepad" onchange="toggleGamepad()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div id="gamepadSubmenu" style="display:none;padding:4px 12px 8px 20px;background:rgba(124,58,237,0.08);border-radius:0 0 8px 8px;margin-top:-2px;">
+      <div id="gamepadStatus" style="font-size:11px;color:#a78bfa;margin-bottom:4px;"></div>
+      <div class="toggle-row" style="padding:4px 8px;margin:2px 0;background:rgba(124,58,237,0.08)" onclick="toggleGamepadInvertX(); document.getElementById('swGpInvX').checked = !gamepadInvertX;">
+        <span class="label" style="font-size:11px">Invert X</span>
+        <label class="toggle-switch" onclick="event.stopPropagation()" style="transform:scale(0.85)">
+          <input type="checkbox" id="swGpInvX" onchange="toggleGamepadInvertX()">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row" style="padding:4px 8px;margin:2px 0;background:rgba(124,58,237,0.08)" onclick="toggleGamepadInvertY(); document.getElementById('swGpInvY').checked = gamepadInvertY;">
+        <span class="label" style="font-size:11px">Invert Y</span>
+        <label class="toggle-switch" onclick="event.stopPropagation()" style="transform:scale(0.85)">
+          <input type="checkbox" id="swGpInvY" onchange="toggleGamepadInvertY()">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
 
     <div class="slider-row">
       <span class="info-text" style="min-width:52px;">Opacity:</span>
@@ -1645,6 +1669,67 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let showSkeleton = false, showJoints = false, showBoneNames = false;
     let currentFps = 0;
     const MODEL_FILENAME = {json.dumps(mdl_path.name)};
+    
+    // Gamepad controller - third-person mode
+    let gamepadEnabled = false;
+    let gamepadIndex = -1;
+    let gamepadPrevButtons = [];
+    let gamepadDeadzone = 0.15;
+    let gamepadType = 'xbox';  // 'xbox', 'playstation', 'generic'
+    let gamepadButtonStates = [];  // current frame pressed states
+    let gamepadAxesStates = [0,0,0,0];  // current axes
+    let gamepadTriggerStates = [0,0];  // LT, RT values
+    let gamepadInvertX = true;   // X camera invert ON by default
+    let gamepadInvertY = false;  // Y camera invert OFF by default
+
+    // Button labels per controller type
+    const GP_LABELS = {{
+      xbox: {{
+        0: 'A', 1: 'B', 2: 'X', 3: 'Y',
+        4: 'LB', 5: 'RB', 6: 'LT', 7: 'RT',
+        8: 'Back', 9: 'Start', 10: 'LS', 11: 'RS',
+        12: '↑', 13: '↓', 14: '←', 15: '→',
+      }},
+      playstation: {{
+        0: '✕', 1: '○', 2: '□', 3: '△',
+        4: 'L1', 5: 'R1', 6: 'L2', 7: 'R2',
+        8: 'Share', 9: 'Opt', 10: 'L3', 11: 'R3',
+        12: '↑', 13: '↓', 14: '←', 15: '→',
+      }},
+      generic: {{
+        0: '1', 1: '2', 2: '3', 3: '4',
+        4: 'L1', 5: 'R1', 6: 'L2', 7: 'R2',
+        8: 'Sel', 9: 'Start', 10: 'L3', 11: 'R3',
+        12: '↑', 13: '↓', 14: '←', 15: '→',
+      }}
+    }};
+
+    // Button colors per type (for face buttons only)
+    const GP_COLORS = {{
+      xbox: {{ 0: '#3ddc84', 1: '#f44336', 2: '#2196f3', 3: '#ffc107' }},
+      playstation: {{ 0: '#5c9dff', 1: '#f44336', 2: '#e991d0', 3: '#4cdfad' }},
+      generic: {{}}
+    }};
+
+    // Action mapping (button index → description)
+    const GP_ACTIONS = {{
+      0: 'Play/Pause', 1: 'Stop', 2: 'Reset Pos', 3: 'DynBones',
+      4: 'Prev Anim', 5: 'Next Anim', 6: 'Zoom Out', 7: 'Zoom In',
+      9: 'Screenshot', 12: 'Speed+', 13: 'Speed-', 14: 'Wireframe', 15: 'Skeleton'
+    }};
+    const GP_STICK_ACTIONS = {{ ls: 'Move', rs: 'Camera' }};
+    let characterGroup = null;
+    let characterYaw = 0;
+    let characterMoveSpeed = 0;
+    let characterCenterY = 0;
+    let tpCamTheta = Math.PI;  // behind character
+    let tpCamPhi = 1.2;        // slight top-down angle
+    let tpCamDist = 1;
+    let groundGrid = null;
+    let tpAutoAnimWalk = null;
+    let tpAutoAnimIdle = null;
+    let tpCurrentAutoAnim = null;
+    let tpIsMoving = false;
     let skeletonGroup = null, jointsGroup = null;
 
     class OrbitControls {{
@@ -1670,6 +1755,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       
       onMouseDown(e) {{
+        if (this._tpMode) return;  // Disabled in third-person mode
         this.isMouseDown = true;
         this.mouseButton = e.button;
       }}
@@ -1679,7 +1765,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       
       onMouseMove(e) {{
-        if (!this.isMouseDown) return;
+        if (!this.isMouseDown || this._tpMode) return;
         
         if (this.mouseButton === this.mouseButtons.LEFT) {{
           const dx = e.movementX * this.rotateSpeed * 0.01;
@@ -1696,6 +1782,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       
       onMouseWheel(e) {{
+        if (this._tpMode) return;  // Disabled in third-person mode
         e.preventDefault();
         this.scale *= Math.pow(0.95, -e.deltaY * this.zoomSpeed * 0.05);
       }}
@@ -2234,6 +2321,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const jointGeo = new THREE.SphereGeometry(0.005, 6, 6);
       const jointMat = new THREE.MeshBasicMaterial({{ color: 0xff4444, depthTest: false }});
 
+      // When in third-person mode, skeleton/joints groups are children of characterGroup
+      // so we need local positions, not world positions
+      const needLocal = !!characterGroup;
+      const invMatrix = needLocal ? new THREE.Matrix4().copy(characterGroup.matrixWorld).invert() : null;
+
       for (let i = 0; i < skeletonData.length; i++) {{
         const bd = skeletonData[i];
         const bone = bones[i];
@@ -2242,11 +2334,12 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
         const worldPos = new THREE.Vector3();
         bone.getWorldPosition(worldPos);
+        const drawPos = needLocal ? worldPos.clone().applyMatrix4(invMatrix) : worldPos;
 
         // Joint sphere
         if (showJoints) {{
           const jm = new THREE.Mesh(jointGeo, jointMat);
-          jm.position.copy(worldPos);
+          jm.position.copy(drawPos);
           jm.renderOrder = 999;
           jointsGroup.add(jm);
         }}
@@ -2256,7 +2349,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         if (parentIdx !== undefined && bones[parentIdx]) {{
           const parentPos = new THREE.Vector3();
           bones[parentIdx].getWorldPosition(parentPos);
-          const geo = new THREE.BufferGeometry().setFromPoints([parentPos, worldPos]);
+          const parentDraw = needLocal ? parentPos.applyMatrix4(invMatrix) : parentPos;
+          const geo = new THREE.BufferGeometry().setFromPoints([parentDraw, drawPos]);
           const line = new THREE.Line(geo, lineMat);
           line.renderOrder = 998;
           skeletonGroup.add(line);
@@ -2482,6 +2576,40 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       
       debug('Playing:', animName, 'duration:', clip.duration.toFixed(2) + 's');
+    }}
+
+    // Smooth crossfade for third-person auto-animations (reuses same mixer)
+    function playAnimationCrossfade(animName, fadeDuration) {{
+      if (!bones || bones.length === 0) return;
+      const clip = animationClips[animName];
+      if (!clip) return;
+      
+      fadeDuration = fadeDuration || 0.3;
+      
+      // Create mixer if needed (first call)
+      if (!animationMixer) {{
+        const target = bones[0];
+        animationMixer = new THREE.AnimationMixer(target);
+        const speedSlider = document.getElementById('animSpeedSlider');
+        if (speedSlider) animationMixer.timeScale = Math.pow(2, parseInt(speedSlider.value) / 50);
+      }}
+      
+      const prevAction = currentAnimation;
+      const newAction = animationMixer.clipAction(clip);
+      
+      newAction.reset();
+      newAction.play();
+      
+      if (prevAction && prevAction !== newAction) {{
+        // Crossfade: old action fades out, new fades in
+        newAction.crossFadeFrom(prevAction, fadeDuration, true);
+      }}
+      
+      currentAnimation = newAction;
+      currentAnimName = animName;
+      
+      const btn = document.getElementById('btnAnimToggle');
+      if (btn) {{ btn.textContent = '⏸️ Pause'; btn.className = 'btn-action active'; }}
     }}
 
     function updateAnimSpeed(val) {{
@@ -3448,7 +3576,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
               wireMesh = new THREE.SkinnedMesh(wireGeom, wireMat);
               wireMesh.bind(m.skeleton, new THREE.Matrix4());
               wireMesh.frustumCulled = false;
-              scene.add(wireMesh);
+              if (characterGroup) {{ characterGroup.add(wireMesh); }} else {{ scene.add(wireMesh); }}
             }} else {{
               wireMesh = new THREE.Mesh(wireGeom, wireMat);
               m.add(wireMesh);
@@ -3468,6 +3596,15 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     }}
 
     function resetView() {{
+      // Disable gamepad if active
+      if (gamepadEnabled) {{
+        gamepadEnabled = false;
+        disableThirdPerson();
+        gamepadIndex = -1;
+        const sw = document.getElementById('swGamepad'); if (sw) sw.checked = false;
+        const statusEl = document.getElementById('gamepadStatus'); if (statusEl) statusEl.textContent = '';
+        const submenu = document.getElementById('gamepadSubmenu'); if (submenu) submenu.style.display = 'none';
+      }}
       // Reset all toggle states to defaults
       // Textures ON
       if (!textureMode) toggleTextures();
@@ -3539,6 +3676,442 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       controls.panOffset.set(0, 0, 0);
     }}
 
+    // ============================================
+    // Gamepad Controller Support
+    // ============================================
+    function toggleGamepad() {{
+      gamepadEnabled = !gamepadEnabled;
+      const sw = document.getElementById('swGamepad'); if (sw) sw.checked = gamepadEnabled;
+      const statusEl = document.getElementById('gamepadStatus');
+      const submenu = document.getElementById('gamepadSubmenu');
+      
+      if (gamepadEnabled) {{
+        if (submenu) submenu.style.display = 'block';
+        enableThirdPerson();
+        // Try to find a connected gamepad
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        let found = false;
+        for (let i = 0; i < gamepads.length; i++) {{
+          if (gamepads[i] && gamepads[i].connected) {{
+            gamepadIndex = i;
+            gamepadPrevButtons = new Array(gamepads[i].buttons.length).fill(false);
+            found = true;
+            break;
+          }}
+        }}
+        updateGamepadStatusLabel();
+        if (!found && statusEl) {{
+          statusEl.textContent = '⏳ Waiting for controller...';
+          statusEl.style.color = '#f59e0b';
+        }}
+      }} else {{
+        disableThirdPerson();
+        gamepadIndex = -1;
+        if (submenu) submenu.style.display = 'none';
+        if (statusEl) {{ statusEl.textContent = ''; }}
+      }}
+    }}
+
+    function toggleGamepadInvertX() {{
+      gamepadInvertX = !gamepadInvertX;
+      const sw = document.getElementById('swGpInvX'); if (sw) sw.checked = !gamepadInvertX;
+    }}
+
+    function toggleGamepadInvertY() {{
+      gamepadInvertY = !gamepadInvertY;
+      const sw = document.getElementById('swGpInvY'); if (sw) sw.checked = gamepadInvertY;
+    }}
+
+    function updateGamepadStatusLabel() {{
+      const statusEl = document.getElementById('gamepadStatus');
+      if (!statusEl || !gamepadEnabled) return;
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const gp = (gamepadIndex >= 0) ? gamepads[gamepadIndex] : null;
+      if (gp && gp.connected) {{
+        const id = gp.id.toLowerCase();
+        if (id.includes('xbox') || id.includes('045e') || id.includes('xinput')) {{
+          gamepadType = 'xbox';
+          statusEl.textContent = '🟢 Xbox Controller';
+        }} else if (id.includes('dualsense') || id.includes('dualshock') || id.includes('054c') || id.includes('playstation')) {{
+          gamepadType = 'playstation';
+          statusEl.textContent = '🟢 PlayStation Controller';
+        }} else {{
+          gamepadType = 'generic';
+          statusEl.textContent = '🟢 Gamepad Connected';
+        }}
+        statusEl.style.color = '#4ade80';
+      }}
+    }}
+
+    function enableThirdPerson() {{
+      // Create character group and reparent model objects
+      characterGroup = new THREE.Group();
+      scene.add(characterGroup);
+      
+      // Compute model bounding box BEFORE reparenting
+      const box = new THREE.Box3();
+      meshes.filter(m => m.visible).forEach(m => box.expandByObject(m));
+      if (box.isEmpty()) meshes.forEach(m => box.expandByObject(m));
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const modelHeight = size.y;
+      characterCenterY = center.y;
+      characterMoveSpeed = modelHeight * 0.015;  // ~1.5% of model height per frame
+      
+      // Set camera distance based on model size
+      tpCamDist = modelHeight * 2.5;
+      tpCamTheta = Math.PI;
+      tpCamPhi = 1.2;
+      
+      // Reparent: root bone
+      if (bones.length > 0) {{
+        scene.remove(bones[0]);
+        characterGroup.add(bones[0]);
+      }}
+      // Reparent: all meshes
+      meshes.forEach(m => {{
+        scene.remove(m);
+        characterGroup.add(m);
+      }});
+      // Reparent: wireframe overlays
+      meshes.forEach(m => {{
+        if (m.userData.wireframeOverlay) {{
+          scene.remove(m.userData.wireframeOverlay);
+          characterGroup.add(m.userData.wireframeOverlay);
+        }}
+      }});
+      // Reparent: skeleton visualization
+      if (skeletonGroup) {{ scene.remove(skeletonGroup); characterGroup.add(skeletonGroup); }}
+      if (jointsGroup) {{ scene.remove(jointsGroup); characterGroup.add(jointsGroup); }}
+      
+      // Initial character rotation: face away from camera (towards -Z)
+      characterYaw = 0;
+      characterGroup.rotation.y = characterYaw;
+      
+      // Add ground grid
+      const gridSize = modelHeight * 60;
+      const gridDivs = 120;
+      groundGrid = new THREE.GridHelper(gridSize, gridDivs, 0x444466, 0x333355);
+      groundGrid.position.y = box.min.y;
+      scene.add(groundGrid);
+      
+      // Try to find walk/idle animations
+      tpAutoAnimWalk = null;
+      tpAutoAnimIdle = null;
+      tpCurrentAutoAnim = null;
+      const animNames = Object.keys(animationClips);
+      
+      // Find best match for idle and walk/run
+      for (const name of animNames) {{
+        const lower = name.toLowerCase();
+        // Idle: prefer "wait", fallback to idle/stand
+        if (lower === 'wait') tpAutoAnimIdle = name;
+        else if (!tpAutoAnimIdle && (lower.includes('wait') || lower.includes('idle') || lower.includes('stand'))) tpAutoAnimIdle = name;
+        // Walk/Run: prefer "run" (exact), ignore stop_run
+        if (lower === 'run') tpAutoAnimWalk = name;
+        else if (!tpAutoAnimWalk && (lower.startsWith('run') || lower.includes('run')) && !lower.includes('stop')) tpAutoAnimWalk = name;
+        else if (!tpAutoAnimWalk && (lower.includes('walk') || lower.includes('move'))) tpAutoAnimWalk = name;
+      }}
+      
+      // Auto-play idle if found
+      if (tpAutoAnimIdle && !currentAnimName) {{
+        playAnimationCrossfade(tpAutoAnimIdle, 0.1);
+        tpCurrentAutoAnim = tpAutoAnimIdle;
+      }}
+      
+      // Disable mouse orbit (camera is now gamepad-controlled)
+      controls._tpMode = true;
+      
+      // Position camera behind character
+      updateThirdPersonCamera();
+      
+      debug('Third-person mode ON. Walk:', tpAutoAnimWalk, 'Idle:', tpAutoAnimIdle, 'Speed:', characterMoveSpeed.toFixed(4));
+    }}
+
+    function disableThirdPerson() {{
+      if (!characterGroup) return;
+      
+      // Reparent everything back to scene
+      if (bones.length > 0) {{
+        characterGroup.remove(bones[0]);
+        scene.add(bones[0]);
+      }}
+      meshes.forEach(m => {{
+        characterGroup.remove(m);
+        scene.add(m);
+        if (m.userData.wireframeOverlay) {{
+          characterGroup.remove(m.userData.wireframeOverlay);
+          scene.add(m.userData.wireframeOverlay);
+        }}
+      }});
+      if (skeletonGroup) {{ characterGroup.remove(skeletonGroup); scene.add(skeletonGroup); }}
+      if (jointsGroup) {{ characterGroup.remove(jointsGroup); scene.add(jointsGroup); }}
+      
+      // Reset character group transform so model returns to origin
+      scene.remove(characterGroup);
+      characterGroup = null;
+      
+      // Remove grid
+      if (groundGrid) {{
+        scene.remove(groundGrid);
+        groundGrid.geometry.dispose();
+        if (Array.isArray(groundGrid.material)) groundGrid.material.forEach(m => m.dispose());
+        else groundGrid.material.dispose();
+        groundGrid = null;
+      }}
+      
+      // Re-enable mouse controls
+      controls._tpMode = false;
+      
+      tpCurrentAutoAnim = null;
+      tpIsMoving = false;
+      
+      // Reset camera to orbit view
+      const box = new THREE.Box3();
+      meshes.filter(m => m.visible).forEach(m => box.expandByObject(m));
+      if (box.isEmpty()) meshes.forEach(m => box.expandByObject(m));
+      if (!box.isEmpty()) {{
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const fov = camera.fov * (Math.PI / 180);
+        const dist = (maxDim / (2 * Math.tan(fov / 2))) * CONFIG.CAMERA_ZOOM;
+        const direction = new THREE.Vector3(0.5, 0.5, 1).normalize();
+        camera.position.copy(center).add(direction.multiplyScalar(dist));
+        camera.lookAt(center);
+        controls.target.copy(center);
+        const offset = camera.position.clone().sub(center);
+        controls.spherical.setFromVector3(offset);
+        controls.panOffset.set(0, 0, 0);
+        controls.update();
+      }}
+      
+      debug('Third-person mode OFF');
+    }}
+
+    function updateThirdPersonCamera() {{
+      if (!characterGroup) return;
+      
+      // Camera orbits around character center
+      const targetPos = characterGroup.position.clone();
+      targetPos.y += characterCenterY;
+      
+      // Spherical to cartesian
+      const x = tpCamDist * Math.sin(tpCamPhi) * Math.sin(tpCamTheta);
+      const y = tpCamDist * Math.cos(tpCamPhi);
+      const z = tpCamDist * Math.sin(tpCamPhi) * Math.cos(tpCamTheta);
+      
+      camera.position.set(targetPos.x + x, targetPos.y + y, targetPos.z + z);
+      camera.lookAt(targetPos);
+      
+      // Keep orbit controls in sync (so overlays etc. still work)
+      controls.target.copy(targetPos);
+      const offset = camera.position.clone().sub(targetPos);
+      controls.spherical.setFromVector3(offset);
+      controls.panOffset.set(0, 0, 0);
+    }}
+
+    // Listen for gamepad connection/disconnection
+    window.addEventListener('gamepadconnected', (e) => {{
+      if (!gamepadEnabled) return;
+      gamepadIndex = e.gamepad.index;
+      gamepadPrevButtons = new Array(e.gamepad.buttons.length).fill(false);
+      updateGamepadStatusLabel();
+      debug('Gamepad connected:', e.gamepad.id);
+    }});
+
+    window.addEventListener('gamepaddisconnected', (e) => {{
+      if (e.gamepad.index === gamepadIndex) {{
+        gamepadIndex = -1;
+        const statusEl = document.getElementById('gamepadStatus');
+        if (statusEl && gamepadEnabled) {{
+          statusEl.textContent = '🔴 Disconnected';
+          statusEl.style.color = '#ef4444';
+        }}
+      }}
+    }});
+
+    function applyStick(val) {{
+      return Math.abs(val) < gamepadDeadzone ? 0 : val;
+    }}
+
+    function updateGamepad() {{
+      if (!gamepadEnabled || gamepadIndex < 0) return;
+      
+      const gamepads = navigator.getGamepads();
+      const gp = gamepads[gamepadIndex];
+      if (!gp || !gp.connected) return;
+      
+      // ── Sticks ──
+      const lx = applyStick(gp.axes[0] || 0);  // Left stick X
+      const ly = applyStick(gp.axes[1] || 0);  // Left stick Y
+      const rx = applyStick(gp.axes[2] || 0);  // Right stick X
+      const ry = applyStick(gp.axes[3] || 0);  // Right stick Y
+      
+      // Store states for overlay rendering
+      gamepadButtonStates = gp.buttons.map(b => b.pressed);
+      gamepadAxesStates = [lx, ly, rx, ry];
+      gamepadTriggerStates = [gp.buttons[6] ? gp.buttons[6].value : 0, gp.buttons[7] ? gp.buttons[7].value : 0];
+      
+      // ── Invert axes ──
+      const invX = gamepadInvertX ? -1 : 1;
+      const invY = gamepadInvertY ? -1 : 1;
+      
+      // ── Right stick → orbit camera around character ──
+      if (rx !== 0) {{
+        tpCamTheta += rx * 0.04 * invX;
+      }}
+      if (ry !== 0) {{
+        tpCamPhi = Math.max(0.3, Math.min(Math.PI * 0.45, tpCamPhi + ry * 0.03 * invY));
+      }}
+      
+      // ── Triggers → zoom camera in/out ──
+      const lt = gp.buttons[6] ? gp.buttons[6].value : 0;
+      const rt = gp.buttons[7] ? gp.buttons[7].value : 0;
+      if (lt > 0.05 || rt > 0.05) {{
+        tpCamDist *= 1 + (lt - rt) * 0.02;
+        tpCamDist = Math.max(characterMoveSpeed * 10, tpCamDist);
+      }}
+      
+      // ── Left stick → move character in camera-relative direction ──
+      const isMovingNow = (lx !== 0 || ly !== 0);
+      
+      if (isMovingNow && characterGroup) {{
+        // Get camera forward direction on XZ plane
+        const camForward = new THREE.Vector3(
+          -Math.sin(tpCamTheta),
+          0,
+          -Math.cos(tpCamTheta)
+        ).normalize();
+        const camRight = new THREE.Vector3(camForward.z, 0, -camForward.x);
+        
+        // Movement vector in world space (apply invert to left stick too)
+        const moveDir = new THREE.Vector3();
+        moveDir.addScaledVector(camRight, lx * invX);
+        moveDir.addScaledVector(camForward, -ly * invY);  // -ly because stick forward = negative
+        
+        if (moveDir.lengthSq() > 0) {{
+          const stickMagnitude = Math.min(1, moveDir.length());
+          moveDir.normalize();
+          
+          // Move character
+          characterGroup.position.addScaledVector(moveDir, characterMoveSpeed * stickMagnitude);
+          
+          // Smoothly rotate character to face movement direction
+          const targetYaw = Math.atan2(moveDir.x, moveDir.z);
+          let yawDiff = targetYaw - characterYaw;
+          // Normalize to [-PI, PI]
+          while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
+          while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
+          characterYaw += yawDiff * 0.15;  // Smooth rotation
+          characterGroup.rotation.y = characterYaw;
+        }}
+      }}
+      
+      // ── Auto animation: crossfade between run/wait ──
+      if (isMovingNow && !tpIsMoving) {{
+        // Started moving → crossfade to run
+        if (tpAutoAnimWalk && tpCurrentAutoAnim !== tpAutoAnimWalk) {{
+          playAnimationCrossfade(tpAutoAnimWalk, 0.2);
+          tpCurrentAutoAnim = tpAutoAnimWalk;
+        }}
+      }} else if (!isMovingNow && tpIsMoving) {{
+        // Stopped moving → crossfade to idle
+        if (tpAutoAnimIdle && tpCurrentAutoAnim !== tpAutoAnimIdle) {{
+          playAnimationCrossfade(tpAutoAnimIdle, 0.35);
+          tpCurrentAutoAnim = tpAutoAnimIdle;
+        }}
+      }}
+      tpIsMoving = isMovingNow;
+      
+      // ── Buttons (rising edge) ──
+      const buttons = gp.buttons.map(b => b.pressed);
+      function justPressed(idx) {{
+        return idx < buttons.length && buttons[idx] && !gamepadPrevButtons[idx];
+      }}
+      
+      // A / Cross (0) → play/pause animation
+      if (justPressed(0)) {{
+        toggleAnimPlayback();
+        tpCurrentAutoAnim = null;  // Disable auto-anim after manual control
+      }}
+      
+      // B / Circle (1) → stop animation
+      if (justPressed(1)) {{
+        stopAnimation();
+        tpCurrentAutoAnim = null;
+      }}
+      
+      // X / Square (2) → reset character to origin
+      if (justPressed(2)) {{
+        if (characterGroup) {{
+          characterGroup.position.set(0, 0, 0);
+          characterYaw = 0;
+          characterGroup.rotation.y = 0;
+        }}
+      }}
+      
+      // Y / Triangle (3) → toggle dynamic bones
+      if (justPressed(3)) {{
+        toggleDynamicBones();
+        document.getElementById('swDynBones').checked = dynamicBonesEnabled;
+      }}
+      
+      // LB (4) → previous animation
+      if (justPressed(4)) {{
+        const sel = document.getElementById('animation-select');
+        if (sel && sel.selectedIndex > 0) {{
+          sel.selectedIndex--;
+          playAnimationCrossfade(sel.value, 0.25);
+          tpCurrentAutoAnim = null;
+        }}
+      }}
+      
+      // RB (5) → next animation
+      if (justPressed(5)) {{
+        const sel = document.getElementById('animation-select');
+        if (sel && sel.selectedIndex < sel.options.length - 1) {{
+          sel.selectedIndex++;
+          playAnimationCrossfade(sel.value, 0.25);
+          tpCurrentAutoAnim = null;
+        }}
+      }}
+      
+      // D-pad Up (12) → speed up
+      if (justPressed(12)) {{
+        const slider = document.getElementById('animSpeedSlider');
+        if (slider) {{ slider.value = Math.min(100, parseInt(slider.value) + 10); updateAnimSpeed(slider.value); }}
+      }}
+      
+      // D-pad Down (13) → slow down
+      if (justPressed(13)) {{
+        const slider = document.getElementById('animSpeedSlider');
+        if (slider) {{ slider.value = Math.max(-100, parseInt(slider.value) - 10); updateAnimSpeed(slider.value); }}
+      }}
+      
+      // D-pad Left (14) → toggle wireframe
+      if (justPressed(14)) {{
+        toggleWireframe();
+        document.getElementById('swWire').checked = wireframeMode;
+      }}
+      
+      // D-pad Right (15) → toggle skeleton
+      if (justPressed(15)) {{
+        toggleSkeleton();
+        document.getElementById('swSkel').checked = showSkeleton;
+      }}
+      
+      // Start (9) → screenshot
+      if (justPressed(9)) {{
+        requestScreenshot();
+      }}
+      
+      gamepadPrevButtons = buttons;
+      
+      // ── Update third-person camera ──
+      updateThirdPersonCamera();
+    }}
+
     function updateStats() {{
       let totalTris = 0;
       let totalVerts = 0;
@@ -3597,6 +4170,74 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
       html += '<div>' + dot(colorMode) + ' Colors  ' + dot(textureMode) + ' Textures  ' + dot(wireframeMode) + ' Wire  ' + dot(wireframeOverlayMode) + ' Overlay</div>';
       html += '<div>' + dot(showSkeleton) + ' Skeleton  ' + dot(showJoints) + ' Joints  ' + dot(showBoneNames) + ' Names  ' + dot(dynamicBonesEnabled) + ' DynBones</div>';
+      if (gamepadEnabled) {{
+        const gps = navigator.getGamepads ? navigator.getGamepads() : [];
+        const gp = (gamepadIndex >= 0 && gps[gamepadIndex]) ? gps[gamepadIndex] : null;
+        const tp = gamepadType;
+        const labels = GP_LABELS[tp] || GP_LABELS.generic;
+        const colors = GP_COLORS[tp] || {{}};
+        const bs = gamepadButtonStates;  // current pressed states
+        const ax = gamepadAxesStates;
+        const tr = gamepadTriggerStates;
+        const typeName = tp === 'xbox' ? 'Xbox' : tp === 'playstation' ? 'PlayStation' : 'Gamepad';
+        
+        html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
+        html += '<div style="color:#a78bfa;font-weight:bold">🎮 ' + typeName + (gp ? '' : ' · Waiting') + '</div>';
+        
+        // Button helper: renders a small styled button tag
+        function btn(idx, action) {{
+          const pressed = bs[idx];
+          const label = labels[idx] || idx;
+          const faceColor = colors[idx];
+          let bg = pressed ? 'rgba(124,58,237,0.6)' : 'rgba(50,50,70,0.6)';
+          let border = pressed ? '#a78bfa' : '#555';
+          let fg = faceColor || (pressed ? '#fff' : '#999');
+          if (pressed && faceColor) {{ bg = faceColor; fg = '#000'; border = faceColor; }}
+          return '<span style="display:inline-block;padding:1px 4px;margin:1px;border-radius:3px;' +
+            'background:' + bg + ';border:1px solid ' + border + ';color:' + fg + ';font-size:10px;' +
+            'min-width:18px;text-align:center;font-weight:' + (pressed ? 'bold' : 'normal') + '">' +
+            label + '</span><span style="color:' + (pressed ? '#e0e0e0' : '#777') + ';font-size:10px;margin-right:6px">' + action + '</span>';
+        }}
+        
+        // Stick indicator helper
+        function stick(label, action, xVal, yVal) {{
+          const active = (Math.abs(xVal) > 0 || Math.abs(yVal) > 0);
+          const fg = active ? '#e0e0e0' : '#777';
+          const bg = active ? 'rgba(124,58,237,0.4)' : 'rgba(50,50,70,0.6)';
+          // Mini stick visualization: dot position
+          const dotX = Math.round(xVal * 5);
+          const dotY = Math.round(yVal * 5);
+          return '<span style="display:inline-block;position:relative;width:16px;height:16px;' +
+            'border-radius:50%;background:' + bg + ';border:1px solid ' + (active ? '#a78bfa' : '#555') + ';' +
+            'vertical-align:middle;margin:1px 2px">' +
+            '<span style="position:absolute;width:4px;height:4px;border-radius:50%;background:' + (active ? '#a78bfa' : '#888') + ';' +
+            'left:' + (5 + dotX) + 'px;top:' + (5 + dotY) + 'px"></span></span>' +
+            '<span style="color:' + fg + ';font-size:10px;margin-right:6px">' + action + '</span>';
+        }}
+        
+        // Trigger helper
+        function trig(idx, action, val) {{
+          const active = val > 0.05;
+          const label = labels[idx] || idx;
+          const pct = Math.round(val * 100);
+          let bg = active ? 'rgba(124,58,237,' + (0.2 + val * 0.5) + ')' : 'rgba(50,50,70,0.6)';
+          return '<span style="display:inline-block;padding:1px 4px;margin:1px;border-radius:3px;' +
+            'background:' + bg + ';border:1px solid ' + (active ? '#a78bfa' : '#555') + ';color:' + (active ? '#e0e0e0' : '#999') + ';' +
+            'font-size:10px;min-width:18px;text-align:center">' + label + '</span>' +
+            '<span style="color:' + (active ? '#e0e0e0' : '#777') + ';font-size:10px;margin-right:6px">' + action + '</span>';
+        }}
+        
+        html += '<div style="line-height:18px">';
+        html += stick('LS', 'Move', ax[0], ax[1]) + stick('RS', 'Camera', ax[2], ax[3]) + '<br>';
+        html += btn(0, 'Play') + btn(1, 'Stop') + '<br>';
+        html += btn(2, 'Reset') + btn(3, 'DynB') + '<br>';
+        html += btn(4, '◀Anim') + btn(5, 'Anim▶') + '<br>';
+        html += trig(6, 'Zoom-', tr[0]) + trig(7, 'Zoom+', tr[1]) + '<br>';
+        html += btn(12, 'Spd+') + btn(13, 'Spd-') + '<br>';
+        html += btn(14, 'Wire') + btn(15, 'Skel') + '<br>';
+        html += btn(9, '📸 Shot');
+        html += '</div>';
+      }}
       if (opacity < 1.0) {{
         html += '<div style="color:#9ca3af">Opacity: ' + opacity.toFixed(2) + '</div>';
       }}
@@ -4048,6 +4689,25 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const optLine2 = opts2.map(o => (o[1] ? '●' : '○') + ' ' + o[0]).join('  ');
       lines.push([optLine2, 'mixed']);
 
+      if (gamepadEnabled) {{
+        const tp = gamepadType;
+        const labels = GP_LABELS[tp] || GP_LABELS.generic;
+        const typeName = tp === 'xbox' ? 'Xbox' : tp === 'playstation' ? 'PlayStation' : 'Gamepad';
+        lines.push([div, 'divider']);
+        lines.push(['🎮 ' + typeName, 'title']);
+        // gprow: array of [btnIdx, action] pairs per row (-1 = stick, -2 = trigger)
+        lines.push([[[{{'t':'stick','x':gamepadAxesStates[0],'y':gamepadAxesStates[1]}}, 'Move'],
+                      [{{'t':'stick','x':gamepadAxesStates[2],'y':gamepadAxesStates[3]}}, 'Camera']], 'gprow']);
+        lines.push([[[0, 'Play'], [1, 'Stop']], 'gprow']);
+        lines.push([[[2, 'Reset'], [3, 'DynB']], 'gprow']);
+        lines.push([[[4, '◀Anim'], [5, 'Anim▶']], 'gprow']);
+        lines.push([[[{{'t':'trig','idx':6,'v':gamepadTriggerStates[0]}}, 'Zoom-'],
+                      [{{'t':'trig','idx':7,'v':gamepadTriggerStates[1]}}, 'Zoom+']], 'gprow']);
+        lines.push([[[12, 'Spd+'], [13, 'Spd-']], 'gprow']);
+        lines.push([[[14, 'Wire'], [15, 'Skel']], 'gprow']);
+        lines.push([[[9, '📸Shot']], 'gprow']);
+      }}
+
       if (opacity < 1.0) {{
         lines.push(['Opacity: ' + opacity.toFixed(2), 'value']);
       }}
@@ -4074,9 +4734,18 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
       // Measure max width
       let maxW = 0;
+      const gpBtnW = Math.round(28 * sf);  // button width
+      const gpActW = Math.round(40 * sf);  // action label width
+      const gpPairW = gpBtnW + gpActW + Math.round(6 * sf);  // one btn+action pair
+      
       lines.forEach(l => {{
-        const m = ctx.measureText(l[0]);
-        if (m.width > maxW) maxW = m.width;
+        if (l[1] === 'gprow') {{
+          const rowW = l[0].length * gpPairW;
+          if (rowW > maxW) maxW = rowW;
+        }} else {{
+          const m = ctx.measureText(l[0]);
+          if (m.width > maxW) maxW = m.width;
+        }}
       }});
 
       const boxW = maxW + padding * 2;
@@ -4120,6 +4789,183 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }};
 
       lines.forEach(([text, type]) => {{
+        if (type === 'gprow') {{
+          // Render gamepad button row with graphical icons
+          const pairs = text;  // array of [btnData, actionLabel]
+          let tx = boxX + padding;
+          const labels = GP_LABELS[gamepadType] || GP_LABELS.generic;
+          const fColors = GP_COLORS[gamepadType] || {{}};
+          const btnH = Math.round(14 * sf);
+          const btnR = Math.round(3 * sf);
+          const gap = Math.round(4 * sf);
+          const smallFont = Math.round(9 * sf) + 'px monospace';
+          const tinyFont = Math.round(7 * sf) + 'px monospace';
+          
+          pairs.forEach(([btnData, action]) => {{
+            if (typeof btnData === 'object' && btnData.t === 'stick') {{
+              // ── Draw stick circle ──
+              const stR = Math.round(8 * sf);
+              const cx = tx + stR;
+              const cy = ty + lineHeight / 2;
+              const active = (Math.abs(btnData.x) > 0 || Math.abs(btnData.y) > 0);
+              
+              // Outer ring
+              ctx.beginPath();
+              ctx.arc(cx, cy, stR, 0, Math.PI * 2);
+              ctx.fillStyle = active ? 'rgba(124,58,237,0.4)' : 'rgba(50,50,70,0.6)';
+              ctx.fill();
+              ctx.strokeStyle = active ? '#a78bfa' : '#555';
+              ctx.lineWidth = sf;
+              ctx.stroke();
+              
+              // Inner dot (position based on axes)
+              const dotR = Math.round(2.5 * sf);
+              const dx = cx + btnData.x * (stR - dotR - sf);
+              const dy = cy + btnData.y * (stR - dotR - sf);
+              ctx.beginPath();
+              ctx.arc(dx, dy, dotR, 0, Math.PI * 2);
+              ctx.fillStyle = active ? '#a78bfa' : '#888';
+              ctx.fill();
+              
+              // Action label
+              ctx.font = smallFont;
+              ctx.fillStyle = active ? '#e0e0e0' : '#777';
+              ctx.fillText(action, cx + stR + gap, ty + (lineHeight - 9 * sf) / 2);
+              tx += stR * 2 + gap + gpActW + gap;
+              
+            }} else if (typeof btnData === 'object' && btnData.t === 'trig') {{
+              // ── Draw trigger bar ──
+              const barW = gpBtnW;
+              const barH = btnH;
+              const bx = tx;
+              const by = ty + (lineHeight - barH) / 2;
+              const val = btnData.v;
+              const active = val > 0.05;
+              const label = labels[btnData.idx] || '';
+              
+              // Background
+              ctx.fillStyle = 'rgba(50,50,70,0.6)';
+              ctx.beginPath();
+              ctx.roundRect(bx, by, barW, barH, btnR);
+              ctx.fill();
+              
+              // Fill bar
+              if (active) {{
+                ctx.fillStyle = 'rgba(124,58,237,' + (0.3 + val * 0.5) + ')';
+                ctx.beginPath();
+                ctx.roundRect(bx, by, barW * val, barH, btnR);
+                ctx.fill();
+              }}
+              
+              // Border
+              ctx.strokeStyle = active ? '#a78bfa' : '#555';
+              ctx.lineWidth = sf;
+              ctx.beginPath();
+              ctx.roundRect(bx, by, barW, barH, btnR);
+              ctx.stroke();
+              
+              // Label centered
+              ctx.font = tinyFont;
+              ctx.fillStyle = active ? '#e0e0e0' : '#999';
+              ctx.textAlign = 'center';
+              ctx.fillText(label, bx + barW / 2, by + (barH - 7 * sf) / 2);
+              ctx.textAlign = 'left';
+              
+              // Action label
+              ctx.font = smallFont;
+              ctx.fillStyle = active ? '#e0e0e0' : '#777';
+              ctx.fillText(action, bx + barW + gap, ty + (lineHeight - 9 * sf) / 2);
+              tx += barW + gap + gpActW + gap;
+              
+            }} else {{
+              // ── Draw regular button ──
+              const idx = btnData;
+              const pressed = gamepadButtonStates[idx];
+              const label = labels[idx] || String(idx);
+              const faceColor = fColors[idx];
+              const bx = tx;
+              const by = ty + (lineHeight - btnH) / 2;
+              
+              // Button shape: face buttons round, others rounded rect
+              const isFace = (idx >= 0 && idx <= 3);
+              const isDpad = (idx >= 12 && idx <= 15);
+              
+              if (isFace) {{
+                // Circular face button
+                const cr = btnH / 2;
+                const cx = bx + cr;
+                const cy = by + cr;
+                ctx.beginPath();
+                ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+                if (pressed && faceColor) {{
+                  ctx.fillStyle = faceColor;
+                }} else {{
+                  ctx.fillStyle = pressed ? 'rgba(124,58,237,0.6)' : 'rgba(50,50,70,0.6)';
+                }}
+                ctx.fill();
+                ctx.strokeStyle = pressed ? (faceColor || '#a78bfa') : '#555';
+                ctx.lineWidth = sf;
+                ctx.stroke();
+                
+                // Label
+                ctx.font = 'bold ' + tinyFont;
+                ctx.fillStyle = (pressed && faceColor) ? '#000' : (faceColor || (pressed ? '#fff' : '#999'));
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(label, cx, cy);
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                
+                tx += btnH + gap;
+              }} else if (isDpad) {{
+                // D-pad: square-ish with arrow
+                ctx.fillStyle = pressed ? 'rgba(124,58,237,0.6)' : 'rgba(50,50,70,0.6)';
+                ctx.beginPath();
+                ctx.roundRect(bx, by, gpBtnW, btnH, btnR);
+                ctx.fill();
+                ctx.strokeStyle = pressed ? '#a78bfa' : '#555';
+                ctx.lineWidth = sf;
+                ctx.beginPath();
+                ctx.roundRect(bx, by, gpBtnW, btnH, btnR);
+                ctx.stroke();
+                
+                ctx.font = tinyFont;
+                ctx.fillStyle = pressed ? '#fff' : '#999';
+                ctx.textAlign = 'center';
+                ctx.fillText(label, bx + gpBtnW / 2, by + (btnH - 7 * sf) / 2);
+                ctx.textAlign = 'left';
+                tx += gpBtnW + gap;
+              }} else {{
+                // Bumper / Start / etc
+                ctx.fillStyle = pressed ? 'rgba(124,58,237,0.6)' : 'rgba(50,50,70,0.6)';
+                ctx.beginPath();
+                ctx.roundRect(bx, by, gpBtnW, btnH, btnR);
+                ctx.fill();
+                ctx.strokeStyle = pressed ? '#a78bfa' : '#555';
+                ctx.lineWidth = sf;
+                ctx.beginPath();
+                ctx.roundRect(bx, by, gpBtnW, btnH, btnR);
+                ctx.stroke();
+                
+                ctx.font = tinyFont;
+                ctx.fillStyle = pressed ? '#fff' : '#999';
+                ctx.textAlign = 'center';
+                ctx.fillText(label, bx + gpBtnW / 2, by + (btnH - 7 * sf) / 2);
+                ctx.textAlign = 'left';
+                tx += gpBtnW + gap;
+              }}
+              
+              // Action label next to button
+              ctx.font = smallFont;
+              ctx.fillStyle = pressed ? '#e0e0e0' : '#777';
+              ctx.fillText(action, tx, ty + (lineHeight - 9 * sf) / 2);
+              tx += gpActW + gap;
+            }}
+          }});
+          ty += lineHeight;
+          return;
+        }}
+        
         const [color, bold] = colorMap[type] || ['#e0e0e0', false];
         ctx.fillStyle = color;
         ctx.font = (bold ? 'bold ' : '') + fontSize + 'px monospace';
@@ -4271,6 +5117,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         updateBoneLabels();
       }}
       
+      updateGamepad();
       controls.update();
       renderer.render(scene, camera);
       
