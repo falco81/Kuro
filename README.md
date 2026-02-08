@@ -18,11 +18,28 @@ it currently only supports mi/json model_info in text form, it does not support 
     └───dx11
         └───image
 ```
+New features Beta3
 
-![viewer_mdl/viewer.png](viewer_mdl/viewer_anim.png)
+```bash
+-bug fixes
+-support for loading files from model_info in binary format (autodetection)
+-editing the entire UI
+-support for video recording
+-support for quality settings for video and screenshots
+-fixing physics (still has bugs)
+-physics reacts to character movements with the mouse (physics display must be turned on in the UI)
+-video demo, all options for setting collision on/off, physics intensity, etc...
+```
+
+Beta3
+![viewer_mdl/viewer.png](viewer_mdl/viewer_anim3.gif)
+![viewer_mdl/viewer.png](viewer_mdl/viewer_anim3.png)
 
 Beta2
 ![viewer_mdl/viewer.png](viewer_mdl/viewer_anim2.png)
+
+Beta1
+![viewer_mdl/viewer.png](viewer_mdl/viewer_anim.png)
 
 **viewer_mdl_textured.exe**
 
