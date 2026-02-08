@@ -407,7 +407,7 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
               padding: 18px; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }}
     #info {{ top: 20px; left: 20px; max-width: 220px; }}
     #controls {{ top: 20px; right: 20px; max-height: 85vh; overflow-y: auto; 
-                 min-width: 200px; max-width: 400px; width: auto;
+                 min-width: 240px; max-width: 400px; width: auto;
                  transition: transform 0.3s ease; }}
     #controls.collapsed {{ transform: translateX(calc(100% + 20px)); }}
     #controls-toggle {{ position: absolute; top: 20px; right: 20px; width: 40px; height: 40px; 
@@ -418,44 +418,49 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
     #controls-toggle.visible {{ display: block; }}
     #stats {{ bottom: 20px; left: 20px; font-family: monospace; font-size: 12px; }}
     h3 {{ margin: 0 0 12px 0; color: #7c3aed; font-size: 16px; }}
-    h4 {{ margin: 15px 0 10px 0; padding-bottom: 8px; border-bottom: 1px solid rgba(124, 58, 237, 0.3);
-          font-size: 14px; color: #a78bfa; font-weight: 500; }}
-    button {{ background: linear-gradient(135deg, #7c3aed, #a855f7); border: none;
-             color: white; padding: 10px; margin: 5px 0; cursor: pointer;
-             border-radius: 6px; width: 100%; font-weight: 600; font-size: 13px; }}
-    button:hover {{ transform: translateY(-1px); box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4); }}
-    .toggle-btn {{
+
+    /* === Action buttons === */
+    .btn-action {{
+      background: linear-gradient(135deg, #6d28d9, #7c3aed, #9333ea); border: none;
+      color: white; padding: 11px 16px; margin: 4px 0; cursor: pointer;
+      border-radius: 8px; width: 100%; font-weight: 600; font-size: 13px;
+      display: flex; align-items: center; gap: 8px; justify-content: center;
+      transition: all 0.15s ease;
+    }}
+    .btn-action:hover {{ filter: brightness(1.15); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35); }}
+
+    /* === Toggle row (label + switch) === */
+    .toggle-row {{
       display: flex; align-items: center; justify-content: space-between;
-      background: rgba(124, 58, 237, 0.15); border: 1px solid rgba(124, 58, 237, 0.3);
-      color: #e0e0e0; padding: 10px 12px; margin: 5px 0; cursor: pointer;
-      border-radius: 6px; width: 100%; font-weight: 500; font-size: 13px;
-      transition: all 0.2s ease;
+      padding: 9px 14px; margin: 4px 0; background: rgba(124, 58, 237, 0.12);
+      border-radius: 8px; cursor: pointer; transition: background 0.15s;
     }}
-    .toggle-btn:hover {{ background: rgba(124, 58, 237, 0.25); }}
-    .toggle-btn.active {{
-      background: rgba(124, 58, 237, 0.35); border-color: rgba(124, 58, 237, 0.6);
+    .toggle-row:hover {{ background: rgba(124, 58, 237, 0.22); }}
+    .toggle-row .label {{ display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; }}
+
+    /* === Toggle switch === */
+    .toggle-switch {{
+      position: relative; width: 42px; height: 22px; flex-shrink: 0;
     }}
-    .toggle-btn .toggle-label {{ display: flex; align-items: center; gap: 6px; }}
-    .toggle-btn .toggle-indicator {{
-      width: 36px; height: 20px; border-radius: 10px; position: relative;
-      background: rgba(100, 100, 120, 0.5); transition: background 0.2s ease; flex-shrink: 0;
+    .toggle-switch input {{ opacity: 0; width: 0; height: 0; }}
+    .toggle-switch .slider {{
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(100, 100, 120, 0.5); border-radius: 22px;
+      transition: background 0.2s; cursor: pointer;
     }}
-    .toggle-btn.active .toggle-indicator {{ background: #7c3aed; }}
-    .toggle-btn .toggle-indicator::after {{
-      content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%;
-      background: white; top: 2px; left: 2px; transition: transform 0.2s ease;
+    .toggle-switch .slider::before {{
+      content: ''; position: absolute; width: 16px; height: 16px;
+      left: 3px; bottom: 3px; background: #888; border-radius: 50%;
+      transition: all 0.2s;
     }}
-    .toggle-btn.active .toggle-indicator::after {{ transform: translateX(16px); }}
-    .cycle-btn {{
-      display: flex; align-items: center; justify-content: space-between;
-      background: rgba(124, 58, 237, 0.15); border: 1px solid rgba(124, 58, 237, 0.3);
-      color: #e0e0e0; padding: 10px 12px; margin: 5px 0; cursor: pointer;
-      border-radius: 6px; width: 100%; font-weight: 500; font-size: 13px;
-      transition: all 0.2s ease;
+    .toggle-switch input:checked + .slider {{
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
     }}
-    .cycle-btn:hover {{ background: rgba(124, 58, 237, 0.25); }}
-    .cycle-btn.active {{ background: rgba(124, 58, 237, 0.35); border-color: rgba(124, 58, 237, 0.6); }}
-    .cycle-btn .toggle-label {{ display: flex; align-items: center; gap: 6px; }}
+    .toggle-switch input:checked + .slider::before {{
+      transform: translateX(20px); background: white;
+    }}
+
+    /* === Cycle dots (3-state Colors) === */
     .cycle-dots {{ display: flex; gap: 6px; align-items: center; flex-shrink: 0; }}
     .cycle-dot {{
       width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent;
@@ -465,17 +470,53 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
     .cycle-dot.dot-color {{ background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #ffe66d); }}
     .cycle-dot.dot-white {{ background: #ffffff; }}
     .cycle-dot.current {{ opacity: 1; border-color: #a78bfa; transform: scale(1.15); box-shadow: 0 0 8px rgba(167, 139, 250, 0.5); }}
+
+    /* === Mesh toggles === */
     .mesh-toggle {{
-      display: flex; align-items: center; margin: 8px 0; padding: 8px;
+      display: flex; align-items: center; margin: 4px 0; padding: 7px 10px;
       background: rgba(124, 58, 237, 0.1); border-radius: 6px; transition: background 0.2s;
     }}
     .mesh-toggle:hover {{ background: rgba(124, 58, 237, 0.2); }}
-    .mesh-toggle input {{ margin-right: 10px; cursor: pointer; width: 18px; height: 18px; }}
-    .mesh-toggle label {{ cursor: pointer; flex-grow: 1; font-size: 13px; }}
+    .mesh-toggle input {{ margin-right: 10px; cursor: pointer; width: 16px; height: 16px; accent-color: #7c3aed; }}
+    .mesh-toggle label {{ cursor: pointer; flex-grow: 1; font-size: 12px; }}
     .texture-indicator {{
       display: inline-block; width: 12px; height: 12px; border-radius: 3px;
       margin-left: 6px; background: linear-gradient(135deg, #10b981, #34d399);
     }}
+
+    /* === Select / dropdown === */
+    .styled-select {{
+      width: 100%; padding: 9px 12px; margin-bottom: 6px;
+      background: #2a2a3e; color: #e0e0e0;
+      border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 8px;
+      font-size: 13px; cursor: pointer; outline: none;
+    }}
+    .styled-select:focus {{ border-color: #7c3aed; }}
+    .styled-select option {{ background: #2a2a3e; color: #e0e0e0; padding: 6px; }}
+
+    /* === Slider rows === */
+    .slider-row {{
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 14px; margin: 2px 0;
+    }}
+
+    /* === Section title (collapsible) === */
+    .section-title {{
+      font-size: 13px; font-weight: 600; color: #a78bfa; margin: 14px 0 8px 0;
+      padding-bottom: 6px; border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+      display: flex; align-items: center; gap: 6px;
+    }}
+
+    /* === Info helpers === */
+    .info-text {{ font-size: 11px; color: #9ca3af; }}
+    .info-badge {{
+      background: rgba(124, 58, 237, 0.15); padding: 10px; border-radius: 8px;
+      font-size: 11px; margin-bottom: 8px;
+    }}
+    .info-badge .row {{ display: flex; align-items: center; gap: 8px; }}
+    .info-badge .row + .row {{ margin-top: 6px; }}
+
+    /* === Modal === */
     #screenshot-modal {{
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;
@@ -493,87 +534,114 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
       font-family: monospace; color: #a78bfa; word-break: break-all; margin: 15px 0;
       cursor: pointer; transition: all 0.2s;
     }}
-    .modal-content .filename:hover {{
-      background: rgba(124, 58, 237, 0.3); color: #c4b5fd;
-    }}
-    .modal-content button {{
-      margin-top: 20px; padding: 12px 30px; font-size: 14px; width: auto;
-      min-width: 120px;
-    }}
+    .modal-content .filename:hover {{ background: rgba(124, 58, 237, 0.3); }}
+    .modal-content button {{ max-width: 200px; margin: 10px auto; }}
+
+    /* === Scrollbar === */
+    #controls::-webkit-scrollbar {{ width: 6px; }}
+    #controls::-webkit-scrollbar-track {{ background: transparent; }}
+    #controls::-webkit-scrollbar-thumb {{ background: rgba(124, 58, 237, 0.3); border-radius: 3px; }}
+    #controls::-webkit-scrollbar-thumb:hover {{ background: rgba(124, 58, 237, 0.5); }}
   </style>
 </head>
 <body>
   <button id="controls-toggle" onclick="toggleControlsPanel()">☰</button>
   <div id="container"></div>
   <div id="info" class="panel">
-    <h3>📦 Model Viewer</h3>
+    <h3>🎮 Model Viewer</h3>
     <p style="font-size: 13px; color: #b0b0b0; line-height: 1.5; margin-bottom: 12px;">
-      <strong style="color: #7c3aed;">{mdl_path.name}</strong>
+      <strong style="color: #a78bfa;">{mdl_path.name}</strong>
     </p>
-    <div id="texture-status" style="background: rgba(124, 58, 237, 0.15); padding: 10px; border-radius: 8px; font-size: 11px; margin-bottom: 12px;">
-      <div style="display: flex; align-items: center; gap: 8px;">
+    <div class="info-badge" style="margin-bottom: 12px;">
+      <div class="row">
         <span style="font-size: 16px;">🎨</span>
         <span style="color: #9ca3af;" id="texture-info">Loading textures...</span>
       </div>
     </div>
-    <div style="background: rgba(124, 58, 237, 0.15); padding: 10px; border-radius: 8px; font-size: 11px;">
-      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+    <div class="info-badge">
+      <div class="row">
         <span style="font-size: 16px;">🖱️</span>
         <span style="color: #9ca3af;">Left: Rotate</span>
       </div>
-      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+      <div class="row">
         <span style="font-size: 16px;">🖱️</span>
         <span style="color: #9ca3af;">Right: Pan</span>
       </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
+      <div class="row">
         <span style="font-size: 16px;">🔄</span>
         <span style="color: #9ca3af;">Wheel: Zoom</span>
       </div>
     </div>
   </div>
   <div id="controls" class="panel">
-    <h4>🎮 Controls</h4>
-    <button onclick="toggleAllMeshes(true)">✅ Show All</button>
-    <button onclick="toggleAllMeshes(false)">❌ Hide All</button>
-    <div class="cycle-btn" id="btn-colors" onclick="toggleColors()">
-      <span class="toggle-label">🎨 Colors</span>
+    <div class="section-title">🎮 Controls</div>
+
+    <div class="toggle-row" onclick="toggleColors()">
+      <span class="label">🎨 Colors</span>
       <span class="cycle-dots">
         <span class="cycle-dot dot-off current" title="Off (gray)"></span>
         <span class="cycle-dot dot-color" title="Per-mesh colors"></span>
         <span class="cycle-dot dot-white" title="White"></span>
       </span>
     </div>
-    <div class="toggle-btn active" id="btn-textures" onclick="toggleTextures()">
-      <span class="toggle-label">🖼️ Toggle Textures</span>
-      <span class="toggle-indicator"></span>
+    <div class="toggle-row" onclick="toggleTextures(); document.getElementById('swTex').checked = texturesEnabled;">
+      <span class="label">🖼️ Textures</span>
+      <label class="toggle-switch" onclick="event.stopPropagation()">
+        <input type="checkbox" id="swTex" checked onchange="toggleTextures()">
+        <span class="slider"></span>
+      </label>
     </div>
-    <div class="toggle-btn" id="btn-wireframe" onclick="toggleWireframe()">
-      <span class="toggle-label">📐 Wireframe Only</span>
-      <span class="toggle-indicator"></span>
+    <div class="toggle-row" onclick="toggleWireframe(); document.getElementById('swWire').checked = wireframeMode;">
+      <span class="label">📐 Wireframe Only</span>
+      <label class="toggle-switch" onclick="event.stopPropagation()">
+        <input type="checkbox" id="swWire" onchange="toggleWireframe()">
+        <span class="slider"></span>
+      </label>
     </div>
-    <div class="toggle-btn" id="btn-wireframe-overlay" onclick="toggleWireframeOverlay()">
-      <span class="toggle-label">🔲 Wireframe Overlay</span>
-      <span class="toggle-indicator"></span>
+    <div class="toggle-row" onclick="toggleWireframeOverlay(); document.getElementById('swWireOver').checked = wireframeOverlayMode;">
+      <span class="label">🔲 Wireframe Overlay</span>
+      <label class="toggle-switch" onclick="event.stopPropagation()">
+        <input type="checkbox" id="swWireOver" onchange="toggleWireframeOverlay()">
+        <span class="slider"></span>
+      </label>
     </div>
-    <button onclick="resetCamera()">🎯 Reset Camera</button>
-    <button onclick="takeScreenshot()">📷 Screenshot</button>
-    <h4>👁️ Meshes</h4>
-    <div id="mesh-list"></div>
+
+    <button class="btn-action" onclick="resetCamera()">🔄 Reset Camera</button>
+    <button class="btn-action" onclick="takeScreenshot()">📸 Screenshot</button>
+
+    <div class="section-title" style="cursor:pointer;user-select:none;" onclick="const el=document.getElementById('captureSettings'); el.style.display=el.style.display==='none'?'block':'none'; this.querySelector('.arrow').textContent=el.style.display==='none'?'▶':'▼';">⚙️ Capture Settings <span class="arrow" style="font-size:10px;margin-left:4px;">▶</span></div>
+    <div id="captureSettings" style="display:none;">
+      <div class="slider-row">
+        <span class="info-text" style="min-width:72px;">Screenshot:</span>
+        <select id="screenshotScale" class="styled-select" style="width:auto;flex:1;margin:0;padding:6px 8px;">
+          <option value="1">1× (native)</option>
+          <option value="2" selected>2× (double)</option>
+          <option value="4">4× (ultra)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section-title" style="cursor:pointer;user-select:none;" onclick="const el=document.getElementById('meshSection'); el.style.display=el.style.display==='none'?'block':'none'; this.querySelector('.arrow').textContent=el.style.display==='none'?'▶':'▼';">📦 Meshes <span class="arrow" style="font-size:10px;margin-left:4px;">▶</span></div>
+    <div id="meshSection" style="display:none;">
+      <button class="btn-action" onclick="toggleAllMeshes(true)">✅ Show All</button>
+      <button class="btn-action" onclick="toggleAllMeshes(false)">❌ Hide All</button>
+      <div id="mesh-list"></div>
+    </div>
   </div>
   <div id="stats" class="panel">
-    <div id="vertices"></div>
-    <div id="triangles"></div>
-    <div id="visible"></div>
-    <div id="fps"></div>
+    <div id="fps">FPS: 60</div>
+    <div>Vertices: <span id="vertices">0</span></div>
+    <div>Triangles: <span id="triangles">0</span></div>
+    <div>Visible: <span id="visible">0</span></div>
   </div>
 
-  <!-- Screenshot Modal -->
   <div id="screenshot-modal">
     <div class="modal-content">
-      <h3>📷 Screenshot Saved</h3>
-      <p>Screenshot has been successfully saved to:</p>
-      <div class="filename" id="screenshot-path"></div>
-      <button onclick="closeScreenshotModal()">OK</button>
+      <h3>Screenshot Saved</h3>
+      <p>Your screenshot has been saved to:</p>
+      <div class="filename" id="screenshot-path" onclick="openScreenshot()">filename.png</div>
+      <p style="font-size: 12px; color: #9ca3af;">Click filename to open file</p>
+      <button class="btn-action" onclick="closeScreenshotModal()">Close</button>
     </div>
   </div>
 
@@ -776,7 +844,7 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
       camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
       camera.position.set(0, 2, 5);
 
-      renderer = new THREE.WebGLRenderer({{ antialias: true }});
+      renderer = new THREE.WebGLRenderer({{ antialias: true, preserveDrawingBuffer: true }});
       renderer.setSize(window.innerWidth, window.innerHeight);
       document.getElementById('container').appendChild(renderer.domElement);
 
@@ -922,11 +990,10 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
     }}
 
     function updateColorDots() {{
-      const dots = document.querySelectorAll('#btn-colors .cycle-dot');
+      const dots = document.querySelectorAll('.cycle-dots .cycle-dot');
       dots.forEach((dot, i) => {{
         dot.classList.toggle('current', i === colorMode);
       }});
-      document.getElementById('btn-colors').classList.toggle('active', colorMode !== 0);
     }}
 
     function toggleColors() {{
@@ -936,7 +1003,7 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
       // Colors going ON → disable textures if they're on
       if (colorMode === 1 && texturesEnabled) {{
         texturesEnabled = false;
-        document.getElementById('btn-textures').classList.remove('active');
+        document.getElementById('swTex').checked = false;
         meshes.forEach(mesh => {{
           if (mesh.userData.hasTexture) {{
             mesh.material.map = null;
@@ -955,7 +1022,7 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
 
     function toggleTextures() {{
       texturesEnabled = !texturesEnabled;
-      document.getElementById('btn-textures').classList.toggle('active', texturesEnabled);
+      document.getElementById('swTex').checked = texturesEnabled;
 
       // Textures ON → reset colors to OFF
       if (texturesEnabled && colorMode !== 0) {{
@@ -983,12 +1050,12 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
       // If overlay is active, turn it off first
       if (wireframeOverlayMode) {{
         wireframeOverlayMode = false;
-        document.getElementById('btn-wireframe-overlay').classList.remove('active');
+        document.getElementById('swWireOver').checked = false;
         wireframeMeshes.forEach(wf => wf.parent.remove(wf));
         wireframeMeshes = [];
       }}
       wireframeMode = !wireframeMode;
-      document.getElementById('btn-wireframe').classList.toggle('active', wireframeMode);
+      document.getElementById('swWire').checked = wireframeMode;
       meshes.forEach(mesh => mesh.material.wireframe = wireframeMode);
     }}
 
@@ -996,11 +1063,11 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
       // If wireframe is active, turn it off first
       if (wireframeMode) {{
         wireframeMode = false;
-        document.getElementById('btn-wireframe').classList.remove('active');
+        document.getElementById('swWire').checked = false;
         meshes.forEach(mesh => mesh.material.wireframe = false);
       }}
       wireframeOverlayMode = !wireframeOverlayMode;
-      document.getElementById('btn-wireframe-overlay').classList.toggle('active', wireframeOverlayMode);
+      document.getElementById('swWireOver').checked = wireframeOverlayMode;
       
       if (wireframeOverlayMode) {{
         meshes.forEach(mesh => {{
@@ -1080,60 +1147,83 @@ def generate_html_with_textures(mdl_path: Path, meshes: list, material_texture_m
         if (m.geometry.index) totalTris += m.geometry.index.count / 3;
       }});
       
-      document.getElementById('vertices').textContent = `Vertices: ${{totalVerts.toLocaleString()}}`;
-      document.getElementById('triangles').textContent = `Triangles: ${{totalTris.toLocaleString()}}`;
-      document.getElementById('visible').textContent = `Visible: ${{visibleMeshes.length}}/${{meshes.length}}`;
+      document.getElementById('vertices').textContent = totalVerts.toLocaleString();
+      document.getElementById('triangles').textContent = totalTris.toLocaleString();
+      document.getElementById('visible').textContent = `${{visibleMeshes.length}}/${{meshes.length}}`;
     }}
 
     let currentScreenshotPath = null;
 
     function takeScreenshot() {{
-      // Render scény pro čistý screenshot
+      const scale = parseInt(document.getElementById('screenshotScale').value) || 2;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const targetW = w * scale;
+      const targetH = h * scale;
+      
+      if (scale <= 1) {{
+        // Native: just capture current frame
+        renderer.render(scene, camera);
+        finishScreenshot(renderer.domElement.toDataURL('image/png'));
+        return;
+      }}
+      
+      // High-res: render to offscreen WebGLRenderTarget
+      const rt = new THREE.WebGLRenderTarget(targetW, targetH, {{
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        format: THREE.RGBAFormat
+      }});
+      
+      renderer.setRenderTarget(rt);
       renderer.render(scene, camera);
       
-      // Získat data z canvasu jako PNG
-      const dataURL = renderer.domElement.toDataURL('image/png');
+      // Read pixels from render target
+      const pixels = new Uint8Array(targetW * targetH * 4);
+      renderer.readRenderTargetPixels(rt, 0, 0, targetW, targetH, pixels);
+      renderer.setRenderTarget(null);
+      rt.dispose();
       
-      // Check if pywebview API is available
+      // Flip Y (WebGL is bottom-up) and write to canvas
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = targetW;
+      tmpCanvas.height = targetH;
+      const tmpCtx = tmpCanvas.getContext('2d');
+      const imageData = tmpCtx.createImageData(targetW, targetH);
+      for (let y = 0; y < targetH; y++) {{
+        const srcRow = (targetH - 1 - y) * targetW * 4;
+        const dstRow = y * targetW * 4;
+        imageData.data.set(pixels.subarray(srcRow, srcRow + targetW * 4), dstRow);
+      }}
+      tmpCtx.putImageData(imageData, 0, 0);
+      
+      finishScreenshot(tmpCanvas.toDataURL('image/png'));
+    }}
+
+    function finishScreenshot(dataURL) {{
       if (window.pywebview && window.pywebview.api) {{
-        // Use Python API to save file
         window.pywebview.api.save_screenshot(dataURL).then(result => {{
-          const modal = document.getElementById('screenshot-modal');
-          const pathElement = document.getElementById('screenshot-path');
-          
           if (result.success) {{
             currentScreenshotPath = result.filepath;
-            pathElement.textContent = result.filepath;
-            pathElement.onclick = openScreenshot;
-            pathElement.style.cursor = 'pointer';
-            pathElement.title = 'Click to open';
-            modal.classList.add('show');
-            console.log(`Screenshot saved to: ${{result.filepath}}`);
+            document.getElementById('screenshot-path').textContent = result.filepath;
+            document.getElementById('screenshot-modal').classList.add('show');
           }} else {{
-            alert(`Error saving screenshot: ${{result.error}}`);
+            alert('Screenshot failed: ' + result.error);
           }}
         }}).catch(error => {{
-          alert(`Error: ${{error}}`);
-          console.error('Screenshot error:', error);
+          alert('Error: ' + error);
         }});
       }} else {{
-        // Fallback: download via browser (for non-pywebview environments)
+        // Fallback: browser download
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
         const filename = `screenshot_${{timestamp}}.png`;
-        
         const link = document.createElement('a');
         link.download = filename;
         link.href = dataURL;
         link.click();
         
-        const modal = document.getElementById('screenshot-modal');
-        const pathElement = document.getElementById('screenshot-path');
-        pathElement.textContent = `Downloads/${{filename}}`;
-        pathElement.onclick = null;
-        pathElement.style.cursor = 'default';
-        modal.classList.add('show');
-        
-        console.log(`Screenshot downloaded as: ${{filename}}`);
+        document.getElementById('screenshot-path').textContent = `Downloads/${{filename}}`;
+        document.getElementById('screenshot-modal').classList.add('show');
       }}
     }}
 
