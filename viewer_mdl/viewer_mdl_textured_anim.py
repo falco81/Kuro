@@ -1475,6 +1475,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           <option value="webm" selected>WebM (VP9)</option>
         </select>
       </div>
+      <div class="toggle-row" onclick="document.getElementById('swInfoOverlay').checked = !document.getElementById('swInfoOverlay').checked;">
+        <span class="label">📊 Info Overlay</span>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="swInfoOverlay">
+          <span class="slider"></span>
+        </label>
+      </div>
     </div>
 
     
@@ -1569,10 +1576,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
   </div>
   
   <div id="stats" class="panel">
-    <div id="fps">FPS: 60</div>
-    <div>Triangles: <span id="tri-count">0</span></div>
-    <div>Vertices: <span id="vert-count">0</span></div>
-    <div>Visible: <span id="mesh-count">0</span></div>
+    <div>FPS: --</div>
   </div>
 
   <div id="screenshot-modal">
@@ -1639,6 +1643,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let wireframeMode = false;
     let wireframeOverlayMode = false;
     let showSkeleton = false, showJoints = false, showBoneNames = false;
+    let currentFps = 0;
+    const MODEL_FILENAME = {json.dumps(mdl_path.name)};
     let skeletonGroup = null, jointsGroup = null;
 
     class OrbitControls {{
@@ -3548,9 +3554,63 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }}
       }});
       
-      document.getElementById('tri-count').textContent = totalTris.toLocaleString();
-      document.getElementById('vert-count').textContent = totalVerts.toLocaleString();
-      document.getElementById('mesh-count').textContent = `${{visibleCount}}/${{meshes.length}}`;
+      const statsEl = document.getElementById('stats');
+      const extended = document.getElementById('swInfoOverlay') && document.getElementById('swInfoOverlay').checked;
+      
+      if (!extended) {{
+        // Basic mode
+        statsEl.innerHTML = '<div>FPS: ' + currentFps + '</div>' +
+          '<div>Triangles: ' + totalTris.toLocaleString() + '</div>' +
+          '<div>Vertices: ' + totalVerts.toLocaleString() + '</div>' +
+          '<div>Visible: ' + visibleCount + '/' + meshes.length + '</div>';
+        return;
+      }}
+      
+      // Extended mode
+      const boneCount = bones ? bones.length : 0;
+      const animCount = Object.keys(animationClips).length;
+      const opacity = parseFloat(document.getElementById('meshOpacity').value);
+      const isRec = mediaRecorder && mediaRecorder.state === 'recording';
+      
+      let animName = currentAnimName || 'None';
+      let animState = '';
+      if (currentAnimName) {{
+        const paused = currentAnimation && currentAnimation.paused;
+        const speed = animationMixer ? animationMixer.timeScale.toFixed(1) : '1.0';
+        animState = (paused ? 'paused' : 'playing') + ' · ' + speed + 'x';
+      }}
+
+      function dot(on) {{ return on ? '<span style="color:#4ade80">●</span>' : '<span style="color:#555">○</span>'; }}
+      
+      const w = renderer.domElement.width;
+      const h = renderer.domElement.height;
+      
+      let html = '<div style="color:#a78bfa;font-weight:bold">' + MODEL_FILENAME + '</div>';
+      html += '<div style="color:#555;font-size:10px;margin-bottom:4px">' + new Date().toLocaleTimeString() + '</div>';
+      html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
+      html += '<table style="border-collapse:collapse;font-size:inherit;color:#e0e0e0">';
+      html += '<tr><td style="padding:0 6px 0 0">' + w + ' × ' + h + '</td><td style="border-left:1px solid #444;padding:0 0 0 6px">FPS: ' + currentFps + '</td></tr>';
+      html += '<tr><td style="padding:0 6px 0 0">Tris: ' + totalTris.toLocaleString() + '</td><td style="border-left:1px solid #444;padding:0 0 0 6px">Verts: ' + totalVerts.toLocaleString() + '</td></tr>';
+      html += '<tr><td style="padding:0 6px 0 0">Meshes: ' + visibleCount + '/' + meshes.length + '</td><td style="border-left:1px solid #444;padding:0 0 0 6px">Bones: ' + boneCount + '</td></tr>';
+      html += '<tr><td style="padding:0 6px 0 0">Textures: ' + loadedTexturesCount + '/' + totalTexturesCount + '</td><td style="border-left:1px solid #444;padding:0 0 0 6px">Anims: ' + animCount + '</td></tr>';
+      html += '</table>';
+      html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
+      html += '<div>' + dot(colorMode) + ' Colors  ' + dot(textureMode) + ' Textures  ' + dot(wireframeMode) + ' Wire  ' + dot(wireframeOverlayMode) + ' Overlay</div>';
+      html += '<div>' + dot(showSkeleton) + ' Skeleton  ' + dot(showJoints) + ' Joints  ' + dot(showBoneNames) + ' Names  ' + dot(dynamicBonesEnabled) + ' DynBones</div>';
+      if (opacity < 1.0) {{
+        html += '<div style="color:#9ca3af">Opacity: ' + opacity.toFixed(2) + '</div>';
+      }}
+      html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
+      html += '<div style="color:#60a5fa">Anim: ' + animName + '</div>';
+      if (animState) {{
+        html += '<div style="color:#60a5fa;padding-left:6ch">' + animState + '</div>';
+      }}
+      if (isRec) {{
+        const recS = ((Date.now() - recordingStartTime) / 1000).toFixed(1);
+        html += '<div style="color:#ef4444;font-weight:bold">🔴 REC ' + recS + 's · ' + recordingFps + 'fps</div>';
+      }}
+      
+      statsEl.innerHTML = html;
     }}
 
     function updateTextureStatus() {{
@@ -3586,99 +3646,74 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         return;
       }}
       
-      // High-res: render to offscreen WebGLRenderTarget
-      const rt = new THREE.WebGLRenderTarget(targetW, targetH, {{
-        minFilter: THREE.LinearFilter,
-        magFilter: THREE.LinearFilter,
-        format: THREE.RGBAFormat
-      }});
+      // Save original state
+      const origW = renderer.domElement.width;
+      const origH = renderer.domElement.height;
+      const origStyleW = renderer.domElement.style.width;
+      const origStyleH = renderer.domElement.style.height;
+      const gl = renderer.getContext();
+      const aspect = w / h;
       
-      renderer.setRenderTarget(rt);
+      // Try requested size, then check if GPU actually gave us that size
+      let renderW = targetW;
+      let renderH = targetH;
+      
+      renderer.setSize(renderW, renderH, false);
+      
+      // Check actual drawing buffer - browser may silently clamp
+      let actualW = gl.drawingBufferWidth;
+      let actualH = gl.drawingBufferHeight;
+      
+      if (actualW < renderW || actualH < renderH) {{
+        // GPU clamped - use actual buffer size, preserving aspect ratio
+        renderW = actualW;
+        renderH = Math.round(actualW / aspect);
+        if (renderH > actualH) {{
+          renderH = actualH;
+          renderW = Math.round(actualH * aspect);
+        }}
+        renderer.setSize(renderW, renderH, false);
+        actualW = gl.drawingBufferWidth;
+        actualH = gl.drawingBufferHeight;
+      }}
+      
+      camera.aspect = renderW / renderH;
+      camera.updateProjectionMatrix();
+      
+      // Update skeleton for this frame
+      if (bones.length > 0) bones[0].updateMatrixWorld(true);
+      if (skeleton) skeleton.update();
+      
       renderer.render(scene, camera);
       
-      // Read pixels from render target
-      const pixels = new Uint8Array(targetW * targetH * 4);
-      renderer.readRenderTargetPixels(rt, 0, 0, targetW, targetH, pixels);
-      renderer.setRenderTarget(null);
-      rt.dispose();
+      // Composite render + overlays at actual render resolution
+      const renderCanvas = document.createElement('canvas');
+      renderCanvas.width = actualW;
+      renderCanvas.height = actualH;
+      const renderCtx = renderCanvas.getContext('2d');
+      drawComposite(renderCtx, actualW, actualH);
       
-      // Flip Y (WebGL is bottom-up) and write to canvas
-      const tmpCanvas = document.createElement('canvas');
-      tmpCanvas.width = targetW;
-      tmpCanvas.height = targetH;
-      const tmpCtx = tmpCanvas.getContext('2d');
-      const imageData = tmpCtx.createImageData(targetW, targetH);
-      for (let y = 0; y < targetH; y++) {{
-        const srcRow = (targetH - 1 - y) * targetW * 4;
-        const dstRow = y * targetW * 4;
-        imageData.data.set(pixels.subarray(srcRow, srcRow + targetW * 4), dstRow);
-      }}
-      tmpCtx.putImageData(imageData, 0, 0);
+      // Restore original renderer size immediately
+      renderer.setSize(origW, origH, false);
+      renderer.domElement.style.width = origStyleW;
+      renderer.domElement.style.height = origStyleH;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.render(scene, camera);
       
-      // Draw overlays (bone names, skeleton, joints) on top
-      const sf = scale;
-      if (showJoints) {{
-        for (let i = 0; i < skeletonData.length; i++) {{
-          const bd = skeletonData[i];
-          if (bd.type !== 1) continue;
-          const bone = bones[i];
-          if (!bone) continue;
-          const pos = new THREE.Vector3();
-          bone.getWorldPosition(pos);
-          pos.project(camera);
-          if (pos.z > 1) continue;
-          const x = (pos.x * 0.5 + 0.5) * targetW;
-          const y = (-pos.y * 0.5 + 0.5) * targetH;
-          tmpCtx.beginPath();
-          tmpCtx.arc(x, y, 3 * sf, 0, Math.PI * 2);
-          tmpCtx.fillStyle = '#ff4444';
-          tmpCtx.fill();
-          tmpCtx.lineWidth = sf;
-          tmpCtx.strokeStyle = '#aa0000';
-          tmpCtx.stroke();
-        }}
+      // If render was clamped, upscale to target resolution
+      if (actualW >= targetW && actualH >= targetH) {{
+        finishScreenshot(renderCanvas.toDataURL('image/png'));
+      }} else {{
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = targetW;
+        outCanvas.height = targetH;
+        const outCtx = outCanvas.getContext('2d');
+        outCtx.imageSmoothingEnabled = true;
+        outCtx.imageSmoothingQuality = 'high';
+        outCtx.drawImage(renderCanvas, 0, 0, targetW, targetH);
+        finishScreenshot(outCanvas.toDataURL('image/png'));
       }}
-      if (showSkeleton) {{
-        tmpCtx.strokeStyle = '#00ff88';
-        tmpCtx.lineWidth = sf;
-        for (let i = 0; i < skeletonData.length; i++) {{
-          const bd = skeletonData[i];
-          if (bd.type !== 1 || bd.parent_id < 0) continue;
-          const bone = bones[i];
-          const parent = bones[bd.parent_id];
-          if (!bone || !parent) continue;
-          const pos = new THREE.Vector3(); bone.getWorldPosition(pos); pos.project(camera);
-          const ppos = new THREE.Vector3(); parent.getWorldPosition(ppos); ppos.project(camera);
-          if (pos.z > 1 && ppos.z > 1) continue;
-          tmpCtx.beginPath();
-          tmpCtx.moveTo((ppos.x*0.5+0.5)*targetW, (-ppos.y*0.5+0.5)*targetH);
-          tmpCtx.lineTo((pos.x*0.5+0.5)*targetW, (-pos.y*0.5+0.5)*targetH);
-          tmpCtx.stroke();
-        }}
-      }}
-      if (showBoneNames) {{
-        tmpCtx.font = Math.round(9 * sf) + 'px monospace';
-        tmpCtx.textAlign = 'center';
-        for (let i = 0; i < skeletonData.length; i++) {{
-          const bd = skeletonData[i];
-          if (bd.type !== 1) continue;
-          const bone = bones[i];
-          if (!bone) continue;
-          const pos = new THREE.Vector3();
-          bone.getWorldPosition(pos);
-          pos.project(camera);
-          if (pos.z > 1) continue;
-          const x = (pos.x * 0.5 + 0.5) * targetW;
-          const y = (-pos.y * 0.5 + 0.5) * targetH;
-          tmpCtx.fillStyle = '#000';
-          tmpCtx.fillText(bd.name, x + sf, y + sf);
-          tmpCtx.fillText(bd.name, x - sf, y - sf);
-          tmpCtx.fillStyle = '#00ff88';
-          tmpCtx.fillText(bd.name, x, y);
-        }}
-      }}
-      
-      finishScreenshot(tmpCanvas.toDataURL('image/png'));
     }}
     
     function finishScreenshot(dataURL) {{
@@ -3740,6 +3775,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let recordingStartTime = 0;
     let compositeCanvas = null;
     let compositeCtx = null;
+    let recordingFps = 60;
+    let lastFrameTime = 0;
+    let recordingVideoTrack = null;
 
     function toggleRecording() {{
       if (mediaRecorder && mediaRecorder.state === 'recording') {{
@@ -3757,9 +3795,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         compositeCanvas.height = renderer.domElement.height;
         compositeCtx = compositeCanvas.getContext('2d');
         
-        const fps = parseInt(document.getElementById('videoFps').value) || 60;
+        recordingFps = parseInt(document.getElementById('videoFps').value) || 60;
         const bitrate = parseInt(document.getElementById('videoQuality').value) || 8000000;
-        const stream = compositeCanvas.captureStream(fps);
+        
+        // Use captureStream(0) = manual frame mode for precise FPS control
+        const stream = compositeCanvas.captureStream(0);
+        recordingVideoTrack = stream.getVideoTracks()[0];
+        lastFrameTime = 0;
         
         const mimeTypes = [
           'video/webm;codecs=vp9',
@@ -3794,6 +3836,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           saveRecording(blob);
           compositeCanvas = null;
           compositeCtx = null;
+          recordingVideoTrack = null;
         }};
         
         mediaRecorder.start(100);
@@ -3806,15 +3849,22 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }}
         updateRecordTimer();
         const outFormat = document.getElementById('videoFormat').value || 'webm';
-        debug('Recording started:', selectedMime, fps + 'fps', (bitrate/1000000) + 'Mbps', '→', outFormat);
+        debug('Recording started:', selectedMime, recordingFps + 'fps', (bitrate/1000000) + 'Mbps', '→', outFormat);
       }} catch (e) {{
         alert('Recording failed: ' + e.message);
       }}
     }}
 
-    // Called each frame from animate() to composite WebGL + overlays
+    // Called each frame from animate() - throttles to recording FPS
     function updateCompositeFrame() {{
-      if (!compositeCtx || !compositeCanvas) return;
+      if (!compositeCtx || !compositeCanvas || !recordingVideoTrack) return;
+      
+      // Throttle to recording FPS
+      const now = performance.now();
+      const frameInterval = 1000 / recordingFps;
+      if (now - lastFrameTime < frameInterval * 0.9) return;
+      lastFrameTime = now;
+      
       const c = compositeCanvas;
       const ctx = compositeCtx;
       // Resize if needed
@@ -3823,6 +3873,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         c.height = renderer.domElement.height;
       }}
       drawComposite(ctx, c.width, c.height);
+      
+      // Manually push frame to the stream
+      recordingVideoTrack.requestFrame();
     }}
 
     // Composite WebGL canvas + joints + bone names onto a 2D context
@@ -3913,6 +3966,179 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           ctx.fillText(bd.name, x, y);
         }}
       }}
+
+      // Info overlay (if enabled)
+      if (document.getElementById('swInfoOverlay') && document.getElementById('swInfoOverlay').checked) {{
+        drawInfoOverlay(ctx, w, h, sf);
+      }}
+    }}
+
+    function drawInfoOverlay(ctx, w, h, sf) {{
+      // Gather info
+      let totalTris = 0, totalVerts = 0, visibleMeshes = 0;
+      meshes.forEach(m => {{
+        if (m.visible) {{
+          visibleMeshes++;
+          if (m.geometry.index) totalTris += m.geometry.index.count / 3;
+          totalVerts += m.geometry.attributes.position.count;
+        }}
+      }});
+
+      const boneCount = bones ? bones.length : 0;
+      const animCount = Object.keys(animationClips).length;
+      const opacity = parseFloat(document.getElementById('meshOpacity').value);
+      const isRecording = mediaRecorder && mediaRecorder.state === 'recording';
+
+      // Current animation info
+      let animName = currentAnimName || 'None';
+      let animState = '';
+      if (currentAnimName) {{
+        const paused = currentAnimation && currentAnimation.paused;
+        const speed = animationMixer ? animationMixer.timeScale.toFixed(1) : '1.0';
+        animState = (paused ? 'paused' : 'playing') + '  ' + speed + 'x';
+      }}
+
+      // Timestamp
+      const now = new Date();
+      const ts = now.getFullYear() + '-' +
+        String(now.getMonth()+1).padStart(2,'0') + '-' +
+        String(now.getDate()).padStart(2,'0') + ' ' +
+        String(now.getHours()).padStart(2,'0') + ':' +
+        String(now.getMinutes()).padStart(2,'0') + ':' +
+        String(now.getSeconds()).padStart(2,'0');
+
+      // Helper: pad string to fixed width (monospace)
+      function pad(s, len) {{
+        s = String(s);
+        while (s.length < len) s += ' ';
+        return s;
+      }}
+
+      // Build two-column rows with aligned │
+      const col = 16; // left column char width
+      const rows = [
+        [pad(w + ' × ' + h, col) + '│  FPS: ' + currentFps, 'value'],
+        [pad('Tris: ' + totalTris.toLocaleString(), col) + '│  Verts: ' + totalVerts.toLocaleString(), 'value'],
+        [pad('Meshes: ' + visibleMeshes + '/' + meshes.length, col) + '│  Bones: ' + boneCount, 'value'],
+        [pad('Textures: ' + loadedTexturesCount + '/' + totalTexturesCount, col) + '│  Anims: ' + animCount, 'value'],
+      ];
+
+      // Build lines
+      const divLen = 30;
+      const div = '─'.repeat(divLen);
+      const lines = [];
+      lines.push([MODEL_FILENAME, 'title']);
+      lines.push([ts, 'dim']);
+      lines.push([div, 'divider']);
+      rows.forEach(r => lines.push(r));
+      lines.push([div, 'divider']);
+
+      // Options
+      const opts = [
+        ['Colors', colorMode], ['Textures', textureMode],
+        ['Wireframe', wireframeMode], ['Wire Overlay', wireframeOverlayMode],
+      ];
+      const optLine = opts.map(o => (o[1] ? '●' : '○') + ' ' + o[0]).join('  ');
+      lines.push([optLine, 'mixed']);
+
+      const opts2 = [
+        ['Skeleton', showSkeleton], ['Joints', showJoints],
+        ['Names', showBoneNames], ['DynBones', dynamicBonesEnabled],
+      ];
+      const optLine2 = opts2.map(o => (o[1] ? '●' : '○') + ' ' + o[0]).join('  ');
+      lines.push([optLine2, 'mixed']);
+
+      if (opacity < 1.0) {{
+        lines.push(['Opacity: ' + opacity.toFixed(2), 'value']);
+      }}
+
+      // Animation info (always show)
+      lines.push([div, 'divider']);
+      lines.push(['Anim: ' + animName, 'anim']);
+      if (animState) {{
+        lines.push(['      ' + animState, 'anim']);
+      }}
+
+      if (isRecording) {{
+        const recElapsed = ((Date.now() - recordingStartTime) / 1000).toFixed(1);
+        lines.push(['🔴 REC ' + recElapsed + 's · ' + recordingFps + 'fps', 'record']);
+      }}
+
+      // Draw background box
+      const fontSize = Math.round(11 * sf);
+      const lineHeight = fontSize * 1.4;
+      const padding = Math.round(10 * sf);
+      const margin = Math.round(12 * sf);
+
+      ctx.font = fontSize + 'px monospace';
+
+      // Measure max width
+      let maxW = 0;
+      lines.forEach(l => {{
+        const m = ctx.measureText(l[0]);
+        if (m.width > maxW) maxW = m.width;
+      }});
+
+      const boxW = maxW + padding * 2;
+      const boxH = lines.length * lineHeight + padding * 2;
+      const boxX = margin;
+      const boxY = h - boxH - margin;
+
+      // Semi-transparent background with rounded corners
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.beginPath();
+      const r = Math.round(6 * sf);
+      ctx.moveTo(boxX + r, boxY);
+      ctx.lineTo(boxX + boxW - r, boxY);
+      ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + r);
+      ctx.lineTo(boxX + boxW, boxY + boxH - r);
+      ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - r, boxY + boxH);
+      ctx.lineTo(boxX + r, boxY + boxH);
+      ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - r);
+      ctx.lineTo(boxX, boxY + r);
+      ctx.quadraticCurveTo(boxX, boxY, boxX + r, boxY);
+      ctx.fill();
+
+      // Border
+      ctx.strokeStyle = 'rgba(124, 58, 237, 0.4)';
+      ctx.lineWidth = 1 * sf;
+      ctx.stroke();
+
+      // Draw text
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      let ty = boxY + padding;
+
+      const colorMap = {{
+        'title': ['#a78bfa', true],
+        'divider': ['rgba(124,58,237,0.4)', false],
+        'value': ['#e0e0e0', false],
+        'dim': ['#6b7280', false],
+        'anim': ['#60a5fa', false],
+        'record': ['#ef4444', true],
+        'mixed': ['#d1d5db', false],
+      }};
+
+      lines.forEach(([text, type]) => {{
+        const [color, bold] = colorMap[type] || ['#e0e0e0', false];
+        ctx.fillStyle = color;
+        ctx.font = (bold ? 'bold ' : '') + fontSize + 'px monospace';
+
+        if (type === 'mixed') {{
+          let tx = boxX + padding;
+          const parts = text.split(/(●|○)/);
+          parts.forEach(p => {{
+            if (p === '●') ctx.fillStyle = '#4ade80';
+            else if (p === '○') ctx.fillStyle = '#6b7280';
+            else ctx.fillStyle = '#d1d5db';
+            ctx.fillText(p, tx, ty);
+            tx += ctx.measureText(p).width;
+          }});
+        }} else {{
+          ctx.fillText(text, boxX + padding, ty);
+        }}
+        ty += lineHeight;
+      }});
     }}
 
     function updateRecordTimer() {{
@@ -4054,13 +4280,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       
       // Update stats (FPS, triangles, etc)
-      updateStats();
-      
-      // Update FPS counter
       const now = Date.now();
       const fps = Math.round(1000 / (now - lastTime));
-      document.getElementById('fps').textContent = `FPS: ${{fps}}`;
+      currentFps = fps;
       lastTime = now;
+      updateStats();
     }}
 
     // Populate video format dropdown from Python API
@@ -4198,6 +4422,8 @@ class API:
                 formats.append({'value': f'mp4:{c["codec"]}', 'label': f'MP4 ({c["label"]})', 'codec': c['codec']})
         
         return {"formats": formats}
+
+    def save_screenshot(self, image_data: str) -> dict:
         """Save screenshot from base64 data URL."""
         try:
             import base64
