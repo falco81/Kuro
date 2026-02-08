@@ -9,7 +9,7 @@ A comprehensive Python toolkit for creating and managing DLC mods for games usin
 
 new tool for quick preview of model. ideally associate exe with mdl file. for correct display of textures it looks for standard folder structure.
 for proper function it needs to have all necessary data extracted in the game data structure, including model_info and mdl with animations,
-it currently only supports mi/json model_info in text form, it does not support binary for now
+~~it currently only supports mi/json model_info in text form, it does not support binary for now~~ -resolved in beta3
 ```
 └───asset
     ├───common
@@ -18,20 +18,19 @@ it currently only supports mi/json model_info in text form, it does not support 
     └───dx11
         └───image
 ```
-New features Beta3
 
-```bash
--bug fixes
--support for loading files from model_info in binary format (autodetection)
--editing the entire UI
--support for video recording
--support for quality settings for video and screenshots
--fixing physics (still has bugs)
--physics reacts to character movements with the mouse (physics display must be turned on in the UI)
--video demo, all options for setting collision on/off, physics intensity, etc...
-```
+## New Features in Beta3
+
+- **Bug fixes**
+- **Binary format support** – loading files from `model_info` with autodetection
+- **UI overhaul** – complete redesign of the entire interface
+- **Video recording** – including quality settings for video and screenshots
+- **Physics improvements**
+  - Still has known bugs
+  - Physics now reacts to character movements with the mouse (requires physics display enabled in UI)
 
 Beta3
+demo with collision on/off, physics intensity, and more
 ![viewer_mdl/viewer.png](viewer_mdl/viewer_anim3.gif)
 ![viewer_mdl/viewer.png](viewer_mdl/viewer_anim3.png)
 
