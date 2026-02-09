@@ -37,33 +37,32 @@ for proper function it needs to have all necessary data extracted in the game da
 ---
 
 **Beta6**<br>
-3D FreeCam mode
-![viewer_mdl/viewer_anim6.gif](doc/viewer_anim6.gif)
-![viewer_mdl/viewer_anim6.png](doc/viewer_anim6.png)
+3D FreeCam mode<br>
+<img src="doc/viewer_anim6.gif" width="100%">
+<img src="doc/viewer_anim6.png" width="100%">
 
 **Beta5**<br>
-Added controller support
-![viewer_mdl/viewer_anim5a.png](doc/viewer_anim5a.png)
-![viewer_mdl/viewer_anim5b.png](doc/viewer_anim5b.png)
+Added controller support<br>
+<img src="doc/viewer_anim5a.png" width="100%">
+<img src="doc/viewer_anim5b.png" width="100%">
 
 **Beta4**<br>
-character movement support
-![viewer_mdl/viewer_anim4.gif](doc/viewer_anim4.gif)
-![viewer_mdl/viewer_anim4.png](doc/viewer_anim4.png)
+character movement support<br>
+<img src="doc/viewer_anim4.gif" width="100%">
+<img src="doc/viewer_anim4.png" width="100%">
 
 **Beta3**<br>
-demo with collision on/off, physics intensity, and more
-![viewer_mdl/viewer.png](doc/viewer_anim3.gif)
-![viewer_mdl/viewer.png](doc/viewer_anim3.png)
+demo with collision on/off, physics intensity, and more<br>
+<img src="doc/viewer_anim3.gif" width="100%">
+<img src="doc/viewer_anim3.png" width="100%">
 
-**Beta2**
-![viewer_mdl/viewer.png](doc/viewer_anim2.png)
+**Beta2**<br>
+<img src="doc/viewer_anim2.png" width="100%">
 
-**Beta1**
-![viewer_mdl/viewer.png](doc/viewer_anim.png)
+**Beta1**<br>
+<img src="doc/viewer_anim.png" width="100%">
 
 **viewer_mdl_textured.exe**
-
 new tool for quick preview of model. ideally associate exe with mdl file. for correct display of textures it looks for standard folder structure
 ```
 └───asset
@@ -72,12 +71,10 @@ new tool for quick preview of model. ideally associate exe with mdl file. for co
     └───dx11
         └───image
 ```
+<img src="doc/viewer.png" width="100%">
 
-![viewer_mdl/viewer.png](doc/viewer.png)
-
-New UI
-![viewer_mdl/viewer.png](doc/viewer2.png)
-
+New UI<br>
+<img src="doc/viewer2.png" width="100%">
 
 > **⚠️ GPL-3.0 License Notice**  
 > This project uses libraries from [eArmada8/kuro_dlc_tool](https://github.com/eArmada8/kuro_dlc_tool) which are licensed under GPL-3.0.  
