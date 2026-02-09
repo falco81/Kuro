@@ -1474,7 +1474,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       <div id="freeCamSubmenu" style="display:none;padding:2px 8px 4px 8px;">
         <div style="display:flex;align-items:center;gap:4px;margin:2px 0">
           <span style="font-size:10px;color:#9ca3af;min-width:40px">Speed:</span>
-          <input type="range" id="freeCamSpeedSlider" min="0" max="200" value="100" style="flex:1"
+          <input type="range" id="freeCamSpeedSlider" min="2" max="200" value="100" style="flex:1"
                  oninput="freeCamSpeed = this.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'">
           <span id="freeCamStatus" style="font-size:10px;color:#60a5fa;min-width:55px;text-align:right">1.00x</span>
         </div>
@@ -2053,7 +2053,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       
       onMouseDown(e) {{
-        if (this._tpMode) return;  // Disabled in third-person mode
+        if (this._tpMode && !freeCamMode) return;
         this.isMouseDown = true;
         this.mouseButton = e.button;
       }}
@@ -2063,7 +2063,33 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       
       onMouseMove(e) {{
-        if (!this.isMouseDown || this._tpMode) return;
+        if (!this.isMouseDown) return;
+        
+        // FreeCam mouse handling
+        if (freeCamMode && this._tpMode) {{
+          const mx = e.movementX || 0;
+          const my = e.movementY || 0;
+          if (mx === 0 && my === 0) return;
+          const sens = 0.0015;
+          const invX = gamepadInvertX ? -1 : 1;
+          const invY = gamepadInvertY ? -1 : 1;
+          if (this.mouseButton === 0) {{
+            tpCamTheta += mx * sens * invX;
+            tpCamPhi = Math.max(0.1, Math.min(Math.PI - 0.1, tpCamPhi + my * sens * invY));
+          }} else if (this.mouseButton === 2) {{
+            const speed = freeCamBaseSpeed * freeCamSpeed * 0.08;
+            const phi = tpCamPhi, theta = tpCamTheta;
+            const lookDir = new THREE.Vector3(
+              -Math.sin(phi) * Math.sin(theta), -Math.cos(phi),
+              -Math.sin(phi) * Math.cos(theta)).normalize();
+            const strafeDir = new THREE.Vector3(lookDir.z, 0, -lookDir.x).normalize();
+            this.camera.position.addScaledVector(strafeDir, mx * speed * invX);
+            this.camera.position.y += my * speed * invY;
+          }}
+          return;
+        }}
+        
+        if (this._tpMode) return;
         
         if (this.mouseButton === this.mouseButtons.LEFT) {{
           const dx = e.movementX * this.rotateSpeed * 0.01;
@@ -2080,7 +2106,17 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       
       onMouseWheel(e) {{
-        if (this._tpMode) return;  // Disabled in third-person mode
+        if (freeCamMode && this._tpMode) {{
+          e.preventDefault();
+          const speed = freeCamBaseSpeed * freeCamSpeed;
+          const phi = tpCamPhi, theta = tpCamTheta;
+          const lookDir = new THREE.Vector3(
+            -Math.sin(phi) * Math.sin(theta), -Math.cos(phi),
+            -Math.sin(phi) * Math.cos(theta)).normalize();
+          this.camera.position.addScaledVector(lookDir, -e.deltaY * speed * 0.02);
+          return;
+        }}
+        if (this._tpMode) return;
         e.preventDefault();
         this.scale *= Math.pow(0.95, -e.deltaY * this.zoomSpeed * 0.05);
       }}
@@ -4324,6 +4360,18 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       kbKeys[e.code] = false;
     }});
 
+    // ── FreeCam camera update helper ──
+    function updateFreeCamCamera() {{
+      const lookDir = new THREE.Vector3(
+        -Math.sin(tpCamPhi) * Math.sin(tpCamTheta),
+        -Math.cos(tpCamPhi),
+        -Math.sin(tpCamPhi) * Math.cos(tpCamTheta)
+      ).normalize();
+      const lookTarget = camera.position.clone().add(lookDir);
+      camera.lookAt(lookTarget);
+      controls.target.copy(lookTarget);
+    }}
+
     function applyStick(val) {{
       return Math.abs(val) < gamepadDeadzone ? 0 : val;
     }}
@@ -4544,7 +4592,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         if (kbJustPressed(12)) {{
           if (freeCamMode) {{
             const s = document.getElementById('freeCamSpeedSlider');
-            if (s) {{ s.value = Math.min(200, parseInt(s.value) + 5); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
+            if (s) {{ s.value = Math.min(200, parseInt(s.value) + 3); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
           }} else {{
             const s = document.getElementById('animSpeedSlider'); if (s) {{ s.value = Math.min(100, parseInt(s.value) + 10); updateAnimSpeed(s.value); }}
           }}
@@ -4552,7 +4600,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         if (kbJustPressed(13)) {{
           if (freeCamMode) {{
             const s = document.getElementById('freeCamSpeedSlider');
-            if (s) {{ s.value = Math.max(0, parseInt(s.value) - 5); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
+            if (s) {{ s.value = Math.max(2, parseInt(s.value) - 3); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
           }} else {{
             const s = document.getElementById('animSpeedSlider'); if (s) {{ s.value = Math.max(-100, parseInt(s.value) - 10); updateAnimSpeed(s.value); }}
           }}
@@ -4799,7 +4847,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (justPressed(12)) {{
         if (freeCamMode) {{
           const s = document.getElementById('freeCamSpeedSlider');
-          if (s) {{ s.value = Math.min(200, parseInt(s.value) + 5); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
+          if (s) {{ s.value = Math.min(200, parseInt(s.value) + 3); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
         }} else {{
           const slider = document.getElementById('animSpeedSlider');
           if (slider) {{ slider.value = Math.min(100, parseInt(slider.value) + 10); updateAnimSpeed(slider.value); }}
@@ -4810,7 +4858,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (justPressed(13)) {{
         if (freeCamMode) {{
           const s = document.getElementById('freeCamSpeedSlider');
-          if (s) {{ s.value = Math.max(0, parseInt(s.value) - 5); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
+          if (s) {{ s.value = Math.max(2, parseInt(s.value) - 3); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
         }} else {{
           const slider = document.getElementById('animSpeedSlider');
           if (slider) {{ slider.value = Math.max(-100, parseInt(slider.value) - 10); updateAnimSpeed(slider.value); }}
@@ -5720,7 +5768,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       
       updateGamepad();
-      controls.update();
+      if (freeCamMode) {{
+        updateFreeCamCamera();
+      }} else {{
+        controls.update();
+      }}
       renderer.render(scene, camera);
       
       // Composite frame for video recording (WebGL + bone names overlay)
