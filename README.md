@@ -29,7 +29,17 @@ for proper function it needs to have all necessary data extracted in the game da
 - **Physics improvements**
   - Still has known bugs
   - Physics now reacts to character movements with the mouse (requires physics display enabled in UI)
+- **fixed bug in controller autodetection**
+- **added support for additional controllers, DualSense, DualShock, Switch Pro, Generic**
+- **support for keyboard control if controller is not detected**
+- **improved controller visualization in overlay**
 ---
+
+**Beta5**<br>
+Added controller support
+![viewer_mdl/viewer_anim5a.gif](doc/viewer_anim5a.gif)
+![viewer_mdl/viewer_anim5b.png](doc/viewer_anim5b.png)
+
 **Beta4**<br>
 Added controller support
 ![viewer_mdl/viewer_anim4.gif](doc/viewer_anim4.gif)
