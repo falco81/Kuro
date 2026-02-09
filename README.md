@@ -32,19 +32,19 @@ for proper function it needs to have all necessary data extracted in the game da
 ---
 **Beta4**<br>
 Added controller support
-![viewer_mdl/viewer_anim4.gif](viewer_mdl/viewer_anim4.gif)
-![viewer_mdl/viewer_anim4.png](viewer_mdl/viewer_anim4.png)
+![viewer_mdl/viewer_anim4.gif](doc/viewer_anim4.gif)
+![viewer_mdl/viewer_anim4.png](doc/viewer_anim4.png)
 
 **Beta3**<br>
 demo with collision on/off, physics intensity, and more
-![viewer_mdl/viewer.png](viewer_mdl/viewer_anim3.gif)
-![viewer_mdl/viewer.png](viewer_mdl/viewer_anim3.png)
+![viewer_mdl/viewer.png](doc/viewer_anim3.gif)
+![viewer_mdl/viewer.png](doc/viewer_anim3.png)
 
 **Beta2**
-![viewer_mdl/viewer.png](viewer_mdl/viewer_anim2.png)
+![viewer_mdl/viewer.png](doc/viewer_anim2.png)
 
 **Beta1**
-![viewer_mdl/viewer.png](viewer_mdl/viewer_anim.png)
+![viewer_mdl/viewer.png](doc/viewer_anim.png)
 
 **viewer_mdl_textured.exe**
 
