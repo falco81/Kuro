@@ -1110,7 +1110,7 @@ For comprehensive, in-depth documentation including:
 - **Visualization guide** ⭐ NEW
 - **3D model viewer guide** ⭐ NEW
 
-See **[ADVANCED_DOCUMENTATION.md](ADVANCED_DOCUMENTATION.md)** ⭐
+See **[ADVANCED_DOCUMENTATION.md](doc/ADVANCED_DOCUMENTATION.md)** ⭐
 
 **What's included:**
 - ✅ All script parameters documented
@@ -1125,13 +1125,13 @@ See **[ADVANCED_DOCUMENTATION.md](ADVANCED_DOCUMENTATION.md)** ⭐
 - ✅ 3D model viewer guide ⭐ NEW
 
 **Quick links:**
-- [Script Parameter Reference](ADVANCED_DOCUMENTATION.md#script-reference)
-- [Data Structure Specs](ADVANCED_DOCUMENTATION.md#data-structure-specifications)
-- [Real Data Examples](ADVANCED_DOCUMENTATION.md#real-data-examples)
-- [Advanced Workflows](ADVANCED_DOCUMENTATION.md#advanced-workflows)
-- [Schema Conversion Guide](ADVANCED_DOCUMENTATION.md#schema-conversion)
+- [Script Parameter Reference](doc/ADVANCED_DOCUMENTATION.md#script-reference)
+- [Data Structure Specs](doc/ADVANCED_DOCUMENTATION.md#data-structure-specifications)
+- [Real Data Examples](doc/ADVANCED_DOCUMENTATION.md#real-data-examples)
+- [Advanced Workflows](doc/ADVANCED_DOCUMENTATION.md#advanced-workflows)
+- [Schema Conversion Guide](doc/ADVANCED_DOCUMENTATION.md#schema-conversion)
 - [Visualization Guide](NEW_FEATURES_DOCUMENTATION.md) ⭐ NEW
-- [3D Viewer Guide](ADVANCED_DOCUMENTATION.md#3d-model-viewing) ⭐ NEW
+- [3D Viewer Guide](doc/ADVANCED_DOCUMENTATION.md#3d-model-viewing) ⭐ NEW
 
 ---
 
