@@ -37,11 +37,11 @@ for proper function it needs to have all necessary data extracted in the game da
 
 **Beta5**<br>
 Added controller support
-![viewer_mdl/viewer_anim5a.gif](doc/viewer_anim5a.gif)
+![viewer_mdl/viewer_anim5a.png](doc/viewer_anim5a.png)
 ![viewer_mdl/viewer_anim5b.png](doc/viewer_anim5b.png)
 
 **Beta4**<br>
-Added controller support
+character movement support
 ![viewer_mdl/viewer_anim4.gif](doc/viewer_anim4.gif)
 ![viewer_mdl/viewer_anim4.png](doc/viewer_anim4.png)
 
