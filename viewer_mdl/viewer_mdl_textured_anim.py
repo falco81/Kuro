@@ -1175,6 +1175,15 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     bind_matrices_json = json.dumps(bind_matrices) if bind_matrices else "null"
     animations_json = json.dumps(animations_data) if animations_data else "null"
 
+
+    # SVG path data from reference controller icons (viewBox 0 0 64 64)
+    xbox_body_p1 = 'M63.782 42.228c-.325-2.912-1-5.25-1-5.25s-4.664-16.855-7.876-21.475a5.868 5.868 0 0 0-.476-.595s-2.341-2.229-6.018-3.086c-2.829-.66-6.287-.81-7.736-.846-2.064-.018-6.836-.058-8.713-.057-1.86 0-6.584.04-8.637.057-1.449.035-4.908.187-7.738.846-3.677.857-6.018 3.086-6.018 3.086a5.88 5.88 0 0 0-.476.595c-3.212 4.62-7.877 21.474-7.877 21.474s-.674 2.34-.999 5.25c-.823 5.8.911 8.436 1.461 9.118s2.883 3.3 4.885 2.839c2.002-.463 5.452-5.086 5.452-5.086 1-1.238 2.027-2.552 2.975-3.76 1.531-1.95 3.042-2.901 4.205-3.362.311-.124.637-.208.968-.259a10.38 10.38 0 0 1 1.472-.119h20.728c.505.005.995.046 1.472.12.331.05.657.134.968.258 1.163.46 2.674 1.412 4.205 3.362.948 1.208 1.976 2.522 2.975 3.76 0 0 3.45 4.623 5.452 5.086 2.002.462 4.335-2.157 4.885-2.839s2.284-3.317 1.461-9.117zM48.388 15.483a2.23 2.23 0 1 1 0 4.46 2.23 2.23 0 0 1 0-4.46zM15.605 25.505a3.601 3.601 0 1 1 0-7.203 3.601 3.601 0 0 1 0 7.203zM27.85 33.01a4.025 4.025 0 0 1-.218.8.221.221 0 0 1-.208.14h-1.938a.348.348 0 0 0-.348.349v1.938a.221.221 0 0 1-.141.208 3.967 3.967 0 0 1-.8.217 4.418 4.418 0 0 1-2.187-.213.223.223 0 0 1-.145-.21v-1.94a.348.348 0 0 0-.348-.348H19.58a.223.223 0 0 1-.21-.145 4.418 4.418 0 0 1-.214-2.187c.042-.277.12-.542.218-.8a.221.221 0 0 1 .207-.141h1.938a.348.348 0 0 0 .348-.348v-1.938c0-.092.056-.175.142-.208.257-.097.522-.175.799-.217a4.418 4.418 0 0 1 2.187.213.224.224 0 0 1 .145.21v1.94c0 .192.156.348.348.348h1.94c.093 0 .178.057.21.145.243.67.332 1.411.214 2.187zm-.466-9.81a1.379 1.379 0 1 1 0-2.758 1.379 1.379 0 0 1 0 2.758zm5.309 3.385h-1.388a1.085 1.085 0 1 1 0-2.17h1.388a1.085 1.085 0 0 1 0 2.17zM32 17.875a2.435 2.435 0 1 1 0-4.87 2.435 2.435 0 0 1 0 4.87zm3.325 3.946a1.379 1.379 0 1 1 2.758 0 1.379 1.379 0 0 1-2.758 0zm5.054 13.255a3.601 3.601 0 1 1 0-7.203 3.601 3.601 0 0 1 0 7.203zm3.697-10.865a2.23 2.23 0 1 1 0-4.46 2.23 2.23 0 0 1 0 4.46zm4.312 4.269a2.23 2.23 0 1 1 0-4.46 2.23 2.23 0 0 1 0 4.46zm4.283-4.269a2.23 2.23 0 1 1 0-4.46 2.23 2.23 0 0 1 0 4.46z'
+    xbox_body_p2 = 'M48.388 15.483a2.23 2.23 0 1 1 0 4.46 2.23 2.23 0 0 1 0-4.46zm-29.182 6.42a3.601 3.601 0 1 0-7.203 0 3.601 3.601 0 0 0 7.203 0zm9.558-.082a1.379 1.379 0 1 0-2.758 0 1.379 1.379 0 0 0 2.758 0zm5.015 3.679c0-.6-.486-1.086-1.085-1.086h-1.388a1.085 1.085 0 0 0 0 2.171h1.388c.6 0 1.085-.486 1.085-1.085zm.656-10.06a2.435 2.435 0 1 0-4.87 0 2.435 2.435 0 0 0 4.87 0zm2.27 7.76a1.379 1.379 0 1 0 0-2.758 1.379 1.379 0 0 0 0 2.758zm7.276 8.275a3.601 3.601 0 1 0-7.203 0 3.601 3.601 0 0 0 7.203 0zm2.324-9.494a2.23 2.23 0 1 0-4.459 0 2.23 2.23 0 0 0 4.46 0zm4.313 4.269a2.23 2.23 0 1 0-4.46 0 2.23 2.23 0 0 0 4.46 0zm4.282-4.27a2.23 2.23 0 1 0-4.46 0 2.23 2.23 0 0 0 4.46 0zm-.47-7.073a4.239 4.239 0 0 0-.67-1.254c-.498-.63-1.216-1.763-3.417-2.728-.93-.407-2.495-.871-3.36-.997-.653-.096-2.632-.231-3.285-.132-.343.052-.66.425-.66.425-.235.161-.587.748-1.379.763l-.985-.009c1.45.035 4.908.187 7.737.846 3.677.857 6.018 3.086 6.018 3.086m-44.86 0s2.341-2.229 6.018-3.086c2.83-.66 6.29-.811 7.739-.846l-.987.009c-.792-.015-1.144-.602-1.379-.763 0 0-.317-.373-.66-.425-.653-.1-2.632.036-3.286.132-.864.126-2.43.59-3.359.997-2.201.965-2.919 2.098-3.418 2.728a4.239 4.239 0 0 0-.668 1.254M25.14 30.33v-1.94a.224.224 0 0 0-.146-.21 4.418 4.418 0 0 0-2.187-.213c-.277.042-.542.12-.8.217a.221.221 0 0 0-.14.208v1.938a.348.348 0 0 1-.349.348H19.58a.221.221 0 0 0-.207.142 3.97 3.97 0 0 0-.218.799 4.418 4.418 0 0 0 .213 2.187.224.224 0 0 0 .211.145h1.94c.192 0 .347.156.347.348v1.94c0 .092.058.178.145.21.67.242 1.412.332 2.188.213.276-.042.541-.12.799-.217a.221.221 0 0 0 .141-.208V34.3c0-.192.156-.348.348-.348h1.938a.221.221 0 0 0 .208-.142c.097-.257.175-.522.218-.799a4.418 4.418 0 0 0-.214-2.187.224.224 0 0 0-.21-.145h-1.94a.348.348 0 0 1-.348-.348z'
+    ps_body_p1 = 'M16.383 12.233 7.758 13.76l.144-.996c.9-1.116 3.637-1.802 4.68-1.927a8.833 8.833 0 0 1 3.35.137c.32.061.32.245.32.245ZM4.615 52.569s1.42.541 2.582-3.813a71.235 71.235 0 0 1 7.589-17.293c2.788-4.183 4.665-5.52 5.29-7.323a2.29 2.29 0 0 0 .082-1.031 4.518 4.518 0 0 0 4.378 2.98l14.916.002h.04a4.49 4.49 0 0 0 4.351-3.003 2.296 2.296 0 0 0 .081 1.052c.625 1.803 2.502 3.14 5.29 7.323a71.235 71.235 0 0 1 7.59 17.293c1.16 4.354 2.581 3.813 2.581 3.813l-.034.027h-.002l-3.976.641c-.361.013-.514-.176-.762-.577a66.481 66.481 0 0 1-3.051-7.02c-1.491-3.969-1.927-6.171-4.978-7.226a7.482 7.482 0 0 0-1.446-.299c-.722.026-1.796.323-2.51.342-2.45.05-3.442-.094-7.664-.05v.007l-2.965-.005-2.965.005v-.006c-4.22-.045-5.216.098-7.664.049-.717-.019-1.785-.316-2.51-.342a7.482 7.482 0 0 0-1.446.299c-3.05 1.055-3.487 3.257-4.978 7.226a66.481 66.481 0 0 1-3.051 7.02c-.248.4-.4.59-.762.577Zm16.413-24.456a3.72 3.72 0 1 0 4.375 4.375 3.722 3.722 0 0 0-4.375-4.375Zm12.603 7.072a.382.382 0 0 0-.383-.382h-2.51a.382.382 0 0 0 0 .765h2.51a.382.382 0 0 0 .383-.383Zm7.883-7.072a3.72 3.72 0 1 0 4.375 4.375 3.722 3.722 0 0 0-4.375-4.375Zm6.12-15.88 8.624 1.528-.144-.996c-.9-1.116-3.636-1.802-4.68-1.927a8.833 8.833 0 0 0-3.35.137c-.32.061-.32.245-.32.245Z'
+    ps_body_p2 = 'M19.475 15.22a3.63 3.63 0 0 1 .472-3.135 1.533 1.533 0 0 1 .525-.359c2.15-.587 7.074-.485 11.497-.485v.002c4.423 0 9.347-.102 11.497.485a1.533 1.533 0 0 1 .525.359 3.63 3.63 0 0 1 .472 3.134l-.693 3.301-.32 1.487c-.073.345-.14.68-.205.997-.137.679-.259 1.283-.395 1.77-.642 2.307-3.297 2.286-3.437 2.317H24.525c-.14-.033-2.795-.011-3.437-2.318-.136-.487-.258-1.092-.395-1.77-.064-.318-.132-.652-.205-.998l-.32-1.486Zm.594 8.923c-.625 1.803-2.501 3.14-5.29 7.322A71.235 71.235 0 0 0 7.19 48.76c-1.16 4.354-2.582 3.812-2.582 3.812l.035.029-.005-.001c-.536-.086-1.66-.494-2.924-2.3-1.766-2.523-1.72-9.268-1.72-9.268l.01-.002a50.708 50.708 0 0 1 .7-8.463 61.13 61.13 0 0 1 5.904-18.303l.065-.092c.247-.301.728-.308 1.068-.407l8.629-1.528a1.82 1.82 0 0 1 1.732 1.438l2.028 9.19a2.36 2.36 0 0 1-.06 1.279Zm-9.722-5.455s.032.826.088 1.388l.016.252a.932.932 0 0 0 .312.663c.29.339.99 1 .99 1a.646.646 0 0 0 .622 0s.701-.661.99-1a.932.932 0 0 0 .312-.663l.016-.252a27.88 27.88 0 0 0 .088-1.388.914.914 0 0 0-.784-.868 8.18 8.18 0 0 0-.933-.084 8.18 8.18 0 0 0-.933.084.914.914 0 0 0-.784.868Zm-.262 5.612c.339-.288 1-.99 1-.99a.646.646 0 0 0 0-.622s-.661-.7-1-.99a.932.932 0 0 0-.664-.311l-.25-.016a27.872 27.872 0 0 0-1.39-.088.914.914 0 0 0-.867.784A8.183 8.183 0 0 0 6.83 23a8.18 8.18 0 0 0 .084.933.914.914 0 0 0 .868.783s.826-.03 1.388-.087l.251-.016a.932.932 0 0 0 .664-.313Zm3.728 2.926s-.031-.826-.088-1.388l-.016-.252a.932.932 0 0 0-.312-.663c-.289-.339-.99-1-.99-1a.646.646 0 0 0-.622 0s-.7.661-.99 1a.932.932 0 0 0-.312.663l-.016.251a27.872 27.872 0 0 0-.088 1.39.914.914 0 0 0 .784.867 8.18 8.18 0 0 0 .933.084 8.18 8.18 0 0 0 .933-.084.914.914 0 0 0 .784-.868ZM17.298 23a8.18 8.18 0 0 0-.084-.933.914.914 0 0 0-.867-.784s-.826.031-1.389.088l-.251.015a.932.932 0 0 0-.664.313c-.339.289-1 .99-1 .99a.646.646 0 0 0 0 .622s.661.7 1 .99a.931.931 0 0 0 .664.312l.251.015a27.8 27.8 0 0 0 1.389.088.914.914 0 0 0 .867-.784 8.178 8.178 0 0 0 .084-.932Zm.551-6.503-.279-1.415a.73.73 0 1 0-1.432.283l.28 1.415a.73.73 0 1 0 1.431-.283Zm44.424 33.802c-1.264 1.806-2.388 2.214-2.924 2.3h-.005l.035-.028s-1.421.542-2.582-3.813a71.236 71.236 0 0 0-7.59-17.293c-2.788-4.182-4.664-5.52-5.29-7.322a2.36 2.36 0 0 1-.06-1.28l2.028-9.189a1.82 1.82 0 0 1 1.736-1.438l8.625 1.527v.001c.34.1.822.105 1.068.407l.065.092a61.13 61.13 0 0 1 5.903 18.302 50.708 50.708 0 0 1 .701 8.464l.01.002s.046 6.744-1.72 9.268ZM46.035 16.516a.73.73 0 1 0 1.432.283l.279-1.415a.73.73 0 1 0-1.432-.283Zm.701 4.44a2.075 2.075 0 1 0 2.526 2.526 2.06 2.06 0 0 0-2.526-2.526Zm4.688 4.707a2.075 2.075 0 1 0 2.526 2.526 2.06 2.06 0 0 0-2.526-2.526Zm0-9.413a2.075 2.075 0 1 0 2.526 2.525 2.06 2.06 0 0 0-2.526-2.525Zm4.687 4.706a2.075 2.075 0 1 0 2.526 2.526 2.06 2.06 0 0 0-2.526-2.526Z'
+    sw_body_p1 = 'M60.152 21.98c-.66-2.872-1.353-5.28-1.945-6.047a4.964 4.964 0 0 0-1.108-.968h-.018a19.062 19.062 0 0 0-5.245-2.586c-3.428-1.161-10.467-1.272-10.467-1.272l.004-.002c-1.467-.023-7.266-.11-9.383-.11-2.125 0-7.959.088-9.401.11l.003.002s-7.038.11-10.467 1.272a19.064 19.064 0 0 0-5.245 2.586 4.964 4.964 0 0 0-1.108.968c-.727.942-1.608 4.369-2.392 8.085.069.107 7.358 11.508 12.85 17.483l.003.005.35-.14a5.484 5.484 0 0 1 1.6-.248l13.807-.06 13.806.06a4.686 4.686 0 0 1 1.95.405l.004-.005c5.511-5.997 12.835-17.461 12.852-17.488ZM24.02 16.712a1.418 1.418 0 1 1-1.428 1.418 1.423 1.423 0 0 1 1.428-1.418Zm-9.752 9.992a3.713 3.713 0 1 1 3.74-3.713 3.726 3.726 0 0 1-3.74 3.713Zm12.696 6.217a.406.406 0 0 1-.406.403h-2.49a.407.407 0 0 0-.405.403v2.47a.404.404 0 0 1-.406.402h-2.381a.404.404 0 0 1-.406-.403v-2.47a.407.407 0 0 0-.406-.402h-2.487a.405.405 0 0 1-.406-.403v-2.365a.405.405 0 0 1 .406-.403h2.487a.407.407 0 0 0 .406-.403v-2.47a.406.406 0 0 1 .406-.402h2.381a.406.406 0 0 1 .406.403v2.47a.406.406 0 0 0 .406.402h2.49a.406.406 0 0 1 .405.403Zm1.747-9.195a.424.424 0 0 1-.425.422h-1.714a.424.424 0 0 1-.425-.422v-1.702a.424.424 0 0 1 .425-.422h1.714a.424.424 0 0 1 .425.422Zm11.161-7.014a1.418 1.418 0 1 1-1.428 1.418 1.423 1.423 0 0 1 1.428-1.418Zm-4.808 6.163a1.428 1.428 0 1 1 1.428 1.418 1.423 1.423 0 0 1-1.428-1.418Zm5.313 12.567a3.713 3.713 0 1 1 3.74-3.714 3.726 3.726 0 0 1-3.74 3.714Zm3.526-10.098a2.353 2.353 0 1 1 2.37-2.353 2.362 2.362 0 0 1-2.37 2.353Zm5.031 4.32a2.353 2.353 0 1 1 2.37-2.352 2.362 2.362 0 0 1-2.37 2.353Zm0-8.64a2.353 2.353 0 1 1 2.37-2.354 2.362 2.362 0 0 1-2.37 2.353Zm5.032 4.32a2.353 2.353 0 1 1 2.37-2.353 2.362 2.362 0 0 1-2.37 2.353Z'
+    sw_body_p2 = 'M24.03 16.706a1.418 1.418 0 1 1-1.427 1.417 1.423 1.423 0 0 1 1.427-1.417Zm-6.012 6.278a3.74 3.74 0 1 0-3.74 3.714 3.726 3.726 0 0 0 3.74-3.714Zm8.957 7.566a.406.406 0 0 0-.406-.403h-2.49a.407.407 0 0 1-.406-.403v-2.47a.406.406 0 0 0-.405-.403h-2.382a.406.406 0 0 0-.405.403v2.47a.407.407 0 0 1-.406.403h-2.487a.405.405 0 0 0-.406.403v2.364a.405.405 0 0 0 .406.403h2.487a.407.407 0 0 1 .406.403v2.47a.405.405 0 0 0 .405.403h2.381a.404.404 0 0 0 .406-.403v-2.47a.407.407 0 0 1 .406-.403h2.49a.406.406 0 0 0 .406-.403Zm1.746-8.532a.424.424 0 0 0-.425-.422h-1.714a.424.424 0 0 0-.425.422v1.702a.424.424 0 0 0 .425.422h1.714a.424.424 0 0 0 .425-.422Zm9.733-3.895a1.428 1.428 0 1 0 1.428-1.417 1.423 1.423 0 0 0-1.428 1.417Zm-1.952 6.163a1.418 1.418 0 1 0-1.428-1.417 1.423 1.423 0 0 0 1.428 1.417Zm7.625 7.436a3.74 3.74 0 1 0-3.74 3.713 3.726 3.726 0 0 0 3.74-3.713Zm2.156-8.738a2.37 2.37 0 1 0-2.37 2.354 2.362 2.362 0 0 0 2.37-2.354Zm5.032 4.321a2.37 2.37 0 1 0-2.37 2.354 2.362 2.362 0 0 0 2.37-2.354Zm0-8.641a2.37 2.37 0 1 0-2.37 2.353 2.362 2.362 0 0 0 2.37-2.353Zm5.031 4.32a2.37 2.37 0 1 0-2.37 2.354 2.362 2.362 0 0 0 2.37-2.354ZM3.388 24.01a210.465 210.465 0 0 0-1.455 7.707C.973 37.349-.635 47.06.264 49.186c.748 2.711 3.047 5.075 5.516 5.075a5.287 5.287 0 0 0 4.458-2.401c2.174-3.548 4.254-8.073 4.808-9.143a2.687 2.687 0 0 1 1.198-1.216l-.004-.005C10.728 35.5 3.405 24.036 3.388 24.01ZM47.76 41.513l-.004.005a2.687 2.687 0 0 1 1.198 1.215c.554 1.07 2.634 5.595 4.808 9.144a5.287 5.287 0 0 0 4.458 2.401c2.469 0 4.768-2.364 5.516-5.075.9-2.126-.709-11.837-1.67-17.47-.368-2.165-.886-5.012-1.454-7.708-.017.027-7.34 11.49-12.852 17.488Zm4.06-31.047c-2.077-.673-7.634-1.287-9.289.045-.271-.012-.54-.018-.803-.018 0 0-7.296-.116-9.728-.116s-9.728.116-9.728.116q-.403 0-.818.018v.002c-1.65-1.335-7.214-.72-9.293-.047-2.277.736-4.71 2.579-5.27 4.494a19.063 19.063 0 0 1 5.244-2.586c3.429-1.161 10.468-1.272 10.468-1.272l-.004-.002c1.442-.022 7.276-.11 9.4-.11 2.118 0 7.917.087 9.384.11l-.004.002s7.039.11 10.468 1.272a19.063 19.063 0 0 1 5.244 2.586c-.56-1.915-2.993-3.758-5.27-4.494Z'
+
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1197,7 +1206,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
                         display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }}
     #controls-toggle:hover {{ background: rgba(168, 85, 247, 0.9); }}
     #controls-toggle.visible {{ display: block; }}
-    #stats {{ bottom: 20px; left: 20px; font-family: monospace; font-size: 12px; }}
+    #stats {{ bottom: 20px; left: 20px; font-family: monospace; font-size: 12px; min-width: 440px; }}
     h3 {{ margin: 0 0 12px 0; color: #7c3aed; font-size: 16px; }}
     h4 {{ margin: 15px 0 10px 0; padding-bottom: 8px; border-bottom: 1px solid rgba(124, 58, 237, 0.3);
           font-size: 14px; color: #a78bfa; font-weight: 500; }}
@@ -1672,52 +1681,321 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     
     // Gamepad controller - third-person mode
     let gamepadEnabled = false;
-    let gamepadIndex = -1;
     let gamepadPrevButtons = [];
     let gamepadDeadzone = 0.15;
-    let gamepadType = 'xbox';  // 'xbox', 'playstation', 'generic'
-    let gamepadButtonStates = [];  // current frame pressed states
-    let gamepadAxesStates = [0,0,0,0];  // current axes
-    let gamepadTriggerStates = [0,0];  // LT, RT values
-    let gamepadInvertX = true;   // X camera invert ON by default
-    let gamepadInvertY = false;  // Y camera invert OFF by default
+    let gamepadType = 'generic';
+    let gamepadButtonStates = [];
+    let gamepadAxesStates = [0,0,0,0];
+    let gamepadTriggerStates = [0,0];
+    let gamepadInvertX = true;
+    let gamepadInvertY = false;
+    let gamepadConnectedShown = false;
+    let gamepadCurrentId = '';
+    let kbUseKeyboard = true;   // start in keyboard mode
+    let lastActiveInput = 'keyboard';  // 'keyboard' | 'gamepad' — switch only on real input
+    let gamepadLastTimestamp = 0;  // for ghost detection
+    let gamepadStaleFrames = 0;   // frames since timestamp changed
+    const GAMEPAD_STALE_THRESHOLD = 120;  // ~2s at 60fps
+    let gamepadConfirmed = false;  // true once real input seen — disables ghost detection
+    let cachedOverlaySVGImg = null;  // pre-rendered controller/kb SVG for screenshots
+    let cachedOverlaySVGStr = '';    // last SVG string (to detect changes)
+    const kbKeys = {{}};  // currently held keys
+    const kbPrevKeys = {{}};  // previous frame keys (for edge detection)
+    
+    // Keyboard → gamepad button mapping
+    // Movement: WASD, Camera: Arrow keys, Zoom: QE
+    const KB_MAP = {{
+      // key → gamepad button index for "justPressed" actions
+      'Space': 0,       // Play/Pause
+      'Escape': 1,      // Stop
+      'KeyR': 2,        // Reset position
+      'KeyF': 3,        // Dynamic bones
+      'BracketLeft': 4, // [ → prev anim
+      'BracketRight': 5,// ] → next anim
+      'KeyP': 9,        // Screenshot
+      'Equal': 12,      // + → speed up
+      'Minus': 13,      // - → speed down
+      'KeyV': 14,       // V → cycle visual
+      'KeyB': 15,       // B → cycle bones
+      'KeyO': 8,        // O → overlay
+    }};
+    const KB_LABELS = {{
+      0: 'Space', 1: 'Esc', 2: 'R', 3: 'F',
+      4: '[', 5: ']', 6: 'Q', 7: 'E',
+      8: 'O', 9: 'P', 12: '+', 13: '-', 14: 'V', 15: 'B',
+    }};
 
     // Button labels per controller type
+    // Controller type: 'xbox', 'playstation', 'switch', 'generic'
     const GP_LABELS = {{
       xbox: {{
         0: 'A', 1: 'B', 2: 'X', 3: 'Y',
         4: 'LB', 5: 'RB', 6: 'LT', 7: 'RT',
-        8: 'Back', 9: 'Start', 10: 'LS', 11: 'RS',
-        12: '↑', 13: '↓', 14: '←', 15: '→',
+        8: 'View', 9: 'Menu', 10: 'LS', 11: 'RS',
+        12: '↑', 13: '↓', 14: '←', 15: '→', 16: 'Xbox',
       }},
       playstation: {{
         0: '✕', 1: '○', 2: '□', 3: '△',
         4: 'L1', 5: 'R1', 6: 'L2', 7: 'R2',
         8: 'Share', 9: 'Opt', 10: 'L3', 11: 'R3',
-        12: '↑', 13: '↓', 14: '←', 15: '→',
+        12: '↑', 13: '↓', 14: '←', 15: '→', 16: 'PS',
+      }},
+      switch: {{
+        0: 'B', 1: 'A', 2: 'Y', 3: 'X',
+        4: 'L', 5: 'R', 6: 'ZL', 7: 'ZR',
+        8: '−', 9: '+', 10: 'LS', 11: 'RS',
+        12: '↑', 13: '↓', 14: '←', 15: '→', 16: '⌂',
       }},
       generic: {{
-        0: '1', 1: '2', 2: '3', 3: '4',
+        0: '①', 1: '②', 2: '③', 3: '④',
         4: 'L1', 5: 'R1', 6: 'L2', 7: 'R2',
         8: 'Sel', 9: 'Start', 10: 'L3', 11: 'R3',
         12: '↑', 13: '↓', 14: '←', 15: '→',
+      }},
+      keyboard: {{
+        0: 'Spc', 1: 'Esc', 2: 'R', 3: 'F',
+        4: '[', 5: ']', 6: 'Q', 7: 'E',
+        8: 'O', 9: 'P', 10: '', 11: '',
+        12: '+', 13: '-', 14: 'V', 15: 'B',
       }}
     }};
 
-    // Button colors per type (for face buttons only)
+    // Button colors per type (face buttons 0-3)
     const GP_COLORS = {{
       xbox: {{ 0: '#3ddc84', 1: '#f44336', 2: '#2196f3', 3: '#ffc107' }},
       playstation: {{ 0: '#5c9dff', 1: '#f44336', 2: '#e991d0', 3: '#4cdfad' }},
-      generic: {{}}
+      switch: {{ 0: '#ffdc00', 1: '#ff4136', 2: '#39cccc', 3: '#0074d9' }},
+      generic: {{ 0: '#888', 1: '#888', 2: '#888', 3: '#888' }},
+      keyboard: {{ 0: '#60a5fa', 1: '#f87171', 2: '#4ade80', 3: '#fbbf24' }}
     }};
 
     // Action mapping (button index → description)
     const GP_ACTIONS = {{
       0: 'Play/Pause', 1: 'Stop', 2: 'Reset Pos', 3: 'DynBones',
       4: 'Prev Anim', 5: 'Next Anim', 6: 'Zoom Out', 7: 'Zoom In',
-      9: 'Screenshot', 12: 'Speed+', 13: 'Speed-', 14: 'Wireframe', 15: 'Skeleton'
+      8: 'Overlay', 9: 'Screenshot', 12: 'Speed+', 13: 'Speed-', 14: 'Visual', 15: 'Bones'
     }};
     const GP_STICK_ACTIONS = {{ ls: 'Move', rs: 'Camera' }};
+
+    // Display names per type
+    const GP_TYPE_NAMES = {{
+      xbox: 'Xbox Controller',
+      playstation: 'PlayStation Controller',
+      switch: 'Switch Pro Controller',
+      keyboard: 'Keyboard',
+      generic: 'Gamepad Connected'
+    }};
+
+    // ── SVG body paths from reference controller icons ──
+    const CTRL_BODY = {{
+      xbox: ['{xbox_body_p1}', '{xbox_body_p2}'],
+      ps: ['{ps_body_p1}', '{ps_body_p2}'],
+      sw: ['{sw_body_p1}', '{sw_body_p2}']
+    }};
+
+    function renderControllerSVG(tp, bs, ax, tr, labels, colors) {{
+      const isPS = (tp === 'playstation');
+      const isSW = (tp === 'switch');
+      const isXB = (tp === 'xbox' || tp === 'generic');
+      // viewBox 0 0 64 64, display 420×280 → controller centered
+      const W = 420, H = 280;
+      let s = '<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H+'" viewBox="0 7 64 45" preserveAspectRatio="xMidYMid meet" style="display:block;margin:2px auto">';
+      s += '<defs>';
+      s += '<radialGradient id="stG"><stop offset="0%" stop-color="#4a4a5a"/><stop offset="100%" stop-color="#1a1a2a"/></radialGradient>';
+      s += '<radialGradient id="stGA"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#4c1d95"/></radialGradient>';
+      s += '</defs>';
+
+      // Body from reference SVG paths
+      const bk = isPS ? 'ps' : isSW ? 'sw' : 'xbox';
+      s += '<path d="'+CTRL_BODY[bk][0]+'" fill="#1c1c30" stroke="#2a2a40" stroke-width="0.2"/>';
+      s += '<path d="'+CTRL_BODY[bk][1]+'" fill="#2a2a42" opacity="0.35"/>';
+
+      // ═══ Helpers (all coords in 64-unit space) ═══
+      const SR = 3.2, CR = 2.0, MV = 1.8;  // stick socket, cap, movement
+      const FR = 2.0;   // face btn radius
+      const SW = 0.2;   // stroke width
+      const FS1 = 1.6, FS2 = 1.2;  // font sizes
+
+      function stickVis(cx, cy, axX, axY, concave) {{
+        const act = Math.abs(axX) > 0 || Math.abs(axY) > 0;
+        const dx = cx + axX * MV, dy = cy + axY * MV;
+        s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+SR+'" fill="#0a0a18" stroke="'+(act?'#5b21b6':'#2a2a3a')+'" stroke-width="'+SW+'"/>';
+        s += '<circle cx="'+dx+'" cy="'+dy+'" r="'+CR+'" fill="url(#'+(act?'stGA':'stG')+')" stroke="'+(act?'#a78bfa':'#444')+'" stroke-width="'+SW+'"/>';
+        if (concave) {{
+          s += '<circle cx="'+dx+'" cy="'+dy+'" r="'+(CR*0.6)+'" fill="none" stroke="'+(act?'rgba(167,139,250,0.3)':'rgba(60,60,80,0.5)')+'" stroke-width="0.1"/>';
+        }} else {{
+          s += '<circle cx="'+dx+'" cy="'+dy+'" r="'+(CR*0.55)+'" fill="none" stroke="'+(act?'rgba(167,139,250,0.15)':'rgba(60,60,80,0.2)')+'" stroke-width="0.1"/>';
+        }}
+      }}
+
+      function faceBtn(cx, cy, idx, r) {{
+        const p = bs[idx]; const fc = colors[idx];
+        const fill = p ? (fc || '#7c3aed') : 'rgba(37,37,64,0.7)';
+        const stroke = p ? (fc ? '#fff' : '#a78bfa') : (fc || 'rgba(68,68,68,0.6)');
+        const tf = p ? (fc ? '#000' : '#fff') : (fc || '#777');
+        s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+fill+'" stroke="'+stroke+'" stroke-width="'+(SW*0.8)+'"/>';
+        s += '<text x="'+cx+'" y="'+(cy+r*0.35)+'" text-anchor="middle" fill="'+tf+'" font-size="'+FS2+'" font-family="sans-serif" font-weight="bold">'+(labels[idx]||'')+'</text>';
+      }}
+
+      function dpadVis(cx, cy, style) {{
+        const aw = 1.2, al = 3.5;  // arm width, length
+        if (style === 'ps') {{
+          const dd = 2.5;
+          [[12,0,-dd],[13,0,dd],[14,-dd,0],[15,dd,0]].forEach(function(d) {{
+            const idx=d[0], ox=d[1], oy=d[2]; const p = bs[idx];
+            s += '<rect x="'+(cx+ox-aw*0.7)+'" y="'+(cy+oy-aw*0.7)+'" width="'+(aw*1.4)+'" height="'+(aw*1.4)+'" rx="0.3" fill="'+(p?'rgba(124,58,237,0.7)':'rgba(30,30,54,0.6)')+'" stroke="'+(p?'#a78bfa':'rgba(58,58,80,0.5)')+'" stroke-width="0.08"/>';
+          }});
+        }} else {{
+          s += '<rect x="'+(cx-aw/2)+'" y="'+(cy-al)+'" width="'+aw+'" height="'+(al*2)+'" rx="0.3" fill="rgba(26,26,46,0.6)" stroke="rgba(58,58,80,0.4)" stroke-width="0.08"/>';
+          s += '<rect x="'+(cx-al)+'" y="'+(cy-aw/2)+'" width="'+(al*2)+'" height="'+aw+'" rx="0.3" fill="rgba(26,26,46,0.6)" stroke="rgba(58,58,80,0.4)" stroke-width="0.08"/>';
+          [[12,0,-2.2],[13,0,2.2],[14,-2.2,0],[15,2.2,0]].forEach(function(d) {{
+            const idx=d[0], ox=d[1], oy=d[2]; const p = bs[idx];
+            if (p) s += '<rect x="'+(cx+ox-0.6)+'" y="'+(cy+oy-0.6)+'" width="1.2" height="1.2" rx="0.15" fill="rgba(124,58,237,0.6)"/>';
+          }});
+        }}
+      }}
+
+      function trigBar(x, y, w, idx, val, side) {{
+        const pct = Math.max(0, Math.min(1, val)) * w; const act = val > 0.05;
+        s += '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="1.8" rx="0.5" fill="#0d0d1a" stroke="rgba(58,58,80,0.4)" stroke-width="0.08"/>';
+        if (pct > 0.2) {{
+          const fx = (side==='r') ? (x + w - pct) : x;
+          s += '<rect x="'+fx+'" y="'+y+'" width="'+Math.max(1,pct)+'" height="1.8" rx="0.5" fill="rgba(124,58,237,'+(0.3+val*0.65)+')"/>';
+        }}
+        s += '<text x="'+(x+w/2)+'" y="'+(y+1.3)+'" text-anchor="middle" fill="'+(act?'#ddd':'#555')+'" font-size="1" font-family="sans-serif">'+(labels[idx]||'')+'</text>';
+      }}
+
+      function bumperBar(x, y, w, idx) {{
+        const p = bs[idx];
+        s += '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="2" rx="1" fill="'+(p?'#7c3aed':'rgba(37,37,64,0.6)')+'" stroke="'+(p?'#a78bfa':'rgba(68,68,68,0.4)')+'" stroke-width="0.1"/>';
+        s += '<text x="'+(x+w/2)+'" y="'+(y+1.4)+'" text-anchor="middle" fill="'+(p?'#fff':'#777')+'" font-size="1" font-family="sans-serif">'+(labels[idx]||'')+'</text>';
+      }}
+
+      function smallBtn(cx, cy, idx, shape, extra) {{
+        const p = bs[idx]; const lbl = labels[idx] || '';
+        if (shape === 'circle') {{
+          s += '<circle cx="'+cx+'" cy="'+cy+'" r="1.1" fill="'+(p?'#7c3aed':'rgba(37,37,64,0.6)')+'" stroke="'+(p?'#a78bfa':'rgba(68,68,68,0.4)')+'" stroke-width="0.08"/>';
+          s += '<text x="'+cx+'" y="'+(cy+0.4)+'" text-anchor="middle" fill="'+(p?'#fff':'#555')+'" font-size="0.9">'+(extra||lbl)+'</text>';
+        }} else {{
+          s += '<rect x="'+(cx-1.5)+'" y="'+(cy-0.7)+'" width="3" height="1.4" rx="0.4" fill="'+(p?'#7c3aed':'rgba(37,37,64,0.6)')+'" stroke="'+(p?'#a78bfa':'rgba(68,68,68,0.4)')+'" stroke-width="0.08"/>';
+          s += '<text x="'+cx+'" y="'+(cy+0.4)+'" text-anchor="middle" fill="'+(p?'#fff':'#666')+'" font-size="0.8">'+lbl+'</text>';
+        }}
+      }}
+
+      // ═══ LAYOUTS from SVG element positions ═══
+      if (isPS) {{
+        // ── DualSense: SVG positions with small correction (−1.2x, +1.2y) ──
+        trigBar(7, 8.5, 13, 6, tr[0], 'l');
+        trigBar(44, 8.5, 13, 7, tr[1], 'r');
+        bumperBar(7, 11, 13, 4);
+        bumperBar(44, 11, 13, 5);
+        // D-pad
+        dpadVis(12.0, 23.0, 'ps');
+        // Face buttons △○□✕: shifted ~(-1.2, +1.2) from SVG icon positions
+        faceBtn(51.5, 18.7, 3, FR); faceBtn(46.8, 23.4, 2, FR);
+        faceBtn(56.2, 23.4, 1, FR); faceBtn(51.5, 28.1, 0, FR);
+        // Sticks
+        stickVis(21.7, 31.8, ax[0], ax[1], true);
+        stickVis(42.2, 31.8, ax[2], ax[3], true);
+        // Create / Options (horizontal pills)
+        smallBtn(17.8, 16.5, 8, 'pill', null);
+        smallBtn(46.0, 16.5, 9, 'pill', null);
+        // PS button
+        smallBtn(32.0, 35.0, 16, 'circle', 'PS');
+      }} else if (isSW) {{
+        trigBar(6, 8, 14, 6, tr[0], 'l');
+        trigBar(44, 8, 14, 7, tr[1], 'r');
+        bumperBar(6, 10.5, 14, 4);
+        bumperBar(44, 10.5, 14, 5);
+        // Left stick upper-left
+        stickVis(16.1, 23.0, ax[0], ax[1], true);
+        // D-pad lower-left
+        dpadVis(22.0, 31.0, 'cross');
+        // Face buttons upper-right
+        faceBtn(50.1, 18.8, 3, FR); faceBtn(45.1, 23.2, 2, FR);
+        faceBtn(55.2, 23.2, 1, FR); faceBtn(50.1, 27.5, 0, FR);
+        // Right stick lower inward
+        stickVis(42.2, 33.0, ax[2], ax[3], true);
+        // −/+
+        smallBtn(23.3, 17.4, 8, 'circle', '−');
+        smallBtn(39.2, 17.4, 9, 'circle', '+');
+        smallBtn(37.0, 24.0, 16, 'circle', '⌂');
+      }} else {{
+        // Xbox
+        trigBar(6, 8, 14, 6, tr[0], 'l');
+        trigBar(44, 8, 14, 7, tr[1], 'r');
+        bumperBar(6, 10.5, 14, 4);
+        bumperBar(44, 10.5, 14, 5);
+        // Left stick upper-left
+        stickVis(15.6, 21.9, ax[0], ax[1], false);
+        // D-pad lower-left
+        dpadVis(23.5, 31.5, 'cross');
+        // Face YXBA upper-right
+        faceBtn(48.4, 17.7, 3, 2.1); faceBtn(44.1, 22.0, 2, 2.1);
+        faceBtn(52.7, 22.0, 1, 2.1); faceBtn(48.4, 26.2, 0, 2.1);
+        // Right stick lower inward
+        stickVis(40.4, 31.5, ax[2], ax[3], false);
+        // Xbox guide
+        s += '<circle cx="32" cy="15.4" r="1.8" fill="#107c10" stroke="#2dd42d" stroke-width="0.15" opacity="0.7"/>';
+        s += '<text x="32" y="15.9" text-anchor="middle" fill="#4ade80" font-size="1.4" font-weight="bold">X</text>';
+        // View & Menu
+        smallBtn(27.4, 21.8, 8, 'circle', '⧉');
+        smallBtn(36.7, 21.8, 9, 'circle', '≡');
+      }}
+
+      s += '</svg>';
+      return s;
+    }}
+    
+    function renderKeyboardSVG(bs, ax, tr) {{
+      const W = 410, H = 100;
+      const k = 27, g = 3, rh = 24, step = 30;
+      const mx = 25;
+      function col(i) {{ return mx + i * step; }}
+      const y1 = 11, y2 = y1+rh+g, y3 = y2+rh+g;
+      let s = '<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" style="display:block;margin:4px auto 2px">';
+      s += '<rect x="2" y="2" width="'+(W-4)+'" height="'+(H-4)+'" rx="8" fill="#181828" stroke="#3a3a50" stroke-width="1.2"/>';
+      function key(x, y, w, h, label, pressed) {{
+        const bg = pressed ? '#7c3aed' : '#222238';
+        const stk = pressed ? '#a78bfa' : '#2e2e42';
+        const tf = pressed ? '#fff' : '#aaa';
+        s += '<rect x="'+x+'" y="'+(y+2)+'" width="'+w+'" height="'+h+'" rx="4" fill="#0e0e1a"/>';
+        s += '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+(h-1)+'" rx="4" fill="'+bg+'" stroke="'+stk+'" stroke-width="0.8"/>';
+        s += '<rect x="'+(x+1)+'" y="'+(y+1)+'" width="'+(w-2)+'" height="2.5" rx="1" fill="rgba(255,255,255,'+(pressed?'0.18':'0.06')+')"/>';
+        const fs = label.length > 2 ? 8 : (label.length > 1 ? 9 : 11);
+        s += '<text x="'+(x+w/2)+'" y="'+(y+h/2+3)+'" text-anchor="middle" fill="'+tf+'" font-size="'+fs+'" font-family="monospace" font-weight="bold">'+label+'</text>';
+      }}
+      key(col(1),y1,k,rh,'W',ax[1]<0);
+      key(col(4),y1,k,rh,'↑',ax[3]<0);
+      key(col(6),y1,k,rh,'Spc',bs[0]); key(col(7),y1,k,rh,'Esc',bs[1]);
+      key(col(8),y1,k,rh,'R',bs[2]); key(col(9),y1,k,rh,'F',bs[3]);
+      key(col(10),y1,k,rh,'V',bs[14]); key(col(11),y1,k,rh,'B',bs[15]);
+      key(col(0),y2,k,rh,'A',ax[0]<0); key(col(1),y2,k,rh,'S',ax[1]>0); key(col(2),y2,k,rh,'D',ax[0]>0);
+      key(col(3),y2,k,rh,'←',ax[2]<0); key(col(4),y2,k,rh,'↓',ax[3]>0); key(col(5),y2,k,rh,'→',ax[2]>0);
+      key(col(6),y2,k,rh,'[',bs[4]); key(col(7),y2,k,rh,']',bs[5]);
+      key(col(8),y2,k,rh,'+',bs[12]); key(col(9),y2,k,rh,'−',bs[13]);
+      key(col(10),y2,k,rh,'O',bs[8]); key(col(11),y2,k,rh,'P',bs[9]);
+      key(col(0),y3,k,rh,'Q',tr[0]>0.5); key(col(2),y3,k,rh,'E',tr[1]>0.5);
+      s += '</svg>';
+      return s;
+    }}
+
+    function renderMappingLegend(tp, labels) {{
+      const isKB = (tp === 'keyboard');
+      let h = '<div style="margin-top:4px;font-size:10px;line-height:17px;color:#888;columns:2;column-gap:12px">';
+      [[0,'Play/Pause'],[1,'Stop'],[2,'Reset Pos'],[3,'DynBones'],[4,'Prev Anim'],[5,'Next Anim'],[6,'Zoom Out'],[7,'Zoom In'],[14,'Visual Mode'],[15,'Bone Cycle'],[12,'Speed +'],[13,'Speed −'],[8,'Overlay'],[9,'Screenshot']].forEach(function(it) {{
+        const lbl = labels[it[0]] || '';
+        if (!lbl) return;
+        h += '<div style="white-space:nowrap"><span style="display:inline-block;min-width:32px;padding:1px 4px;background:#252540;border:1px solid #333;border-radius:3px;color:#ccc;text-align:center;font-family:monospace;font-size:9px">' + lbl + '</span> ' + it[1] + '</div>';
+      }});
+      if (!isKB) {{
+        h += '<div style="white-space:nowrap"><span style="display:inline-block;min-width:32px;padding:1px 4px;background:#252540;border:1px solid #333;border-radius:3px;color:#ccc;text-align:center;font-size:9px">L🕹</span> Move</div>';
+        h += '<div style="white-space:nowrap"><span style="display:inline-block;min-width:32px;padding:1px 4px;background:#252540;border:1px solid #333;border-radius:3px;color:#ccc;text-align:center;font-size:9px">R🕹</span> Camera</div>';
+      }}
+      h += '</div>';
+      return h;
+    }}
+
     let characterGroup = null;
     let characterYaw = 0;
     let characterMoveSpeed = 0;
@@ -3600,7 +3878,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (gamepadEnabled) {{
         gamepadEnabled = false;
         disableThirdPerson();
-        gamepadIndex = -1;
+        gamepadType = 'generic';
+        gamepadPrevButtons = [];
+        gamepadButtonStates = [];
+        gamepadAxesStates = [0,0,0,0];
+        gamepadTriggerStates = [0,0];
+        gamepadConnectedShown = false;
+        gamepadCurrentId = '';
         const sw = document.getElementById('swGamepad'); if (sw) sw.checked = false;
         const statusEl = document.getElementById('gamepadStatus'); if (statusEl) statusEl.textContent = '';
         const submenu = document.getElementById('gamepadSubmenu'); if (submenu) submenu.style.display = 'none';
@@ -3688,27 +3972,28 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (gamepadEnabled) {{
         if (submenu) submenu.style.display = 'block';
         enableThirdPerson();
-        // Try to find a connected gamepad
-        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-        let found = false;
-        for (let i = 0; i < gamepads.length; i++) {{
-          if (gamepads[i] && gamepads[i].connected) {{
-            gamepadIndex = i;
-            gamepadPrevButtons = new Array(gamepads[i].buttons.length).fill(false);
-            found = true;
-            break;
-          }}
-        }}
-        updateGamepadStatusLabel();
-        if (!found && statusEl) {{
-          statusEl.textContent = '⏳ Waiting for controller...';
+        gamepadType = 'generic';
+        gamepadPrevButtons = [];
+        gamepadConnectedShown = false;
+        gamepadCurrentId = '';
+        if (statusEl) {{
+          statusEl.textContent = '⏳ Press any button on controller...';
           statusEl.style.color = '#f59e0b';
         }}
       }} else {{
         disableThirdPerson();
-        gamepadIndex = -1;
+        gamepadType = 'generic';
+        gamepadPrevButtons = [];
+        gamepadButtonStates = [];
+        gamepadAxesStates = [0,0,0,0];
+        gamepadTriggerStates = [0,0];
+        gamepadConnectedShown = false;
+        gamepadCurrentId = '';
+        kbUseKeyboard = false;
+        Object.keys(kbKeys).forEach(k => kbKeys[k] = false);
+        Object.keys(kbPrevKeys).forEach(k => kbPrevKeys[k] = false);
         if (submenu) submenu.style.display = 'none';
-        if (statusEl) {{ statusEl.textContent = ''; }}
+        if (statusEl) statusEl.textContent = '';
       }}
     }}
 
@@ -3722,25 +4007,41 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const sw = document.getElementById('swGpInvY'); if (sw) sw.checked = gamepadInvertY;
     }}
 
+    function detectGamepadType(id) {{
+      const lo = id.toLowerCase();
+      // Xbox: Microsoft controllers, XInput, 045e vendor
+      if (lo.includes('xbox') || lo.includes('045e') || lo.includes('xinput') || lo.includes('x-box')) return 'xbox';
+      // PlayStation: Sony controllers, 054c vendor, DualSense/DualShock
+      if (lo.includes('dualsense') || lo.includes('dualshock') || lo.includes('054c') || lo.includes('playstation')) return 'playstation';
+      // "Wireless Controller" without other identifiers = likely PS (DualSense in Chrome)
+      if (lo === 'wireless controller' || lo.startsWith('wireless controller (')) return 'playstation';
+      // Switch: Nintendo, 057e vendor, Pro Controller
+      if (lo.includes('nintendo') || lo.includes('057e') || lo.includes('pro controller') || lo.includes('switch')) return 'switch';
+      // 8BitDo controllers often mimic Xbox or have their own IDs
+      if (lo.includes('8bitdo')) {{
+        if (lo.includes('pro') || lo.includes('sn30')) return 'switch';
+        return 'xbox';  // most 8BitDo default to xinput
+      }}
+      // Logitech gamepads
+      if (lo.includes('logitech') || lo.includes('046d')) return 'generic';
+      // PowerA, Hori, PDP - usually Xbox or Switch layout
+      if (lo.includes('hori')) {{
+        if (lo.includes('nintendo') || lo.includes('switch')) return 'switch';
+        return 'generic';
+      }}
+      // Standard gamepad (Chrome fallback label)
+      if (lo.includes('standard gamepad') && lo.includes('vendor: 045e')) return 'xbox';
+      if (lo.includes('standard gamepad') && lo.includes('vendor: 054c')) return 'playstation';
+      if (lo.includes('standard gamepad') && lo.includes('vendor: 057e')) return 'switch';
+      return 'generic';
+    }}
+
     function updateGamepadStatusLabel() {{
       const statusEl = document.getElementById('gamepadStatus');
       if (!statusEl || !gamepadEnabled) return;
-      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-      const gp = (gamepadIndex >= 0) ? gamepads[gamepadIndex] : null;
-      if (gp && gp.connected) {{
-        const id = gp.id.toLowerCase();
-        if (id.includes('xbox') || id.includes('045e') || id.includes('xinput')) {{
-          gamepadType = 'xbox';
-          statusEl.textContent = '🟢 Xbox Controller';
-        }} else if (id.includes('dualsense') || id.includes('dualshock') || id.includes('054c') || id.includes('playstation')) {{
-          gamepadType = 'playstation';
-          statusEl.textContent = '🟢 PlayStation Controller';
-        }} else {{
-          gamepadType = 'generic';
-          statusEl.textContent = '🟢 Gamepad Connected';
-        }}
-        statusEl.style.color = '#4ade80';
-      }}
+      // Just display based on current gamepadType (set by updateGamepad scan)
+      statusEl.textContent = '🟢 ' + (GP_TYPE_NAMES[gamepadType] || 'Gamepad Connected');
+      statusEl.style.color = '#4ade80';
     }}
 
     function enableThirdPerson() {{
@@ -3911,24 +4212,48 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       controls.panOffset.set(0, 0, 0);
     }}
 
-    // Listen for gamepad connection/disconnection
+    // Listen for gamepad connection/disconnection - ALWAYS store, even when disabled
     window.addEventListener('gamepadconnected', (e) => {{
-      if (!gamepadEnabled) return;
-      gamepadIndex = e.gamepad.index;
-      gamepadPrevButtons = new Array(e.gamepad.buttons.length).fill(false);
-      updateGamepadStatusLabel();
-      debug('Gamepad connected:', e.gamepad.id);
+      debug('Gamepad connected:', e.gamepad.index, e.gamepad.id);
+      lastActiveInput = 'gamepad';  // auto-switch to newly connected gamepad
+      gamepadStaleFrames = 0;
+      gamepadLastTimestamp = 0;
+      gamepadConfirmed = false;  // need to see real input to confirm
+      if (gamepadEnabled) {{
+        const statusEl = document.getElementById('gamepadStatus');
+        if (statusEl) {{
+          statusEl.textContent = '🟡 Detecting...';
+          statusEl.style.color = '#f59e0b';
+        }}
+      }}
     }});
 
     window.addEventListener('gamepaddisconnected', (e) => {{
-      if (e.gamepad.index === gamepadIndex) {{
-        gamepadIndex = -1;
+      debug('Gamepad disconnected:', e.gamepad.index, e.gamepad.id);
+      lastActiveInput = 'keyboard';  // fall back to keyboard
+      gamepadStaleFrames = GAMEPAD_STALE_THRESHOLD + 1;  // force ghost state
+      gamepadLastTimestamp = 0;
+      gamepadConfirmed = false;
+      if (gamepadEnabled) {{
+        gamepadPrevButtons = [];
         const statusEl = document.getElementById('gamepadStatus');
-        if (statusEl && gamepadEnabled) {{
-          statusEl.textContent = '🔴 Disconnected';
-          statusEl.style.color = '#ef4444';
+        if (statusEl) {{
+          statusEl.textContent = '⌨️ Keyboard Mode';
+          statusEl.style.color = '#60a5fa';
         }}
       }}
+    }});
+
+    // Keyboard input for third-person fallback
+    window.addEventListener('keydown', (e) => {{
+      if (!gamepadEnabled) return;
+      kbKeys[e.code] = true;
+      lastActiveInput = 'keyboard';  // user is using keyboard
+      e.preventDefault();
+    }});
+    window.addEventListener('keyup', (e) => {{
+      if (!gamepadEnabled) return;
+      kbKeys[e.code] = false;
     }});
 
     function applyStick(val) {{
@@ -3936,17 +4261,229 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     }}
 
     function updateGamepad() {{
-      if (!gamepadEnabled || gamepadIndex < 0) return;
+      if (!gamepadEnabled) return;
       
-      const gamepads = navigator.getGamepads();
-      const gp = gamepads[gamepadIndex];
-      if (!gp || !gp.connected) return;
+      // Scan all gamepad slots every frame
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      let gp = null;
+      let bestPriority = -1;
+      
+      for (let i = 0; i < gamepads.length; i++) {{
+        const c = gamepads[i];
+        if (!c || !c.connected) continue;
+        if (!c.buttons || c.buttons.length < 4 || !c.axes || c.axes.length < 2) continue;
+        
+        const type = detectGamepadType(c.id || '');
+        const hasInput = c.axes.some(a => Math.abs(a) > 0.01) ||
+                         Array.from(c.buttons).some(b => b.pressed || b.value > 0.01);
+        let priority = 0;
+        if (type !== 'generic') priority += 10;
+        if (hasInput) priority += 5;
+        if (c.timestamp > 0) priority += 1;
+        
+        if (priority > bestPriority) {{
+          bestPriority = priority;
+          gp = c;
+        }}
+      }}
+      
+      // ── Ghost detection + last-active-input switching ──
+      // Two mechanisms:
+      // 1) Ghost: unconfirmed gamepad + frozen timestamp → revert to keyboard
+      // 2) Last-active: confirmed real gamepad → switch only on actual input from either device
+      
+      if (gp) {{
+        // Track timestamp freshness
+        if (gp.timestamp !== gamepadLastTimestamp) {{
+          gamepadLastTimestamp = gp.timestamp;
+          gamepadStaleFrames = 0;
+        }} else {{
+          gamepadStaleFrames++;
+        }}
+        
+        // Check for real user input (axes or buttons)
+        const hasRealInput = gp.axes.some(a => Math.abs(a) > gamepadDeadzone) ||
+                             Array.from(gp.buttons).some(b => b.pressed || b.value > 0.1);
+        
+        if (hasRealInput) {{
+          gamepadConfirmed = true;  // real controller — never ghost-check again
+          lastActiveInput = 'gamepad';
+        }}
+        
+        // Ghost: unconfirmed device with frozen timestamp → revert connect auto-switch
+        if (!gamepadConfirmed && gamepadStaleFrames > GAMEPAD_STALE_THRESHOLD) {{
+          lastActiveInput = 'keyboard';
+        }}
+      }}
+      
+      // Use keyboard if: no gamepad at all, OR user's last input was keyboard
+      const useKeyboard = (!gp || lastActiveInput === 'keyboard');
+      
+      // ── Keyboard path: no gamepad, or last active was keyboard ──
+      if (useKeyboard) {{
+        kbUseKeyboard = true;
+        if (gamepadConnectedShown && !gp) {{
+          gamepadConnectedShown = false;
+          gamepadCurrentId = '';
+        }}
+        // Update status to show keyboard mode
+        if (gamepadType !== 'keyboard') {{
+          gamepadType = 'keyboard';
+          const statusEl = document.getElementById('gamepadStatus');
+          if (statusEl) {{
+            statusEl.textContent = '⌨️ Keyboard Mode' + (gp ? ' (controller idle)' : '');
+            statusEl.style.color = '#60a5fa';
+          }}
+        }}
+        
+        // Build virtual axes from WASD / Arrows / QE
+        const lx = (kbKeys['KeyD'] ? 1 : 0) - (kbKeys['KeyA'] ? 1 : 0);
+        const ly = (kbKeys['KeyW'] ? -1 : 0) + (kbKeys['KeyS'] ? 1 : 0);  // W=forward=-1
+        const rx = (kbKeys['ArrowRight'] ? 1 : 0) - (kbKeys['ArrowLeft'] ? 1 : 0);
+        const ry = (kbKeys['ArrowDown'] ? 1 : 0) - (kbKeys['ArrowUp'] ? 1 : 0);
+        const lt = kbKeys['KeyQ'] ? 1 : 0;  // Q = zoom out
+        const rt = kbKeys['KeyE'] ? 1 : 0;  // E = zoom in
+        
+        // Build virtual button states from key map
+        const vButtons = new Array(16).fill(false);
+        for (const [code, idx] of Object.entries(KB_MAP)) {{
+          if (kbKeys[code]) vButtons[idx] = true;
+        }}
+        
+        // Store for overlay
+        gamepadButtonStates = vButtons;
+        gamepadAxesStates = [lx, ly, rx, ry];
+        gamepadTriggerStates = [lt, rt];
+        
+        // Apply invert
+        const invX = gamepadInvertX ? -1 : 1;
+        const invY = gamepadInvertY ? -1 : 1;
+        
+        // Camera orbit
+        if (rx !== 0) tpCamTheta += rx * 0.03 * invX;
+        if (ry !== 0) tpCamPhi = Math.max(0.3, Math.min(Math.PI * 0.45, tpCamPhi + ry * 0.02 * invY));
+        
+        // Zoom
+        if (lt > 0.05 || rt > 0.05) {{
+          tpCamDist *= 1 + (lt - rt) * 0.02;
+          tpCamDist = Math.max(characterMoveSpeed * 10, tpCamDist);
+        }}
+        
+        // Movement
+        const isMovingNow = (lx !== 0 || ly !== 0);
+        if (isMovingNow && characterGroup) {{
+          const camForward = new THREE.Vector3(-Math.sin(tpCamTheta), 0, -Math.cos(tpCamTheta)).normalize();
+          const camRight = new THREE.Vector3(camForward.z, 0, -camForward.x);
+          const moveDir = new THREE.Vector3();
+          moveDir.addScaledVector(camRight, lx * invX);
+          moveDir.addScaledVector(camForward, -ly * invY);
+          if (moveDir.lengthSq() > 0) {{
+            const stickMag = Math.min(1, moveDir.length());
+            moveDir.normalize();
+            characterGroup.position.addScaledVector(moveDir, characterMoveSpeed * stickMag);
+            const targetYaw = Math.atan2(moveDir.x, moveDir.z);
+            let yawDiff = targetYaw - characterYaw;
+            while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
+            while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
+            characterYaw += yawDiff * 0.15;
+            characterGroup.rotation.y = characterYaw;
+          }}
+        }}
+        
+        // Auto animation
+        if (isMovingNow && !tpIsMoving) {{
+          if (tpAutoAnimWalk && tpCurrentAutoAnim !== tpAutoAnimWalk) {{
+            playAnimationCrossfade(tpAutoAnimWalk, 0.2);
+            tpCurrentAutoAnim = tpAutoAnimWalk;
+          }}
+        }} else if (!isMovingNow && tpIsMoving) {{
+          if (tpAutoAnimIdle && tpCurrentAutoAnim !== tpAutoAnimIdle) {{
+            playAnimationCrossfade(tpAutoAnimIdle, 0.35);
+            tpCurrentAutoAnim = tpAutoAnimIdle;
+          }}
+        }}
+        tpIsMoving = isMovingNow;
+        
+        // Button edge detection
+        function kbJustPressed(idx) {{
+          return vButtons[idx] && !kbPrevKeys[idx];
+        }}
+        
+        if (kbJustPressed(0)) {{ toggleAnimPlayback(); tpCurrentAutoAnim = null; }}
+        if (kbJustPressed(1)) {{ stopAnimation(); tpCurrentAutoAnim = null; }}
+        if (kbJustPressed(2)) {{ if (characterGroup) {{ characterGroup.position.set(0,0,0); characterYaw = 0; characterGroup.rotation.y = 0; }} }}
+        if (kbJustPressed(3)) {{ toggleDynamicBones(); document.getElementById('swDynBones').checked = dynamicBonesEnabled; }}
+        if (kbJustPressed(4)) {{
+          const sel = document.getElementById('animation-select');
+          if (sel && sel.selectedIndex > 0) {{ sel.selectedIndex--; playAnimationCrossfade(sel.value, 0.25); tpCurrentAutoAnim = null; }}
+        }}
+        if (kbJustPressed(5)) {{
+          const sel = document.getElementById('animation-select');
+          if (sel && sel.selectedIndex < sel.options.length - 1) {{ sel.selectedIndex++; playAnimationCrossfade(sel.value, 0.25); tpCurrentAutoAnim = null; }}
+        }}
+        if (kbJustPressed(12)) {{ const s = document.getElementById('animSpeedSlider'); if (s) {{ s.value = Math.min(100, parseInt(s.value) + 10); updateAnimSpeed(s.value); }} }}
+        if (kbJustPressed(13)) {{ const s = document.getElementById('animSpeedSlider'); if (s) {{ s.value = Math.max(-100, parseInt(s.value) - 10); updateAnimSpeed(s.value); }} }}
+        if (kbJustPressed(9)) requestScreenshot();
+        if (kbJustPressed(8)) {{ const sw = document.getElementById('swInfoOverlay'); if (sw) sw.checked = !sw.checked; }}
+        
+        // V (14) → cycle visual modes
+        if (kbJustPressed(14)) {{
+          let mode = 0;
+          if (textureMode && !wireframeOverlayMode && !wireframeMode) mode = 0;
+          else if (textureMode && wireframeOverlayMode && !wireframeMode) mode = 1;
+          else if (colorMode && !wireframeOverlayMode && !wireframeMode) mode = 2;
+          else if (colorMode && wireframeOverlayMode) mode = 3;
+          else if (wireframeMode && !textureMode) mode = 4;
+          else if (wireframeMode && textureMode) mode = 5;
+          const next = (mode + 1) % 6;
+          const states = [
+            [false,true,false,false],[false,true,false,true],[true,false,false,false],
+            [true,false,false,true],[false,false,true,false],[false,true,true,false],
+          ];
+          const [wC,wT,wW,wO] = states[next];
+          if (colorMode!==wC) toggleColors(); if (textureMode!==wT) toggleTextures();
+          if (wireframeMode!==wW) toggleWireframe(); if (wireframeOverlayMode!==wO) toggleWireframeOverlay();
+          document.getElementById('swColors').checked=colorMode; document.getElementById('swTex').checked=textureMode;
+          document.getElementById('swWire').checked=wireframeMode; document.getElementById('swWireOver').checked=wireframeOverlayMode;
+        }}
+        // B (15) → cycle skeleton modes
+        if (kbJustPressed(15)) {{
+          if (!showSkeleton) {{ toggleSkeleton(); document.getElementById('swSkel').checked=showSkeleton; }}
+          else if (!showJoints) {{ toggleJoints(); document.getElementById('swJoints').checked=showJoints; }}
+          else if (!showBoneNames) {{ toggleBoneNames(); document.getElementById('swBoneNames').checked=showBoneNames; }}
+          else {{ if (showBoneNames) {{ toggleBoneNames(); document.getElementById('swBoneNames').checked=false; }}
+            if (showJoints) {{ toggleJoints(); document.getElementById('swJoints').checked=false; }}
+            if (showSkeleton) {{ toggleSkeleton(); document.getElementById('swSkel').checked=false; }}
+          }}
+        }}
+        
+        // Save prev states for edge detection (store by button index)
+        for (let bi = 0; bi < 16; bi++) kbPrevKeys[bi] = vButtons[bi];
+        
+        updateThirdPersonCamera();
+        return;
+      }}
+      
+      // ── Real gamepad path ──
+      kbUseKeyboard = false;
+      
+      // Detect type; update UI when type changes or first connect or ID changes
+      const detected = detectGamepadType(gp.id || '');
+      const idChanged = (gp.id || '') !== gamepadCurrentId;
+      if (detected !== gamepadType || !gamepadConnectedShown || idChanged) {{
+        gamepadType = detected;
+        gamepadCurrentId = gp.id || '';
+        gamepadConnectedShown = true;
+        if (idChanged) gamepadPrevButtons = [];  // reset edge detection on gamepad switch
+        updateGamepadStatusLabel();
+        debug('Gamepad:', gamepadType, 'ID:', gp.id, 'priority:', bestPriority);
+      }}
       
       // ── Sticks ──
-      const lx = applyStick(gp.axes[0] || 0);  // Left stick X
-      const ly = applyStick(gp.axes[1] || 0);  // Left stick Y
-      const rx = applyStick(gp.axes[2] || 0);  // Right stick X
-      const ry = applyStick(gp.axes[3] || 0);  // Right stick Y
+      const lx = applyStick(gp.axes[0] || 0);
+      const ly = applyStick(gp.axes[1] || 0);
+      const rx = applyStick(gp.axes[2] || 0);
+      const ry = applyStick(gp.axes[3] || 0);
       
       // Store states for overlay rendering
       gamepadButtonStates = gp.buttons.map(b => b.pressed);
@@ -4027,7 +4564,12 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // ── Buttons (rising edge) ──
       const buttons = gp.buttons.map(b => b.pressed);
       function justPressed(idx) {{
-        return idx < buttons.length && buttons[idx] && !gamepadPrevButtons[idx];
+        return idx < buttons.length && buttons[idx] && !(gamepadPrevButtons[idx]);
+      }}
+      
+      // Ensure prevButtons array matches current length
+      if (gamepadPrevButtons.length !== buttons.length) {{
+        gamepadPrevButtons = new Array(buttons.length).fill(false);
       }}
       
       // A / Cross (0) → play/pause animation
@@ -4089,21 +4631,69 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         if (slider) {{ slider.value = Math.max(-100, parseInt(slider.value) - 10); updateAnimSpeed(slider.value); }}
       }}
       
-      // D-pad Left (14) → toggle wireframe
+      // D-pad Left (14) → cycle display modes:
+      // Textured → Tex+Overlay → Colors → Colors+Overlay → Wireframe → Wire+Tex → back
       if (justPressed(14)) {{
-        toggleWireframe();
+        let mode = 0;
+        if (textureMode && !wireframeOverlayMode && !wireframeMode) mode = 0;
+        else if (textureMode && wireframeOverlayMode && !wireframeMode) mode = 1;
+        else if (colorMode && !wireframeOverlayMode && !wireframeMode) mode = 2;
+        else if (colorMode && wireframeOverlayMode) mode = 3;
+        else if (wireframeMode && !textureMode) mode = 4;
+        else if (wireframeMode && textureMode) mode = 5;
+        
+        const next = (mode + 1) % 6;
+        //                     [color, tex,   wire,  overlay]
+        const states = [
+          [false, true, false, false],   // 0: Textured
+          [false, true, false, true],    // 1: Tex+Overlay
+          [true, false, false, false],   // 2: Colors
+          [true, false, false, true],    // 3: Colors+Overlay
+          [false, false, true, false],   // 4: Wireframe
+          [false, true, true, false],    // 5: Wire+Textured
+        ];
+        const [wantColor, wantTex, wantWire, wantOver] = states[next];
+        if (colorMode !== wantColor) toggleColors();
+        if (textureMode !== wantTex) toggleTextures();
+        if (wireframeMode !== wantWire) toggleWireframe();
+        if (wireframeOverlayMode !== wantOver) toggleWireframeOverlay();
+        document.getElementById('swColors').checked = colorMode;
+        document.getElementById('swTex').checked = textureMode;
         document.getElementById('swWire').checked = wireframeMode;
+        document.getElementById('swWireOver').checked = wireframeOverlayMode;
       }}
       
-      // D-pad Right (15) → toggle skeleton
+      // D-pad Right (15) → cycle skeleton modes: OFF → Skel → +Joints → +Names → OFF
       if (justPressed(15)) {{
-        toggleSkeleton();
-        document.getElementById('swSkel').checked = showSkeleton;
+        if (!showSkeleton) {{
+          // Step 1: skeleton ON
+          if (!showSkeleton) toggleSkeleton();
+          document.getElementById('swSkel').checked = showSkeleton;
+        }} else if (!showJoints) {{
+          // Step 2: +joints
+          if (!showJoints) toggleJoints();
+          document.getElementById('swJoints').checked = showJoints;
+        }} else if (!showBoneNames) {{
+          // Step 3: +bone names
+          if (!showBoneNames) toggleBoneNames();
+          document.getElementById('swBoneNames').checked = showBoneNames;
+        }} else {{
+          // Step 4: all OFF
+          if (showBoneNames) {{ toggleBoneNames(); document.getElementById('swBoneNames').checked = false; }}
+          if (showJoints) {{ toggleJoints(); document.getElementById('swJoints').checked = false; }}
+          if (showSkeleton) {{ toggleSkeleton(); document.getElementById('swSkel').checked = false; }}
+        }}
       }}
       
       // Start (9) → screenshot
       if (justPressed(9)) {{
         requestScreenshot();
+      }}
+      
+      // Back / View / Share (8) → toggle advanced info overlay
+      if (justPressed(8)) {{
+        const sw = document.getElementById('swInfoOverlay');
+        if (sw) {{ sw.checked = !sw.checked; }}
       }}
       
       gamepadPrevButtons = buttons;
@@ -4171,72 +4761,24 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       html += '<div>' + dot(colorMode) + ' Colors  ' + dot(textureMode) + ' Textures  ' + dot(wireframeMode) + ' Wire  ' + dot(wireframeOverlayMode) + ' Overlay</div>';
       html += '<div>' + dot(showSkeleton) + ' Skeleton  ' + dot(showJoints) + ' Joints  ' + dot(showBoneNames) + ' Names  ' + dot(dynamicBonesEnabled) + ' DynBones</div>';
       if (gamepadEnabled) {{
-        const gps = navigator.getGamepads ? navigator.getGamepads() : [];
-        const gp = (gamepadIndex >= 0 && gps[gamepadIndex]) ? gps[gamepadIndex] : null;
+        const hasGamepad = gamepadButtonStates.length > 0;
         const tp = gamepadType;
         const labels = GP_LABELS[tp] || GP_LABELS.generic;
         const colors = GP_COLORS[tp] || {{}};
-        const bs = gamepadButtonStates;  // current pressed states
+        const bs = gamepadButtonStates;
         const ax = gamepadAxesStates;
         const tr = gamepadTriggerStates;
-        const typeName = tp === 'xbox' ? 'Xbox' : tp === 'playstation' ? 'PlayStation' : 'Gamepad';
+        const typeName = GP_TYPE_NAMES[tp] || 'Gamepad';
         
         html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
-        html += '<div style="color:#a78bfa;font-weight:bold">🎮 ' + typeName + (gp ? '' : ' · Waiting') + '</div>';
+        html += '<div style="color:#a78bfa;font-weight:bold;text-align:center">🎮 ' + typeName + (hasGamepad ? '' : ' · Waiting') + '</div>';
         
-        // Button helper: renders a small styled button tag
-        function btn(idx, action) {{
-          const pressed = bs[idx];
-          const label = labels[idx] || idx;
-          const faceColor = colors[idx];
-          let bg = pressed ? 'rgba(124,58,237,0.6)' : 'rgba(50,50,70,0.6)';
-          let border = pressed ? '#a78bfa' : '#555';
-          let fg = faceColor || (pressed ? '#fff' : '#999');
-          if (pressed && faceColor) {{ bg = faceColor; fg = '#000'; border = faceColor; }}
-          return '<span style="display:inline-block;padding:1px 4px;margin:1px;border-radius:3px;' +
-            'background:' + bg + ';border:1px solid ' + border + ';color:' + fg + ';font-size:10px;' +
-            'min-width:18px;text-align:center;font-weight:' + (pressed ? 'bold' : 'normal') + '">' +
-            label + '</span><span style="color:' + (pressed ? '#e0e0e0' : '#777') + ';font-size:10px;margin-right:6px">' + action + '</span>';
+        if (tp === 'keyboard') {{
+          html += renderKeyboardSVG(bs, ax, tr);
+        }} else {{
+          html += renderControllerSVG(tp, bs, ax, tr, labels, colors);
         }}
-        
-        // Stick indicator helper
-        function stick(label, action, xVal, yVal) {{
-          const active = (Math.abs(xVal) > 0 || Math.abs(yVal) > 0);
-          const fg = active ? '#e0e0e0' : '#777';
-          const bg = active ? 'rgba(124,58,237,0.4)' : 'rgba(50,50,70,0.6)';
-          // Mini stick visualization: dot position
-          const dotX = Math.round(xVal * 5);
-          const dotY = Math.round(yVal * 5);
-          return '<span style="display:inline-block;position:relative;width:16px;height:16px;' +
-            'border-radius:50%;background:' + bg + ';border:1px solid ' + (active ? '#a78bfa' : '#555') + ';' +
-            'vertical-align:middle;margin:1px 2px">' +
-            '<span style="position:absolute;width:4px;height:4px;border-radius:50%;background:' + (active ? '#a78bfa' : '#888') + ';' +
-            'left:' + (5 + dotX) + 'px;top:' + (5 + dotY) + 'px"></span></span>' +
-            '<span style="color:' + fg + ';font-size:10px;margin-right:6px">' + action + '</span>';
-        }}
-        
-        // Trigger helper
-        function trig(idx, action, val) {{
-          const active = val > 0.05;
-          const label = labels[idx] || idx;
-          const pct = Math.round(val * 100);
-          let bg = active ? 'rgba(124,58,237,' + (0.2 + val * 0.5) + ')' : 'rgba(50,50,70,0.6)';
-          return '<span style="display:inline-block;padding:1px 4px;margin:1px;border-radius:3px;' +
-            'background:' + bg + ';border:1px solid ' + (active ? '#a78bfa' : '#555') + ';color:' + (active ? '#e0e0e0' : '#999') + ';' +
-            'font-size:10px;min-width:18px;text-align:center">' + label + '</span>' +
-            '<span style="color:' + (active ? '#e0e0e0' : '#777') + ';font-size:10px;margin-right:6px">' + action + '</span>';
-        }}
-        
-        html += '<div style="line-height:18px">';
-        html += stick('LS', 'Move', ax[0], ax[1]) + stick('RS', 'Camera', ax[2], ax[3]) + '<br>';
-        html += btn(0, 'Play') + btn(1, 'Stop') + '<br>';
-        html += btn(2, 'Reset') + btn(3, 'DynB') + '<br>';
-        html += btn(4, '◀Anim') + btn(5, 'Anim▶') + '<br>';
-        html += trig(6, 'Zoom-', tr[0]) + trig(7, 'Zoom+', tr[1]) + '<br>';
-        html += btn(12, 'Spd+') + btn(13, 'Spd-') + '<br>';
-        html += btn(14, 'Wire') + btn(15, 'Skel') + '<br>';
-        html += btn(9, '📸 Shot');
-        html += '</div>';
+        html += renderMappingLegend(tp, labels);
       }}
       if (opacity < 1.0) {{
         html += '<div style="color:#9ca3af">Opacity: ' + opacity.toFixed(2) + '</div>';
@@ -4252,6 +4794,35 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       
       statsEl.innerHTML = html;
+      
+      // ── Cache controller/keyboard SVG as Image for screenshot/video ──
+      if (gamepadEnabled) {{
+        const tp = gamepadType;
+        const labels = GP_LABELS[tp] || GP_LABELS.generic;
+        const colors = GP_COLORS[tp] || {{}};
+        const bs = gamepadButtonStates;
+        const ax = gamepadAxesStates;
+        const tr = gamepadTriggerStates;
+        let svgStr;
+        if (tp === 'keyboard') {{
+          svgStr = renderKeyboardSVG(bs, ax, tr);
+        }} else {{
+          svgStr = renderControllerSVG(tp, bs, ax, tr, labels, colors);
+        }}
+        // Only re-render image when SVG actually changed
+        if (svgStr !== cachedOverlaySVGStr) {{
+          cachedOverlaySVGStr = svgStr;
+          const img = new Image();
+          const blob = new Blob([svgStr], {{type: 'image/svg+xml'}});
+          const url = URL.createObjectURL(blob);
+          img.onload = function() {{ cachedOverlaySVGImg = img; URL.revokeObjectURL(url); }};
+          img.onerror = function() {{ URL.revokeObjectURL(url); }};
+          img.src = url;
+        }}
+      }} else {{
+        cachedOverlaySVGImg = null;
+        cachedOverlaySVGStr = '';
+      }}
     }}
 
     function updateTextureStatus() {{
@@ -4691,21 +5262,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
       if (gamepadEnabled) {{
         const tp = gamepadType;
-        const labels = GP_LABELS[tp] || GP_LABELS.generic;
-        const typeName = tp === 'xbox' ? 'Xbox' : tp === 'playstation' ? 'PlayStation' : 'Gamepad';
+        const typeName = GP_TYPE_NAMES[tp] || 'Gamepad';
         lines.push([div, 'divider']);
         lines.push(['🎮 ' + typeName, 'title']);
-        // gprow: array of [btnIdx, action] pairs per row (-1 = stick, -2 = trigger)
-        lines.push([[[{{'t':'stick','x':gamepadAxesStates[0],'y':gamepadAxesStates[1]}}, 'Move'],
-                      [{{'t':'stick','x':gamepadAxesStates[2],'y':gamepadAxesStates[3]}}, 'Camera']], 'gprow']);
-        lines.push([[[0, 'Play'], [1, 'Stop']], 'gprow']);
-        lines.push([[[2, 'Reset'], [3, 'DynB']], 'gprow']);
-        lines.push([[[4, '◀Anim'], [5, 'Anim▶']], 'gprow']);
-        lines.push([[[{{'t':'trig','idx':6,'v':gamepadTriggerStates[0]}}, 'Zoom-'],
-                      [{{'t':'trig','idx':7,'v':gamepadTriggerStates[1]}}, 'Zoom+']], 'gprow']);
-        lines.push([[[12, 'Spd+'], [13, 'Spd-']], 'gprow']);
-        lines.push([[[14, 'Wire'], [15, 'Skel']], 'gprow']);
-        lines.push([[[9, '📸Shot']], 'gprow']);
+        // Insert cached SVG controller image (rendered from same renderControllerSVG/renderKeyboardSVG)
+        if (cachedOverlaySVGImg) {{
+          lines.push([cachedOverlaySVGImg, 'svgimg']);
+        }}
       }}
 
       if (opacity < 1.0) {{
@@ -4734,22 +5297,24 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
       // Measure max width
       let maxW = 0;
-      const gpBtnW = Math.round(28 * sf);  // button width
-      const gpActW = Math.round(40 * sf);  // action label width
-      const gpPairW = gpBtnW + gpActW + Math.round(6 * sf);  // one btn+action pair
+      let svgImgH = 0;  // extra height for SVG controller image
+      const svgImgTargetW = Math.round(280 * sf);  // target width for SVG in overlay
       
       lines.forEach(l => {{
-        if (l[1] === 'gprow') {{
-          const rowW = l[0].length * gpPairW;
-          if (rowW > maxW) maxW = rowW;
+        if (l[1] === 'svgimg' && l[0]) {{
+          const img = l[0];
+          const aspect = img.naturalWidth / (img.naturalHeight || 1);
+          svgImgH = Math.round(svgImgTargetW / aspect);
+          if (svgImgTargetW > maxW) maxW = svgImgTargetW;
         }} else {{
-          const m = ctx.measureText(l[0]);
+          const m = ctx.measureText(String(l[0]));
           if (m.width > maxW) maxW = m.width;
         }}
       }});
 
       const boxW = maxW + padding * 2;
-      const boxH = lines.length * lineHeight + padding * 2;
+      const textLines = lines.filter(l => l[1] !== 'svgimg').length;
+      const boxH = textLines * lineHeight + svgImgH + padding * 2;
       const boxX = margin;
       const boxY = h - boxH - margin;
 
@@ -4789,180 +5354,15 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }};
 
       lines.forEach(([text, type]) => {{
-        if (type === 'gprow') {{
-          // Render gamepad button row with graphical icons
-          const pairs = text;  // array of [btnData, actionLabel]
-          let tx = boxX + padding;
-          const labels = GP_LABELS[gamepadType] || GP_LABELS.generic;
-          const fColors = GP_COLORS[gamepadType] || {{}};
-          const btnH = Math.round(14 * sf);
-          const btnR = Math.round(3 * sf);
-          const gap = Math.round(4 * sf);
-          const smallFont = Math.round(9 * sf) + 'px monospace';
-          const tinyFont = Math.round(7 * sf) + 'px monospace';
-          
-          pairs.forEach(([btnData, action]) => {{
-            if (typeof btnData === 'object' && btnData.t === 'stick') {{
-              // ── Draw stick circle ──
-              const stR = Math.round(8 * sf);
-              const cx = tx + stR;
-              const cy = ty + lineHeight / 2;
-              const active = (Math.abs(btnData.x) > 0 || Math.abs(btnData.y) > 0);
-              
-              // Outer ring
-              ctx.beginPath();
-              ctx.arc(cx, cy, stR, 0, Math.PI * 2);
-              ctx.fillStyle = active ? 'rgba(124,58,237,0.4)' : 'rgba(50,50,70,0.6)';
-              ctx.fill();
-              ctx.strokeStyle = active ? '#a78bfa' : '#555';
-              ctx.lineWidth = sf;
-              ctx.stroke();
-              
-              // Inner dot (position based on axes)
-              const dotR = Math.round(2.5 * sf);
-              const dx = cx + btnData.x * (stR - dotR - sf);
-              const dy = cy + btnData.y * (stR - dotR - sf);
-              ctx.beginPath();
-              ctx.arc(dx, dy, dotR, 0, Math.PI * 2);
-              ctx.fillStyle = active ? '#a78bfa' : '#888';
-              ctx.fill();
-              
-              // Action label
-              ctx.font = smallFont;
-              ctx.fillStyle = active ? '#e0e0e0' : '#777';
-              ctx.fillText(action, cx + stR + gap, ty + (lineHeight - 9 * sf) / 2);
-              tx += stR * 2 + gap + gpActW + gap;
-              
-            }} else if (typeof btnData === 'object' && btnData.t === 'trig') {{
-              // ── Draw trigger bar ──
-              const barW = gpBtnW;
-              const barH = btnH;
-              const bx = tx;
-              const by = ty + (lineHeight - barH) / 2;
-              const val = btnData.v;
-              const active = val > 0.05;
-              const label = labels[btnData.idx] || '';
-              
-              // Background
-              ctx.fillStyle = 'rgba(50,50,70,0.6)';
-              ctx.beginPath();
-              ctx.roundRect(bx, by, barW, barH, btnR);
-              ctx.fill();
-              
-              // Fill bar
-              if (active) {{
-                ctx.fillStyle = 'rgba(124,58,237,' + (0.3 + val * 0.5) + ')';
-                ctx.beginPath();
-                ctx.roundRect(bx, by, barW * val, barH, btnR);
-                ctx.fill();
-              }}
-              
-              // Border
-              ctx.strokeStyle = active ? '#a78bfa' : '#555';
-              ctx.lineWidth = sf;
-              ctx.beginPath();
-              ctx.roundRect(bx, by, barW, barH, btnR);
-              ctx.stroke();
-              
-              // Label centered
-              ctx.font = tinyFont;
-              ctx.fillStyle = active ? '#e0e0e0' : '#999';
-              ctx.textAlign = 'center';
-              ctx.fillText(label, bx + barW / 2, by + (barH - 7 * sf) / 2);
-              ctx.textAlign = 'left';
-              
-              // Action label
-              ctx.font = smallFont;
-              ctx.fillStyle = active ? '#e0e0e0' : '#777';
-              ctx.fillText(action, bx + barW + gap, ty + (lineHeight - 9 * sf) / 2);
-              tx += barW + gap + gpActW + gap;
-              
-            }} else {{
-              // ── Draw regular button ──
-              const idx = btnData;
-              const pressed = gamepadButtonStates[idx];
-              const label = labels[idx] || String(idx);
-              const faceColor = fColors[idx];
-              const bx = tx;
-              const by = ty + (lineHeight - btnH) / 2;
-              
-              // Button shape: face buttons round, others rounded rect
-              const isFace = (idx >= 0 && idx <= 3);
-              const isDpad = (idx >= 12 && idx <= 15);
-              
-              if (isFace) {{
-                // Circular face button
-                const cr = btnH / 2;
-                const cx = bx + cr;
-                const cy = by + cr;
-                ctx.beginPath();
-                ctx.arc(cx, cy, cr, 0, Math.PI * 2);
-                if (pressed && faceColor) {{
-                  ctx.fillStyle = faceColor;
-                }} else {{
-                  ctx.fillStyle = pressed ? 'rgba(124,58,237,0.6)' : 'rgba(50,50,70,0.6)';
-                }}
-                ctx.fill();
-                ctx.strokeStyle = pressed ? (faceColor || '#a78bfa') : '#555';
-                ctx.lineWidth = sf;
-                ctx.stroke();
-                
-                // Label
-                ctx.font = 'bold ' + tinyFont;
-                ctx.fillStyle = (pressed && faceColor) ? '#000' : (faceColor || (pressed ? '#fff' : '#999'));
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(label, cx, cy);
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'top';
-                
-                tx += btnH + gap;
-              }} else if (isDpad) {{
-                // D-pad: square-ish with arrow
-                ctx.fillStyle = pressed ? 'rgba(124,58,237,0.6)' : 'rgba(50,50,70,0.6)';
-                ctx.beginPath();
-                ctx.roundRect(bx, by, gpBtnW, btnH, btnR);
-                ctx.fill();
-                ctx.strokeStyle = pressed ? '#a78bfa' : '#555';
-                ctx.lineWidth = sf;
-                ctx.beginPath();
-                ctx.roundRect(bx, by, gpBtnW, btnH, btnR);
-                ctx.stroke();
-                
-                ctx.font = tinyFont;
-                ctx.fillStyle = pressed ? '#fff' : '#999';
-                ctx.textAlign = 'center';
-                ctx.fillText(label, bx + gpBtnW / 2, by + (btnH - 7 * sf) / 2);
-                ctx.textAlign = 'left';
-                tx += gpBtnW + gap;
-              }} else {{
-                // Bumper / Start / etc
-                ctx.fillStyle = pressed ? 'rgba(124,58,237,0.6)' : 'rgba(50,50,70,0.6)';
-                ctx.beginPath();
-                ctx.roundRect(bx, by, gpBtnW, btnH, btnR);
-                ctx.fill();
-                ctx.strokeStyle = pressed ? '#a78bfa' : '#555';
-                ctx.lineWidth = sf;
-                ctx.beginPath();
-                ctx.roundRect(bx, by, gpBtnW, btnH, btnR);
-                ctx.stroke();
-                
-                ctx.font = tinyFont;
-                ctx.fillStyle = pressed ? '#fff' : '#999';
-                ctx.textAlign = 'center';
-                ctx.fillText(label, bx + gpBtnW / 2, by + (btnH - 7 * sf) / 2);
-                ctx.textAlign = 'left';
-                tx += gpBtnW + gap;
-              }}
-              
-              // Action label next to button
-              ctx.font = smallFont;
-              ctx.fillStyle = pressed ? '#e0e0e0' : '#777';
-              ctx.fillText(action, tx, ty + (lineHeight - 9 * sf) / 2);
-              tx += gpActW + gap;
-            }}
-          }});
-          ty += lineHeight;
+        if (type === 'svgimg' && text) {{
+          // Draw cached controller/keyboard SVG image
+          const img = text;
+          const aspect = img.naturalWidth / (img.naturalHeight || 1);
+          const drawW = svgImgTargetW;
+          const drawH = Math.round(drawW / aspect);
+          const ix = boxX + padding + (maxW - drawW) / 2;  // center in box
+          ctx.drawImage(img, ix, ty, drawW, drawH);
+          ty += drawH;
           return;
         }}
         
