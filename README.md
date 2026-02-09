@@ -57,10 +57,10 @@ new tool for quick preview of model. ideally associate exe with mdl file. for co
         └───image
 ```
 
-![viewer_mdl/viewer.png](viewer_mdl/viewer.png)
+![viewer_mdl/viewer.png](doc/viewer.png)
 
 New UI
-![viewer_mdl/viewer.png](viewer_mdl/viewer2.png)
+![viewer_mdl/viewer.png](doc/viewer2.png)
 
 
 > **⚠️ GPL-3.0 License Notice**  
