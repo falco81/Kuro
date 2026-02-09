@@ -1206,7 +1206,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
                         display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }}
     #controls-toggle:hover {{ background: rgba(168, 85, 247, 0.9); }}
     #controls-toggle.visible {{ display: block; }}
-    #stats {{ bottom: 20px; left: 20px; font-family: monospace; font-size: 12px; min-width: 440px; }}
+    #stats {{ bottom: 20px; left: 20px; font-family: monospace; font-size: 12px; width: auto; }}
     h3 {{ margin: 0 0 12px 0; color: #7c3aed; font-size: 16px; }}
     h4 {{ margin: 15px 0 10px 0; padding-bottom: 8px; border-bottom: 1px solid rgba(124, 58, 237, 0.3);
           font-size: 14px; color: #a78bfa; font-weight: 500; }}
@@ -3976,9 +3976,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         gamepadPrevButtons = [];
         gamepadConnectedShown = false;
         gamepadCurrentId = '';
+        lastActiveInput = 'keyboard';  // start in keyboard, switch on real button press
+        gamepadConfirmed = false;
+        gamepadStaleFrames = 0;
+        gamepadLastTimestamp = 0;
         if (statusEl) {{
-          statusEl.textContent = '⏳ Press any button on controller...';
-          statusEl.style.color = '#f59e0b';
+          statusEl.textContent = '⌨️ Keyboard Mode · Press controller button to switch';
+          statusEl.style.color = '#60a5fa';
         }}
       }} else {{
         disableThirdPerson();
@@ -3990,6 +3994,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         gamepadConnectedShown = false;
         gamepadCurrentId = '';
         kbUseKeyboard = false;
+        lastActiveInput = 'keyboard';
+        gamepadConfirmed = false;
+        gamepadStaleFrames = 0;
+        gamepadLastTimestamp = 0;
         Object.keys(kbKeys).forEach(k => kbKeys[k] = false);
         Object.keys(kbPrevKeys).forEach(k => kbPrevKeys[k] = false);
         if (submenu) submenu.style.display = 'none';
@@ -4215,10 +4223,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     // Listen for gamepad connection/disconnection - ALWAYS store, even when disabled
     window.addEventListener('gamepadconnected', (e) => {{
       debug('Gamepad connected:', e.gamepad.index, e.gamepad.id);
-      lastActiveInput = 'gamepad';  // auto-switch to newly connected gamepad
+      // Don't auto-switch lastActiveInput — wait for real button press
       gamepadStaleFrames = 0;
       gamepadLastTimestamp = 0;
-      gamepadConfirmed = false;  // need to see real input to confirm
+      gamepadConfirmed = false;  // need to see real button press to confirm
       if (gamepadEnabled) {{
         const statusEl = document.getElementById('gamepadStatus');
         if (statusEl) {{
@@ -4288,9 +4296,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       
       // ── Ghost detection + last-active-input switching ──
-      // Two mechanisms:
-      // 1) Ghost: unconfirmed gamepad + frozen timestamp → revert to keyboard
-      // 2) Last-active: confirmed real gamepad → switch only on actual input from either device
+      // Key principle: only a BUTTON PRESS switches to gamepad mode.
+      // Axis movement alone doesn't count (ghost BT devices can have axis drift).
+      // Ghost: no button ever pressed + frozen timestamp → stay on keyboard.
       
       if (gp) {{
         // Track timestamp freshness
@@ -4301,16 +4309,26 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           gamepadStaleFrames++;
         }}
         
-        // Check for real user input (axes or buttons)
-        const hasRealInput = gp.axes.some(a => Math.abs(a) > gamepadDeadzone) ||
-                             Array.from(gp.buttons).some(b => b.pressed || b.value > 0.1);
+        // Only a real BUTTON PRESS confirms the gamepad and switches input
+        const hasButtonPress = Array.from(gp.buttons).some(b => b.pressed || b.value > 0.5);
         
-        if (hasRealInput) {{
-          gamepadConfirmed = true;  // real controller — never ghost-check again
+        if (hasButtonPress) {{
+          if (!gamepadConfirmed) {{
+            gamepadConfirmed = true;
+            debug('Gamepad confirmed by button press');
+          }}
           lastActiveInput = 'gamepad';
         }}
         
-        // Ghost: unconfirmed device with frozen timestamp → revert connect auto-switch
+        // Once confirmed, significant axis movement also keeps gamepad active
+        if (gamepadConfirmed) {{
+          const hasAxisInput = gp.axes.some(a => Math.abs(a) > gamepadDeadzone);
+          if (hasAxisInput) {{
+            lastActiveInput = 'gamepad';
+          }}
+        }}
+        
+        // Ghost: never confirmed + timestamp frozen → force keyboard
         if (!gamepadConfirmed && gamepadStaleFrames > GAMEPAD_STALE_THRESHOLD) {{
           lastActiveInput = 'keyboard';
         }}
@@ -4721,7 +4739,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const extended = document.getElementById('swInfoOverlay') && document.getElementById('swInfoOverlay').checked;
       
       if (!extended) {{
-        // Basic mode
+        // Basic mode — compact width
+        statsEl.style.minWidth = '';
         statsEl.innerHTML = '<div>FPS: ' + currentFps + '</div>' +
           '<div>Triangles: ' + totalTris.toLocaleString() + '</div>' +
           '<div>Vertices: ' + totalVerts.toLocaleString() + '</div>' +
@@ -4729,7 +4748,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         return;
       }}
       
-      // Extended mode
+      // Extended mode — wider for controller SVG
+      statsEl.style.minWidth = '440px';
       const boneCount = bones ? bones.length : 0;
       const animCount = Object.keys(animationClips).length;
       const opacity = parseFloat(document.getElementById('meshOpacity').value);
@@ -4759,7 +4779,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       html += '</table>';
       html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
       html += '<div>' + dot(colorMode) + ' Colors  ' + dot(textureMode) + ' Textures  ' + dot(wireframeMode) + ' Wire  ' + dot(wireframeOverlayMode) + ' Overlay</div>';
-      html += '<div>' + dot(showSkeleton) + ' Skeleton  ' + dot(showJoints) + ' Joints  ' + dot(showBoneNames) + ' Names  ' + dot(dynamicBonesEnabled) + ' DynBones</div>';
+      html += '<div>' + dot(showSkeleton) + ' Skeleton  ' + dot(showJoints) + ' Joints  ' + dot(showBoneNames) + ' Names  ' + dot(dynamicBonesEnabled) + ' DynBones  ' + dot(dynCollisionsEnabled) + ' Collisions</div>';
+      if (opacity < 1.0) {{
+        html += '<div style="color:#9ca3af">Opacity: ' + opacity.toFixed(2) + '</div>';
+      }}
       if (gamepadEnabled) {{
         const hasGamepad = gamepadButtonStates.length > 0;
         const tp = gamepadType;
@@ -4779,9 +4802,6 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           html += renderControllerSVG(tp, bs, ax, tr, labels, colors);
         }}
         html += renderMappingLegend(tp, labels);
-      }}
-      if (opacity < 1.0) {{
-        html += '<div style="color:#9ca3af">Opacity: ' + opacity.toFixed(2) + '</div>';
       }}
       html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
       html += '<div style="color:#60a5fa">Anim: ' + animName + '</div>';
@@ -5256,9 +5276,14 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const opts2 = [
         ['Skeleton', showSkeleton], ['Joints', showJoints],
         ['Names', showBoneNames], ['DynBones', dynamicBonesEnabled],
+        ['Collisions', dynCollisionsEnabled],
       ];
       const optLine2 = opts2.map(o => (o[1] ? '●' : '○') + ' ' + o[0]).join('  ');
       lines.push([optLine2, 'mixed']);
+
+      if (opacity < 1.0) {{
+        lines.push(['Opacity: ' + opacity.toFixed(2), 'value']);
+      }}
 
       if (gamepadEnabled) {{
         const tp = gamepadType;
@@ -5269,10 +5294,6 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         if (cachedOverlaySVGImg) {{
           lines.push([cachedOverlaySVGImg, 'svgimg']);
         }}
-      }}
-
-      if (opacity < 1.0) {{
-        lines.push(['Opacity: ' + opacity.toFixed(2), 'value']);
       }}
 
       // Animation info (always show)
