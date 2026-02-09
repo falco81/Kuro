@@ -1463,6 +1463,22 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           <span class="slider"></span>
         </label>
       </div>
+      <div style="border-top:1px solid rgba(124,58,237,0.2);margin:4px 0"></div>
+      <div class="toggle-row" style="padding:4px 8px;margin:2px 0;background:rgba(59,130,246,0.08)" onclick="toggleFreeCam(); document.getElementById('swFreeCam').checked = freeCamMode;">
+        <span class="label" style="font-size:11px">🎥 3D FreeCam</span>
+        <label class="toggle-switch" onclick="event.stopPropagation()" style="transform:scale(0.85)">
+          <input type="checkbox" id="swFreeCam" onchange="toggleFreeCam()">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div id="freeCamSubmenu" style="display:none;padding:2px 8px 4px 8px;">
+        <div style="display:flex;align-items:center;gap:4px;margin:2px 0">
+          <span style="font-size:10px;color:#9ca3af;min-width:40px">Speed:</span>
+          <input type="range" id="freeCamSpeedSlider" min="0" max="200" value="100" style="flex:1"
+                 oninput="freeCamSpeed = this.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'">
+          <span id="freeCamStatus" style="font-size:10px;color:#60a5fa;min-width:55px;text-align:right">1.00x</span>
+        </div>
+      </div>
     </div>
 
     <div class="slider-row">
@@ -1718,11 +1734,12 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       'KeyV': 14,       // V → cycle visual
       'KeyB': 15,       // B → cycle bones
       'KeyO': 8,        // O → overlay
+      'KeyC': 11,       // C → toggle FreeCam
     }};
     const KB_LABELS = {{
       0: 'Space', 1: 'Esc', 2: 'R', 3: 'F',
       4: '[', 5: ']', 6: 'Q', 7: 'E',
-      8: 'O', 9: 'P', 12: '+', 13: '-', 14: 'V', 15: 'B',
+      8: 'O', 9: 'P', 11: 'C', 12: '+', 13: '-', 14: 'V', 15: 'B',
     }};
 
     // Button labels per controller type
@@ -1773,7 +1790,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     const GP_ACTIONS = {{
       0: 'Play/Pause', 1: 'Stop', 2: 'Reset Pos', 3: 'DynBones',
       4: 'Prev Anim', 5: 'Next Anim', 6: 'Zoom Out', 7: 'Zoom In',
-      8: 'Overlay', 9: 'Screenshot', 12: 'Speed+', 13: 'Speed-', 14: 'Visual', 15: 'Bones'
+      8: 'Overlay', 9: 'Screenshot', 11: 'FreeCam', 12: 'Speed+', 13: 'Speed-', 14: 'Visual', 15: 'Bones'
     }};
     const GP_STICK_ACTIONS = {{ ls: 'Move', rs: 'Camera' }};
 
@@ -1816,15 +1833,15 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const SW = 0.2;   // stroke width
       const FS1 = 1.6, FS2 = 1.2;  // font sizes
 
-      function stickVis(cx, cy, axX, axY, concave) {{
+      function stickVis(cx, cy, axX, axY, concave, pressed) {{
         const act = Math.abs(axX) > 0 || Math.abs(axY) > 0;
         const dx = cx + axX * MV, dy = cy + axY * MV;
-        s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+SR+'" fill="#0a0a18" stroke="'+(act?'#5b21b6':'#2a2a3a')+'" stroke-width="'+SW+'"/>';
-        s += '<circle cx="'+dx+'" cy="'+dy+'" r="'+CR+'" fill="url(#'+(act?'stGA':'stG')+')" stroke="'+(act?'#a78bfa':'#444')+'" stroke-width="'+SW+'"/>';
+        s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+SR+'" fill="'+(pressed?'rgba(124,58,237,0.25)':'#0a0a18')+'" stroke="'+(pressed?'#a78bfa':(act?'#5b21b6':'#2a2a3a'))+'" stroke-width="'+(pressed?SW*1.5:SW)+'"/>';
+        s += '<circle cx="'+dx+'" cy="'+dy+'" r="'+CR+'" fill="url(#'+(act||pressed?'stGA':'stG')+')" stroke="'+(act||pressed?'#a78bfa':'#444')+'" stroke-width="'+SW+'"/>';
         if (concave) {{
-          s += '<circle cx="'+dx+'" cy="'+dy+'" r="'+(CR*0.6)+'" fill="none" stroke="'+(act?'rgba(167,139,250,0.3)':'rgba(60,60,80,0.5)')+'" stroke-width="0.1"/>';
+          s += '<circle cx="'+dx+'" cy="'+dy+'" r="'+(CR*0.6)+'" fill="none" stroke="'+(act||pressed?'rgba(167,139,250,0.3)':'rgba(60,60,80,0.5)')+'" stroke-width="0.1"/>';
         }} else {{
-          s += '<circle cx="'+dx+'" cy="'+dy+'" r="'+(CR*0.55)+'" fill="none" stroke="'+(act?'rgba(167,139,250,0.15)':'rgba(60,60,80,0.2)')+'" stroke-width="0.1"/>';
+          s += '<circle cx="'+dx+'" cy="'+dy+'" r="'+(CR*0.55)+'" fill="none" stroke="'+(act||pressed?'rgba(167,139,250,0.15)':'rgba(60,60,80,0.2)')+'" stroke-width="0.1"/>';
         }}
       }}
 
@@ -1895,8 +1912,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         faceBtn(51.5, 18.7, 3, FR); faceBtn(46.8, 23.4, 2, FR);
         faceBtn(56.2, 23.4, 1, FR); faceBtn(51.5, 28.1, 0, FR);
         // Sticks
-        stickVis(21.7, 31.8, ax[0], ax[1], true);
-        stickVis(42.2, 31.8, ax[2], ax[3], true);
+        stickVis(21.7, 31.8, ax[0], ax[1], true, bs[10]);
+        stickVis(42.2, 31.8, ax[2], ax[3], true, bs[11]);
         // Create / Options (horizontal pills)
         smallBtn(17.8, 16.5, 8, 'pill', null);
         smallBtn(46.0, 16.5, 9, 'pill', null);
@@ -1908,14 +1925,14 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         bumperBar(6, 10.5, 14, 4);
         bumperBar(44, 10.5, 14, 5);
         // Left stick upper-left
-        stickVis(16.1, 23.0, ax[0], ax[1], true);
+        stickVis(16.1, 23.0, ax[0], ax[1], true, bs[10]);
         // D-pad lower-left
         dpadVis(22.0, 31.0, 'cross');
         // Face buttons upper-right
         faceBtn(50.1, 18.8, 3, FR); faceBtn(45.1, 23.2, 2, FR);
         faceBtn(55.2, 23.2, 1, FR); faceBtn(50.1, 27.5, 0, FR);
         // Right stick lower inward
-        stickVis(42.2, 33.0, ax[2], ax[3], true);
+        stickVis(42.2, 33.0, ax[2], ax[3], true, bs[11]);
         // −/+
         smallBtn(23.3, 17.4, 8, 'circle', '−');
         smallBtn(39.2, 17.4, 9, 'circle', '+');
@@ -1927,14 +1944,14 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         bumperBar(6, 10.5, 14, 4);
         bumperBar(44, 10.5, 14, 5);
         // Left stick upper-left
-        stickVis(15.6, 21.9, ax[0], ax[1], false);
+        stickVis(15.6, 21.9, ax[0], ax[1], false, bs[10]);
         // D-pad lower-left
         dpadVis(23.5, 31.5, 'cross');
         // Face YXBA upper-right
         faceBtn(48.4, 17.7, 3, 2.1); faceBtn(44.1, 22.0, 2, 2.1);
         faceBtn(52.7, 22.0, 1, 2.1); faceBtn(48.4, 26.2, 0, 2.1);
         // Right stick lower inward
-        stickVis(40.4, 31.5, ax[2], ax[3], false);
+        stickVis(40.4, 31.5, ax[2], ax[3], false, bs[11]);
         // Xbox guide
         s += '<circle cx="32" cy="15.4" r="1.8" fill="#107c10" stroke="#2dd42d" stroke-width="0.15" opacity="0.7"/>';
         s += '<text x="32" y="15.9" text-anchor="middle" fill="#4ade80" font-size="1.4" font-weight="bold">X</text>';
@@ -1975,7 +1992,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       key(col(6),y2,k,rh,'[',bs[4]); key(col(7),y2,k,rh,']',bs[5]);
       key(col(8),y2,k,rh,'+',bs[12]); key(col(9),y2,k,rh,'−',bs[13]);
       key(col(10),y2,k,rh,'O',bs[8]); key(col(11),y2,k,rh,'P',bs[9]);
-      key(col(0),y3,k,rh,'Q',tr[0]>0.5); key(col(2),y3,k,rh,'E',tr[1]>0.5);
+      key(col(0),y3,k,rh,'Q',tr[0]>0.5); key(col(1),y3,k,rh,'C',bs[11]); key(col(2),y3,k,rh,'E',tr[1]>0.5);
       s += '</svg>';
       return s;
     }}
@@ -1983,7 +2000,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     function renderMappingLegend(tp, labels) {{
       const isKB = (tp === 'keyboard');
       let h = '<div style="margin-top:4px;font-size:10px;line-height:17px;color:#888;columns:2;column-gap:12px">';
-      [[0,'Play/Pause'],[1,'Stop'],[2,'Reset Pos'],[3,'DynBones'],[4,'Prev Anim'],[5,'Next Anim'],[6,'Zoom Out'],[7,'Zoom In'],[14,'Visual Mode'],[15,'Bone Cycle'],[12,'Speed +'],[13,'Speed −'],[8,'Overlay'],[9,'Screenshot']].forEach(function(it) {{
+      [[0,'Play/Pause'],[1,'Stop'],[2,'Reset Pos'],[3,'DynBones'],[4,'Prev Anim'],[5,'Next Anim'],[6,'Zoom Out'],[7,'Zoom In'],[14,'Visual Mode'],[15,'Bone Cycle'],[12,'Speed +'],[13,'Speed −'],[8,'Overlay'],[9,'Screenshot'],[11,'FreeCam']].forEach(function(it) {{
         const lbl = labels[it[0]] || '';
         if (!lbl) return;
         h += '<div style="white-space:nowrap"><span style="display:inline-block;min-width:32px;padding:1px 4px;background:#252540;border:1px solid #333;border-radius:3px;color:#ccc;text-align:center;font-family:monospace;font-size:9px">' + lbl + '</span> ' + it[1] + '</div>';
@@ -2008,6 +2025,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let tpAutoAnimIdle = null;
     let tpCurrentAutoAnim = null;
     let tpIsMoving = false;
+    let freeCamMode = false;      // free camera fly mode
+    let freeCamSpeed = 1.0;       // speed multiplier (adjusted by D-pad)
+    let freeCamBaseSpeed = 0.1;   // computed from model size
     let skeletonGroup = null, jointsGroup = null;
 
     class OrbitControls {{
@@ -3877,6 +3897,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // Disable gamepad if active
       if (gamepadEnabled) {{
         gamepadEnabled = false;
+        freeCamMode = false;
+        const fcSw = document.getElementById('swFreeCam'); if (fcSw) fcSw.checked = false;
+        const fcSub = document.getElementById('freeCamSubmenu'); if (fcSub) fcSub.style.display = 'none';
         disableThirdPerson();
         gamepadType = 'generic';
         gamepadPrevButtons = [];
@@ -3961,6 +3984,37 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     }}
 
     // ============================================
+    // FreeCam Mode
+    // ============================================
+    function toggleFreeCam() {{
+      freeCamMode = !freeCamMode;
+      const sw = document.getElementById('swFreeCam'); if (sw) sw.checked = freeCamMode;
+      const submenu = document.getElementById('freeCamSubmenu');
+      
+      if (freeCamMode) {{
+        if (submenu) submenu.style.display = 'block';
+        
+        // Compute base speed from model size
+        const box = new THREE.Box3();
+        meshes.filter(m => m.visible).forEach(m => box.expandByObject(m));
+        if (box.isEmpty()) meshes.forEach(m => box.expandByObject(m));
+        const size = box.getSize(new THREE.Vector3());
+        freeCamBaseSpeed = Math.max(size.x, size.y, size.z) * 0.02;
+        
+        // Wider vertical look range for freecam
+        tpCamPhi = 1.4;
+        
+        debug('FreeCam ON. BaseSpeed:', freeCamBaseSpeed.toFixed(4));
+      }} else {{
+        if (submenu) submenu.style.display = 'none';
+        // Return camera to third-person orbit
+        tpCamPhi = Math.max(0.3, Math.min(Math.PI * 0.45, tpCamPhi));
+        if (characterGroup) updateThirdPersonCamera();
+        debug('FreeCam OFF');
+      }}
+    }}
+
+    // ============================================
     // Gamepad Controller Support
     // ============================================
     function toggleGamepad() {{
@@ -3985,6 +4039,12 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           statusEl.style.color = '#60a5fa';
         }}
       }} else {{
+        // Reset FreeCam if active
+        if (freeCamMode) {{
+          freeCamMode = false;
+          const fcSw = document.getElementById('swFreeCam'); if (fcSw) fcSw.checked = false;
+          const fcSub = document.getElementById('freeCamSubmenu'); if (fcSub) fcSub.style.display = 'none';
+        }}
         disableThirdPerson();
         gamepadType = 'generic';
         gamepadPrevButtons = [];
@@ -4377,6 +4437,36 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         const invX = gamepadInvertX ? -1 : 1;
         const invY = gamepadInvertY ? -1 : 1;
         
+        if (freeCamMode) {{
+          // ── FreeCam: fly-like free movement ──
+          // Look: right stick / arrows
+          if (rx !== 0) tpCamTheta += rx * 0.03 * invX;
+          if (ry !== 0) tpCamPhi = Math.max(0.1, Math.min(Math.PI - 0.1, tpCamPhi + ry * 0.02 * invY));
+          
+          const speed = freeCamBaseSpeed * freeCamSpeed;
+          // Full 3D look direction (includes pitch)
+          const lookDir = new THREE.Vector3(
+            -Math.sin(tpCamPhi) * Math.sin(tpCamTheta),
+            -Math.cos(tpCamPhi),
+            -Math.sin(tpCamPhi) * Math.cos(tpCamTheta)
+          ).normalize();
+          // Strafe: perpendicular on XZ plane
+          const strafeDir = new THREE.Vector3(lookDir.z, 0, -lookDir.x).normalize();
+          // Move forward/back along look direction (fly into the view)
+          if (ly !== 0) camera.position.addScaledVector(lookDir, -ly * speed * invY);
+          // Strafe left/right
+          if (lx !== 0) camera.position.addScaledVector(strafeDir, lx * speed * invX);
+          // Up/Down in world space: triggers / QE
+          if (lt > 0.05) camera.position.y -= lt * speed;
+          if (rt > 0.05) camera.position.y += rt * speed;
+          
+          // Apply camera look direction
+          const lookTarget = camera.position.clone().add(lookDir);
+          camera.lookAt(lookTarget);
+          controls.target.copy(lookTarget);
+          
+        }} else {{
+        // ── Third-person character movement ──
         // Camera orbit
         if (rx !== 0) tpCamTheta += rx * 0.03 * invX;
         if (ry !== 0) tpCamPhi = Math.max(0.3, Math.min(Math.PI * 0.45, tpCamPhi + ry * 0.02 * invY));
@@ -4422,6 +4512,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }}
         tpIsMoving = isMovingNow;
         
+        }} // end if freeCamMode else
+        
         // Button edge detection
         function kbJustPressed(idx) {{
           return vButtons[idx] && !kbPrevKeys[idx];
@@ -4429,7 +4521,17 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         
         if (kbJustPressed(0)) {{ toggleAnimPlayback(); tpCurrentAutoAnim = null; }}
         if (kbJustPressed(1)) {{ stopAnimation(); tpCurrentAutoAnim = null; }}
-        if (kbJustPressed(2)) {{ if (characterGroup) {{ characterGroup.position.set(0,0,0); characterYaw = 0; characterGroup.rotation.y = 0; }} }}
+        if (kbJustPressed(2)) {{ 
+          if (freeCamMode) {{
+            // Reset camera to origin/model center
+            const box = new THREE.Box3();
+            meshes.filter(m => m.visible).forEach(m => box.expandByObject(m));
+            if (box.isEmpty()) meshes.forEach(m => box.expandByObject(m));
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            camera.position.set(center.x, center.y + size.y, center.z + size.z * 2);
+            tpCamTheta = Math.PI; tpCamPhi = 1.2;
+          }} else if (characterGroup) {{ characterGroup.position.set(0,0,0); characterYaw = 0; characterGroup.rotation.y = 0; }} }}
         if (kbJustPressed(3)) {{ toggleDynamicBones(); document.getElementById('swDynBones').checked = dynamicBonesEnabled; }}
         if (kbJustPressed(4)) {{
           const sel = document.getElementById('animation-select');
@@ -4439,10 +4541,25 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           const sel = document.getElementById('animation-select');
           if (sel && sel.selectedIndex < sel.options.length - 1) {{ sel.selectedIndex++; playAnimationCrossfade(sel.value, 0.25); tpCurrentAutoAnim = null; }}
         }}
-        if (kbJustPressed(12)) {{ const s = document.getElementById('animSpeedSlider'); if (s) {{ s.value = Math.min(100, parseInt(s.value) + 10); updateAnimSpeed(s.value); }} }}
-        if (kbJustPressed(13)) {{ const s = document.getElementById('animSpeedSlider'); if (s) {{ s.value = Math.max(-100, parseInt(s.value) - 10); updateAnimSpeed(s.value); }} }}
+        if (kbJustPressed(12)) {{
+          if (freeCamMode) {{
+            const s = document.getElementById('freeCamSpeedSlider');
+            if (s) {{ s.value = Math.min(200, parseInt(s.value) + 5); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
+          }} else {{
+            const s = document.getElementById('animSpeedSlider'); if (s) {{ s.value = Math.min(100, parseInt(s.value) + 10); updateAnimSpeed(s.value); }}
+          }}
+        }}
+        if (kbJustPressed(13)) {{
+          if (freeCamMode) {{
+            const s = document.getElementById('freeCamSpeedSlider');
+            if (s) {{ s.value = Math.max(0, parseInt(s.value) - 5); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
+          }} else {{
+            const s = document.getElementById('animSpeedSlider'); if (s) {{ s.value = Math.max(-100, parseInt(s.value) - 10); updateAnimSpeed(s.value); }}
+          }}
+        }}
         if (kbJustPressed(9)) requestScreenshot();
         if (kbJustPressed(8)) {{ const sw = document.getElementById('swInfoOverlay'); if (sw) sw.checked = !sw.checked; }}
+        if (kbJustPressed(11)) {{ toggleFreeCam(); document.getElementById('swFreeCam').checked = freeCamMode; }}
         
         // V (14) → cycle visual modes
         if (kbJustPressed(14)) {{
@@ -4478,7 +4595,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         // Save prev states for edge detection (store by button index)
         for (let bi = 0; bi < 16; bi++) kbPrevKeys[bi] = vButtons[bi];
         
-        updateThirdPersonCamera();
+        if (!freeCamMode) updateThirdPersonCamera();
         return;
       }}
       
@@ -4512,6 +4629,39 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const invX = gamepadInvertX ? -1 : 1;
       const invY = gamepadInvertY ? -1 : 1;
       
+      // ── Triggers ──
+      const lt = gp.buttons[6] ? gp.buttons[6].value : 0;
+      const rt = gp.buttons[7] ? gp.buttons[7].value : 0;
+      
+      if (freeCamMode) {{
+        // ── FreeCam: fly-like free movement ──
+        // Look: right stick
+        if (rx !== 0) tpCamTheta += rx * 0.04 * invX;
+        if (ry !== 0) tpCamPhi = Math.max(0.1, Math.min(Math.PI - 0.1, tpCamPhi + ry * 0.03 * invY));
+        
+        const speed = freeCamBaseSpeed * freeCamSpeed;
+        // Full 3D look direction (includes pitch)
+        const lookDir = new THREE.Vector3(
+          -Math.sin(tpCamPhi) * Math.sin(tpCamTheta),
+          -Math.cos(tpCamPhi),
+          -Math.sin(tpCamPhi) * Math.cos(tpCamTheta)
+        ).normalize();
+        // Strafe: perpendicular on XZ plane
+        const strafeDir = new THREE.Vector3(lookDir.z, 0, -lookDir.x).normalize();
+        // Move forward/back along look direction (fly into the view)
+        if (ly !== 0) camera.position.addScaledVector(lookDir, -ly * speed * invY);
+        // Strafe left/right
+        if (lx !== 0) camera.position.addScaledVector(strafeDir, lx * speed * invX);
+        // Up/Down in world space: triggers
+        if (lt > 0.05) camera.position.y -= lt * speed;
+        if (rt > 0.05) camera.position.y += rt * speed;
+        
+        // Apply camera look direction
+        const lookTarget = camera.position.clone().add(lookDir);
+        camera.lookAt(lookTarget);
+        controls.target.copy(lookTarget);
+        
+      }} else {{
       // ── Right stick → orbit camera around character ──
       if (rx !== 0) {{
         tpCamTheta += rx * 0.04 * invX;
@@ -4521,8 +4671,6 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       
       // ── Triggers → zoom camera in/out ──
-      const lt = gp.buttons[6] ? gp.buttons[6].value : 0;
-      const rt = gp.buttons[7] ? gp.buttons[7].value : 0;
       if (lt > 0.05 || rt > 0.05) {{
         tpCamDist *= 1 + (lt - rt) * 0.02;
         tpCamDist = Math.max(characterMoveSpeed * 10, tpCamDist);
@@ -4578,6 +4726,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }}
       }}
       tpIsMoving = isMovingNow;
+      }} // end else (third-person mode)
       
       // ── Buttons (rising edge) ──
       const buttons = gp.buttons.map(b => b.pressed);
@@ -4604,7 +4753,16 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       
       // X / Square (2) → reset character to origin
       if (justPressed(2)) {{
-        if (characterGroup) {{
+        if (freeCamMode) {{
+          // Reset camera to model center
+          const box = new THREE.Box3();
+          meshes.filter(m => m.visible).forEach(m => box.expandByObject(m));
+          if (box.isEmpty()) meshes.forEach(m => box.expandByObject(m));
+          const center = box.getCenter(new THREE.Vector3());
+          const size = box.getSize(new THREE.Vector3());
+          camera.position.set(center.x, center.y + size.y, center.z + size.z * 2);
+          tpCamTheta = Math.PI; tpCamPhi = 1.2;
+        }} else if (characterGroup) {{
           characterGroup.position.set(0, 0, 0);
           characterYaw = 0;
           characterGroup.rotation.y = 0;
@@ -4637,16 +4795,26 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }}
       }}
       
-      // D-pad Up (12) → speed up
+      // D-pad Up (12) → speed up (or FreeCam speed)
       if (justPressed(12)) {{
-        const slider = document.getElementById('animSpeedSlider');
-        if (slider) {{ slider.value = Math.min(100, parseInt(slider.value) + 10); updateAnimSpeed(slider.value); }}
+        if (freeCamMode) {{
+          const s = document.getElementById('freeCamSpeedSlider');
+          if (s) {{ s.value = Math.min(200, parseInt(s.value) + 5); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
+        }} else {{
+          const slider = document.getElementById('animSpeedSlider');
+          if (slider) {{ slider.value = Math.min(100, parseInt(slider.value) + 10); updateAnimSpeed(slider.value); }}
+        }}
       }}
       
-      // D-pad Down (13) → slow down
+      // D-pad Down (13) → slow down (or FreeCam speed)
       if (justPressed(13)) {{
-        const slider = document.getElementById('animSpeedSlider');
-        if (slider) {{ slider.value = Math.max(-100, parseInt(slider.value) - 10); updateAnimSpeed(slider.value); }}
+        if (freeCamMode) {{
+          const s = document.getElementById('freeCamSpeedSlider');
+          if (s) {{ s.value = Math.max(0, parseInt(s.value) - 5); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
+        }} else {{
+          const slider = document.getElementById('animSpeedSlider');
+          if (slider) {{ slider.value = Math.max(-100, parseInt(slider.value) - 10); updateAnimSpeed(slider.value); }}
+        }}
       }}
       
       // D-pad Left (14) → cycle display modes:
@@ -4714,10 +4882,16 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         if (sw) {{ sw.checked = !sw.checked; }}
       }}
       
+      // R3 (11) → toggle FreeCam
+      if (justPressed(11)) {{
+        toggleFreeCam();
+        document.getElementById('swFreeCam').checked = freeCamMode;
+      }}
+      
       gamepadPrevButtons = buttons;
       
       // ── Update third-person camera ──
-      updateThirdPersonCamera();
+      if (!freeCamMode) updateThirdPersonCamera();
     }}
 
     function updateStats() {{
@@ -4780,6 +4954,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
       html += '<div>' + dot(colorMode) + ' Colors  ' + dot(textureMode) + ' Textures  ' + dot(wireframeMode) + ' Wire  ' + dot(wireframeOverlayMode) + ' Overlay</div>';
       html += '<div>' + dot(showSkeleton) + ' Skeleton  ' + dot(showJoints) + ' Joints  ' + dot(showBoneNames) + ' Names  ' + dot(dynamicBonesEnabled) + ' DynBones  ' + dot(dynCollisionsEnabled) + ' Collisions</div>';
+      if (freeCamMode) {{
+        html += '<div>' + dot(true) + ' FreeCam · Speed: ' + freeCamSpeed.toFixed(2) + 'x</div>';
+      }}
       if (opacity < 1.0) {{
         html += '<div style="color:#9ca3af">Opacity: ' + opacity.toFixed(2) + '</div>';
       }}
@@ -5283,6 +5460,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
       if (opacity < 1.0) {{
         lines.push(['Opacity: ' + opacity.toFixed(2), 'value']);
+      }}
+
+      if (freeCamMode) {{
+        lines.push(['● FreeCam · Speed: ' + freeCamSpeed.toFixed(2) + 'x', 'value']);
       }}
 
       if (gamepadEnabled) {{
