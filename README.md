@@ -33,7 +33,13 @@ for proper function it needs to have all necessary data extracted in the game da
 - **added support for additional controllers, DualSense, DualShock, Switch Pro, Generic**
 - **support for keyboard control if controller is not detected**
 - **improved controller visualization in overlay**
+- **3D FreeCam mode for viewing models such as landscapes, buildings, etc.**
 ---
+
+**Beta6**<br>
+3D FreeCam mode
+![viewer_mdl/viewer_anim6.gif](doc/viewer_anim6.gif)
+![viewer_mdl/viewer_anim6.png](doc/viewer_anim6.png)
 
 **Beta5**<br>
 Added controller support
