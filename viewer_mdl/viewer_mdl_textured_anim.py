@@ -1815,6 +1815,20 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     <div id="meshSection" style="display:none;">
       <button class="btn-action" onclick="toggleAllMeshes(true)">✅ Show All</button>
       <button class="btn-action" onclick="toggleAllMeshes(false)">❌ Hide All</button>
+      <div class="toggle-row" onclick="focusZoomEnabled = !focusZoomEnabled; document.getElementById('swFocusZoom').checked = focusZoomEnabled;">
+        <span class="label">🔍 Focus Zoom</span>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="swFocusZoom" onchange="focusZoomEnabled = this.checked">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row" onclick="xrayHighlight = !xrayHighlight; document.getElementById('swXray').checked = xrayHighlight;">
+        <span class="label">👁 X-Ray Highlight</span>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="swXray" checked onchange="xrayHighlight = this.checked">
+          <span class="slider"></span>
+        </label>
+      </div>
       <div id="mesh-list"></div>
     </div>
   </div>
@@ -1864,12 +1878,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (!t) {{
         t = document.createElement('div');
         t.id = '_toast';
-        t.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(15,15,25,0.88);color:#86efac;font:12px/1.5 system-ui,sans-serif;padding:8px 18px;border-radius:10px;z-index:99999;pointer-events:none;white-space:pre;max-width:90%;text-align:center;border:1px solid rgba(34,197,94,0.4);backdrop-filter:blur(8px);animation:toastPulse 0.6s ease-in-out infinite';
+        t.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:#0a0c14;color:#86efac;font:12px/1.5 system-ui,sans-serif;padding:8px 18px;border-radius:10px;z-index:99999;pointer-events:none;white-space:pre;max-width:90%;text-align:center;border:1px solid rgba(34,197,94,0.6)';
         document.body.appendChild(t);
-        // Add keyframes
-        const style = document.createElement('style');
-        style.textContent = '@keyframes toastPulse {{ 0%,100% {{ opacity:0.7; border-color:rgba(34,197,94,0.25); }} 50% {{ opacity:1; border-color:rgba(34,197,94,0.6); }} }}';
-        document.head.appendChild(style);
       }}
       t.textContent = msg;
       t.style.display = 'block';
@@ -2982,6 +2992,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
     // Focus camera on a specific mesh by index
     let focusLockUntil = 0;  // timestamp to temporarily disable TP camera override
+    let focusZoomEnabled = false;  // whether 🎯 also zooms camera
+    let xrayHighlight = true;  // whether blink shows through other meshes
     
     function focusMesh(idx) {{
       try {{
@@ -3006,49 +3018,46 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const size = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
       
-      // In controller mode (third-person), only blink — don't move camera
-      if (gamepadEnabled && !freeCamMode) {{
-        const triCount = mesh.geometry && mesh.geometry.index ? mesh.geometry.index.count / 3 : '?';
-        showToast('🎯 ' + mesh.userData.meshName + '\\n' + triCount + ' tris · size ' + maxDim.toFixed(1), 5000);
-        blinkMesh(mesh);
-        return;
+      // In controller mode (third-person) or Focus Zoom off — only blink, no camera move
+      const skipZoom = !focusZoomEnabled || (gamepadEnabled && !freeCamMode);
+      
+      if (!skipZoom) {{
+        // Calculate framing distance
+        const fov = camera.fov * (Math.PI / 180);
+        const aspect = camera.aspect;
+        const hFOV = 2 * Math.atan(Math.tan(fov / 2) * aspect);
+        const distV = maxDim / (2 * Math.tan(fov / 2));
+        const distH = maxDim / (2 * Math.tan(hFOV / 2));
+        const dist = Math.max(distV, distH, 0.1) * CONFIG.CAMERA_ZOOM;
+        
+        // Adapt camera clipping planes and controls limits
+        camera.near = Math.max(0.001, maxDim * 0.0001);
+        camera.far = Math.max(camera.far, maxDim * 40);
+        camera.updateProjectionMatrix();
+        controls.maxDistance = Math.max(controls.maxDistance, dist * 5);
+        
+        // Position camera: place it looking at mesh center from a standard angle
+        const direction = new THREE.Vector3(0.5, 0.5, 1).normalize();
+        camera.position.copy(center).add(direction.multiplyScalar(dist));
+        camera.lookAt(center);
+        
+        controls.target.copy(center);
+        const offset = camera.position.clone().sub(center);
+        controls.spherical.setFromVector3(offset);
+        controls.panOffset.set(0, 0, 0);
+        controls.update();
+        
+        if (freeCamMode) {{
+          const lookDir = new THREE.Vector3().subVectors(center, camera.position).normalize();
+          tpCamPhi = Math.acos(-lookDir.y);
+          tpCamTheta = Math.atan2(-lookDir.x, -lookDir.z);
+        }}
+        
+        // Prevent TP camera from overriding for 500ms
+        focusLockUntil = Date.now() + 500;
       }}
       
-      // Calculate framing distance
-      const fov = camera.fov * (Math.PI / 180);
-      const aspect = camera.aspect;
-      const hFOV = 2 * Math.atan(Math.tan(fov / 2) * aspect);
-      const distV = maxDim / (2 * Math.tan(fov / 2));
-      const distH = maxDim / (2 * Math.tan(hFOV / 2));
-      const dist = Math.max(distV, distH, 0.1) * CONFIG.CAMERA_ZOOM;
-      
-      // Adapt camera clipping planes and controls limits
-      camera.near = Math.max(0.001, maxDim * 0.0001);
-      camera.far = Math.max(camera.far, maxDim * 40);
-      camera.updateProjectionMatrix();
-      controls.maxDistance = Math.max(controls.maxDistance, dist * 5);
-      
-      // Position camera: place it looking at mesh center from a standard angle
-      const direction = new THREE.Vector3(0.5, 0.5, 1).normalize();
-      camera.position.copy(center).add(direction.multiplyScalar(dist));
-      camera.lookAt(center);
-      
-      controls.target.copy(center);
-      const offset = camera.position.clone().sub(center);
-      controls.spherical.setFromVector3(offset);
-      controls.panOffset.set(0, 0, 0);
-      controls.update();
-      
-      if (freeCamMode) {{
-        const lookDir = new THREE.Vector3().subVectors(center, camera.position).normalize();
-        tpCamPhi = Math.acos(-lookDir.y);
-        tpCamTheta = Math.atan2(-lookDir.x, -lookDir.z);
-      }}
-      
-      // Prevent TP camera from overriding for 500ms
-      focusLockUntil = Date.now() + 500;
-      
-      // Show info toast for duration of blink
+      // Always show info toast and blink
       const triCount = mesh.geometry && mesh.geometry.index ? mesh.geometry.index.count / 3 : '?';
       showToast('🎯 ' + mesh.userData.meshName + '\\n' + triCount + ' tris · size ' + maxDim.toFixed(1), 5000);
       
@@ -3088,9 +3097,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const interval = setInterval(() => {{
         mats.forEach((m, i) => {{
           if (m.emissive) m.emissive.copy(blinkOn ? redColor : origEmissive[i]);
-          m.depthTest = !blinkOn;  // visible through everything when red
+          if (xrayHighlight) m.depthTest = !blinkOn;
         }});
-        mesh.renderOrder = blinkOn ? 9999 : 0;
+        if (xrayHighlight) mesh.renderOrder = blinkOn ? 9999 : 0;
         blinkOn = !blinkOn;
       }}, 300);
       
@@ -6040,6 +6049,51 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // Info overlay (if enabled)
       if (overlayMode > 0) {{
         drawInfoOverlay(ctx, w, h, sf);
+      }}
+      
+      // Toast notification (only when overlay is active)
+      if (overlayMode > 0) {{
+        const toast = document.getElementById('_toast');
+        if (toast && toast.style.display !== 'none' && toast.textContent) {{
+          const text = toast.textContent;
+          const lines = text.split('\\n');
+          const fontSize = Math.round(12 * sf);
+          ctx.font = fontSize + 'px system-ui, sans-serif';
+          const lineH = fontSize * 1.5;
+          const maxLineW = Math.max(...lines.map(l => ctx.measureText(l).width));
+          const padX = 18 * sf;
+          const padY = 8 * sf;
+          const boxW = maxLineW + padX * 2;
+          const boxH = lines.length * lineH + padY * 2;
+          const bx = (w - boxW) / 2;
+          const by = h - 60 * sf - boxH;
+          
+          ctx.save();
+          ctx.fillStyle = '#0a0c14';
+          ctx.strokeStyle = 'rgba(34,197,94,0.6)';
+          ctx.lineWidth = 1 * sf;
+          ctx.beginPath();
+          const r = 10 * sf;
+          ctx.moveTo(bx + r, by); ctx.lineTo(bx + boxW - r, by);
+          ctx.quadraticCurveTo(bx + boxW, by, bx + boxW, by + r);
+          ctx.lineTo(bx + boxW, by + boxH - r);
+          ctx.quadraticCurveTo(bx + boxW, by + boxH, bx + boxW - r, by + boxH);
+          ctx.lineTo(bx + r, by + boxH);
+          ctx.quadraticCurveTo(bx, by + boxH, bx, by + boxH - r);
+          ctx.lineTo(bx, by + r);
+          ctx.quadraticCurveTo(bx, by, bx + r, by);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          
+          ctx.fillStyle = '#86efac';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          lines.forEach((line, i) => {{
+            ctx.fillText(line, w / 2, by + padY + (i + 0.5) * lineH);
+          }});
+          ctx.restore();
+        }}
       }}
     }}
 
