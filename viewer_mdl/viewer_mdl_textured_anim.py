@@ -3009,6 +3009,57 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       
       debug('focusMesh[' + idx + '] ' + mesh.userData.meshName + ': maxDim=' + maxDim.toFixed(1));
+      
+      // Blink mesh red for ~5 seconds
+      blinkMesh(mesh);
+    }}
+    
+    let blinkTimers = new Map();  // mesh -> timer id
+    function blinkMesh(mesh) {{
+      // Cancel previous blink on this mesh
+      if (blinkTimers.has(mesh)) {{
+        clearInterval(blinkTimers.get(mesh).interval);
+        clearTimeout(blinkTimers.get(mesh).timeout);
+        // Restore original
+        const orig = blinkTimers.get(mesh).origEmissive;
+        if (Array.isArray(mesh.material)) {{
+          mesh.material.forEach((m, i) => {{ if (m.emissive) m.emissive.copy(orig[i]); }});
+        }} else if (mesh.material.emissive) {{
+          mesh.material.emissive.copy(orig);
+        }}
+        blinkTimers.delete(mesh);
+      }}
+      
+      // Store original emissive colors
+      const origEmissive = Array.isArray(mesh.material)
+        ? mesh.material.map(m => m.emissive ? m.emissive.clone() : new THREE.Color(0))
+        : (mesh.material.emissive ? mesh.material.emissive.clone() : new THREE.Color(0));
+      const redColor = new THREE.Color(0.8, 0.1, 0.1);
+      let blinkOn = true;
+      
+      const interval = setInterval(() => {{
+        if (Array.isArray(mesh.material)) {{
+          mesh.material.forEach((m, i) => {{
+            if (m.emissive) m.emissive.copy(blinkOn ? redColor : origEmissive[i]);
+          }});
+        }} else if (mesh.material.emissive) {{
+          mesh.material.emissive.copy(blinkOn ? redColor : origEmissive);
+        }}
+        blinkOn = !blinkOn;
+      }}, 300);
+      
+      const timeout = setTimeout(() => {{
+        clearInterval(interval);
+        // Restore original
+        if (Array.isArray(mesh.material)) {{
+          mesh.material.forEach((m, i) => {{ if (m.emissive) m.emissive.copy(origEmissive[i]); }});
+        }} else if (mesh.material.emissive) {{
+          mesh.material.emissive.copy(origEmissive);
+        }}
+        blinkTimers.delete(mesh);
+      }}, 5000);
+      
+      blinkTimers.set(mesh, {{ interval, timeout, origEmissive }});
     }}
 
     function loadSkeleton() {{
