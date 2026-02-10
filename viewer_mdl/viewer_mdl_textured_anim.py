@@ -4529,15 +4529,21 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       meshes.forEach(m => {{
         if (!m.userData.fxoMaterial) return;  // not a toon-shaded mesh
         
-        // Use stored texture references (always up to date)
-        const tex = m.userData.originalMap || m.material.map || null;
-        const nmap = m.userData.originalNormalMap || m.material.normalMap || null;
+        // Resolve textures based on current textureMode
+        const tex = textureMode ? (m.userData.originalMap || null) : null;
+        const nmap = textureMode ? (m.userData.originalNormalMap || null) : null;
         
         if (fxoShadersEnabled) {{
           // Restore FXO material
           const fxo = m.userData.fxoMaterial;
           fxo.map = tex;
           fxo.normalMap = nmap;
+          if (colorMode) {{
+            fxo.color.setHex(m.userData.originalColor);
+          }} else {{
+            fxo.color.setHex(tex ? 0xffffff : 0x808080);
+          }}
+          fxo.wireframe = wireframeMode;
           fxo.needsUpdate = true;
           m.material = fxo;
         }} else {{
@@ -4553,7 +4559,12 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           const def = m.userData.defaultMaterial;
           def.map = tex;
           def.normalMap = nmap;
-          def.color.setHex(tex ? 0xffffff : 0x808080);
+          if (colorMode) {{
+            def.color.setHex(m.userData.originalColor);
+          }} else {{
+            def.color.setHex(tex ? 0xffffff : 0x808080);
+          }}
+          def.wireframe = wireframeMode;
           def.needsUpdate = true;
           m.material = def;
         }}
