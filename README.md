@@ -34,7 +34,23 @@ for proper function it needs to have all necessary data extracted in the game da
 - **support for keyboard control if controller is not detected (WSAD)**
 - **improved controller visualization in overlay**
 - **3D FreeCam mode for viewing models such as landscapes, buildings, etc.**
+- **support for game shader files (FXO), fallback to original shaders if not available**
 ---
+
+**Beta7**<br>
+3support for game shader files (FXO)<br>
+```
+└───asset
+    ├───common
+    │   └───model
+    │   └───model_info
+    └───dx11
+        └───image
+        └───shader
+```
+
+<img src="doc/viewer_anim7.gif" width="100%">
+<img src="doc/viewer_anim7.png" width="100%">
 
 **Beta6**<br>
 3D FreeCam mode<br>
