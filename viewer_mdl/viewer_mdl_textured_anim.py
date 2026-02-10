@@ -1222,6 +1222,7 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
             uv_buffer = None
             blend_weights_buffer = None
             blend_indices_buffer = None
+            tangent_buffer = None
 
             for element in vb:
                 sem = element.get("SemanticName")
@@ -1236,6 +1237,8 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
                     blend_weights_buffer = buf
                 elif sem == "BLENDINDICES":
                     blend_indices_buffer = buf
+                elif sem == "TANGENT":
+                    tangent_buffer = buf
 
             if not pos_buffer:
                 continue
@@ -1291,6 +1294,16 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
             else:
                 normals = compute_smooth_normals_with_sharing(vertices, indices) if len(indices) >= 3 else None
 
+            # Extract tangents (vec4: xyz direction + w handedness)
+            tangents = None
+            if tangent_buffer:
+                tangents = np.array([t[:4] if len(t) >= 4 else list(t[:3]) + [1.0] for t in tangent_buffer], dtype=np.float32)
+                # Normalize xyz part
+                xyz = tangents[:, :3]
+                lens_t = np.linalg.norm(xyz, axis=1)
+                nonzero_t = lens_t > 1e-8
+                tangents[nonzero_t, :3] = xyz[nonzero_t] / lens_t[nonzero_t][:, None]
+
             material_name = None
             if j < len(primitives):
                 material_name = primitives[j].get("material")
@@ -1303,12 +1316,28 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
                 "indices": indices,
                 "material": material_name,
                 "skin_weights": skin_weights,
-                "skin_indices": skin_indices
+                "skin_indices": skin_indices,
+                "tangents": tangents
             }
 
             meshes.append(mesh_data)
+            
+            # Per-mesh detail log
+            mesh_name = mesh_data["name"]
+            vert_count = len(vertices)
+            tri_count = len(indices) // 3
+            has_n = "MDL" if (not recompute_normals and normal_buffer) else "recomputed"
+            has_uv = "yes" if uvs is not None else "no"
+            has_t = f"vec{len(tangent_buffer[0]) if tangent_buffer else 0}" if tangent_buffer else "no"
+            has_skin = "yes" if (skin_weights is not None) else "no"
+            print(f"    {mesh_name}: {vert_count} verts, {tri_count} tris | normals: {has_n} | UV: {has_uv} | tangents: {has_t} | skinning: {has_skin}")
 
-    print(f"[OK] Loaded {len(meshes)} submeshes")
+    tangent_count = sum(1 for m in meshes if m.get("tangents") is not None)
+    uv_no_tangent = sum(1 for m in meshes if m.get("tangents") is None and m.get("uvs") is not None)
+    summary = f"[OK] Loaded {len(meshes)} submeshes | tangents: {tangent_count} MDL"
+    if uv_no_tangent > 0:
+        summary += f", {uv_no_tangent} will be computed in JS"
+    print(summary)
     print(f"{'='*60}\n")
 
     return meshes, material_texture_map, skeleton_data, model_info, global_bind_matrices
@@ -1351,6 +1380,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         if m.get("skin_weights") is not None and m.get("skin_indices") is not None:
             mesh_info["skinWeights"] = m["skin_weights"].astype(np.float32).flatten().tolist()
             mesh_info["skinIndices"] = m["skin_indices"].astype(np.uint32).flatten().tolist()
+        
+        # Add tangent data if available
+        if m.get("tangents") is not None:
+            mesh_info["tangents"] = m["tangents"].astype(np.float32).flatten().tolist()
         
         meshes_data.append(mesh_info)
 
@@ -1960,6 +1993,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let totalTexturesCount = 0;
     let loadedTexturesCount = 0;
     const shaderStats = {{ toon: 0, standard: 0, fxo: 0, types: {{}} }};
+    const tangentStats = {{ mdl: 0, computed: 0, none: 0 }};
+    function getTangentInfoStr() {{
+      if (tangentStats.mdl > 0 && tangentStats.computed === 0) return 'MDL(' + tangentStats.mdl + ')';
+      if (tangentStats.mdl === 0 && tangentStats.computed > 0) return 'computed(' + tangentStats.computed + ')';
+      if (tangentStats.mdl > 0 && tangentStats.computed > 0) return 'MDL(' + tangentStats.mdl + ')+comp(' + tangentStats.computed + ')';
+      return 'none';
+    }}
     function getShaderInfoStr(compact) {{
       const typesStr = Object.entries(shaderStats.types).map(([k,v]) => k + '(' + v + ')').join(', ') || 'none';
       if (compact) {{
@@ -2800,6 +2840,18 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         if (meshData.uvs) {{
           const uvs = new Float32Array(meshData.uvs);
           geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+        }}
+        
+        // Tangents: use MDL data or compute fallback
+        if (meshData.tangents) {{
+          const tangents = new Float32Array(meshData.tangents);
+          geometry.setAttribute('tangent', new THREE.BufferAttribute(tangents, 4));
+          tangentStats.mdl++;
+        }} else if (meshData.uvs) {{
+          computeTangents(geometry);
+          tangentStats.computed++;
+        }} else {{
+          tangentStats.none++;
         }}
         
         // Add skinning data if available
@@ -4690,6 +4742,68 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
     }}
 
+    function computeTangents(geometry) {{
+      const posAttr = geometry.attributes.position;
+      const normAttr = geometry.attributes.normal;
+      const uvAttr = geometry.attributes.uv;
+      const indexAttr = geometry.index;
+      if (!posAttr || !normAttr || !uvAttr || !indexAttr) return;
+      
+      const n = posAttr.count;
+      const pos = posAttr.array;
+      const norm = normAttr.array;
+      const uv = uvAttr.array;
+      const idx = indexAttr.array;
+      
+      // Accumulate tangent and bitangent per vertex
+      const tan1 = new Float32Array(n * 3);  // tangent
+      const tan2 = new Float32Array(n * 3);  // bitangent
+      
+      for (let i = 0; i < idx.length; i += 3) {{
+        const i0 = idx[i], i1 = idx[i+1], i2 = idx[i+2];
+        
+        const x1 = pos[i1*3] - pos[i0*3], y1 = pos[i1*3+1] - pos[i0*3+1], z1 = pos[i1*3+2] - pos[i0*3+2];
+        const x2 = pos[i2*3] - pos[i0*3], y2 = pos[i2*3+1] - pos[i0*3+1], z2 = pos[i2*3+2] - pos[i0*3+2];
+        
+        const s1 = uv[i1*2] - uv[i0*2], t1 = uv[i1*2+1] - uv[i0*2+1];
+        const s2 = uv[i2*2] - uv[i0*2], t2 = uv[i2*2+1] - uv[i0*2+1];
+        
+        const r = 1.0 / (s1 * t2 - s2 * t1 || 1e-12);
+        
+        const sx = (t2 * x1 - t1 * x2) * r, sy = (t2 * y1 - t1 * y2) * r, sz = (t2 * z1 - t1 * z2) * r;
+        const tx = (s1 * x2 - s2 * x1) * r, ty = (s1 * y2 - s2 * y1) * r, tz = (s1 * z2 - s2 * z1) * r;
+        
+        tan1[i0*3] += sx; tan1[i0*3+1] += sy; tan1[i0*3+2] += sz;
+        tan1[i1*3] += sx; tan1[i1*3+1] += sy; tan1[i1*3+2] += sz;
+        tan1[i2*3] += sx; tan1[i2*3+1] += sy; tan1[i2*3+2] += sz;
+        
+        tan2[i0*3] += tx; tan2[i0*3+1] += ty; tan2[i0*3+2] += tz;
+        tan2[i1*3] += tx; tan2[i1*3+1] += ty; tan2[i1*3+2] += tz;
+        tan2[i2*3] += tx; tan2[i2*3+1] += ty; tan2[i2*3+2] += tz;
+      }}
+      
+      // Gram-Schmidt orthogonalize + compute handedness
+      const tangents = new Float32Array(n * 4);
+      for (let i = 0; i < n; i++) {{
+        const nx = norm[i*3], ny = norm[i*3+1], nz = norm[i*3+2];
+        const tx = tan1[i*3], ty = tan1[i*3+1], tz = tan1[i*3+2];
+        
+        // t - n * dot(n, t)
+        const dot = nx*tx + ny*ty + nz*tz;
+        let ox = tx - nx*dot, oy = ty - ny*dot, oz = tz - nz*dot;
+        const len = Math.sqrt(ox*ox + oy*oy + oz*oz);
+        if (len > 1e-12) {{ ox /= len; oy /= len; oz /= len; }}
+        
+        // Handedness: sign of dot(cross(n, t), tan2)
+        const cx = ny*tz - nz*ty, cy = nz*tx - nx*tz, cz = nx*ty - ny*tx;
+        const w = (cx*tan2[i*3] + cy*tan2[i*3+1] + cz*tan2[i*3+2]) < 0 ? -1.0 : 1.0;
+        
+        tangents[i*4] = ox; tangents[i*4+1] = oy; tangents[i*4+2] = oz; tangents[i*4+3] = w;
+      }}
+      
+      geometry.setAttribute('tangent', new THREE.BufferAttribute(tangents, 4));
+    }}
+
     function toggleColors() {{
       colorMode = !colorMode;
       const sw = document.getElementById('swColors'); if (sw) sw.checked = colorMode;
@@ -5812,7 +5926,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           '<div>Triangles: ' + totalTris.toLocaleString() + '</div>' +
           '<div>Vertices: ' + totalVerts.toLocaleString() + '</div>' +
           '<div>Visible: ' + visibleCount + '/' + meshes.length + '</div>' +
-          '<div style="color:#9ca3af">Shaders: ' + sMode + '</div>';
+          '<div style="color:#9ca3af">Shaders: ' + sMode + '</div>' +
+          '<div style="color:#9ca3af">Tangents: ' + getTangentInfoStr() + '</div>';
         // Show lighting in basic overlay only if non-default
         const la = ambientLight ? ambientLight.intensity : 0.6;
         const lk = dirLight1 ? dirLight1.intensity : 0.8;
@@ -5854,6 +5969,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // Shader info row
       const shInfo = getShaderInfoStr(false);
       html += '<tr><td colspan="2" style="padding:0;color:#9ca3af">Shaders: ' + shInfo.mode + ' · ' + shInfo.types + '</td></tr>';
+      html += '<tr><td colspan="2" style="padding:0;color:#9ca3af">Tangents: ' + getTangentInfoStr() + '</td></tr>';
       html += '</table>';
       html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
       html += '<div>' + dot(colorMode) + ' Colors  ' + dot(textureMode) + ' Textures  ' + dot(wireframeMode) + ' Wire  ' + dot(wireframeOverlayMode) + ' Overlay' + (shaderStats.toon > 0 && !NO_SHADERS ? '  ' + dot(fxoShadersEnabled) + ' FXO' : '') + (recomputeNormalsEnabled ? '  ' + dot(true) + ' Normals' : '') + '</div>';
@@ -6401,6 +6517,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // Shader info
       const shInfoOvl = getShaderInfoStr(false);
       rows.push([pad('Shaders: ' + shInfoOvl.mode, col) + '│  ' + shInfoOvl.types, 'value']);
+      rows.push(['Tangents: ' + getTangentInfoStr(), 'value']);
 
       // Build lines
       const divLen = 30;
