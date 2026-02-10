@@ -1397,6 +1397,12 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
                         display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }}
     #controls-toggle:hover {{ background: rgba(168, 85, 247, 0.9); }}
     #controls-toggle.visible {{ display: block; }}
+    #overlay-toggle {{ position: absolute; top: 20px; left: 20px; width: 40px; height: 40px; 
+                        background: rgba(124, 58, 237, 0.9); border: none; color: white; 
+                        border-radius: 8px; cursor: pointer; font-size: 20px; z-index: 1000;
+                        display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }}
+    #overlay-toggle:hover {{ background: rgba(168, 85, 247, 0.9); }}
+    #overlay-toggle.visible {{ display: block; }}
     #stats {{ bottom: 20px; left: 20px; font-family: monospace; font-size: 12px; width: auto; }}
     h3 {{ margin: 0 0 12px 0; color: #7c3aed; font-size: 16px; }}
     h4 {{ margin: 15px 0 10px 0; padding-bottom: 8px; border-bottom: 1px solid rgba(124, 58, 237, 0.3);
@@ -1576,6 +1582,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
   </div>
 
   <button id="controls-toggle" onclick="toggleControlsPanel()">☰</button>
+  <button id="overlay-toggle" onclick="toggleOverlayPanels()">☰</button>
   <div id="container"></div>
   <div id="info" class="panel">
     <h3>🎮 Model Viewer</h3>
@@ -2757,6 +2764,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       updateLoadingProgress('Finalizing...', '', 95);
       setTimeout(() => {{
         document.getElementById('controls-toggle').classList.add('visible');
+        document.getElementById('overlay-toggle').classList.add('visible');
         updateLoadingProgress('Ready!', '', 100);
         setTimeout(() => {{
           hideLoadingOverlay();
@@ -5797,6 +5805,15 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     function toggleControlsPanel() {{
       const panel = document.getElementById('controls');
       panel.classList.toggle('collapsed');
+    }}
+
+    let overlayPanelsHidden = false;
+    function toggleOverlayPanels() {{
+      overlayPanelsHidden = !overlayPanelsHidden;
+      const info = document.getElementById('info');
+      const stats = document.getElementById('stats');
+      if (info) info.style.display = overlayPanelsHidden ? 'none' : '';
+      if (stats) stats.style.display = overlayPanelsHidden ? 'none' : '';
     }}
 
     function requestScreenshot() {{
