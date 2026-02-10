@@ -1686,6 +1686,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     </div>
 
     <button class="btn-action" onclick="resetView()">🔄 Reset Camera</button>
+    <button class="btn-action" onclick="fitToView()">🎯 Focus Model</button>
     <button class="btn-action" onclick="requestScreenshot()">📸 Screenshot</button>
     <button class="btn-action" id="btnRecord" onclick="toggleRecording()">🔴 Record Video</button>
 
@@ -1948,6 +1949,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       'KeyB': 15,       // B → cycle bones
       'KeyO': 8,        // O → overlay
       'KeyC': 11,       // C → toggle FreeCam
+      'KeyG': 16,       // G → focus/fit to view
     }};
     const KB_LABELS = {{
       0: 'Space', 1: 'Esc', 2: 'R', 3: 'F',
@@ -1985,8 +1987,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       keyboard: {{
         0: 'Spc', 1: 'Esc', 2: 'R', 3: 'F',
         4: '[', 5: ']', 6: 'Q', 7: 'E',
-        8: 'O', 9: 'P', 10: '', 11: '',
+        8: 'O', 9: 'P', 10: '', 11: 'C',
         12: '+', 13: '-', 14: 'V', 15: 'B',
+        16: 'G',
       }}
     }};
 
@@ -2003,7 +2006,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     const GP_ACTIONS = {{
       0: 'Play/Pause', 1: 'Stop', 2: 'Reset Pos', 3: 'Physics',
       4: 'Prev Anim', 5: 'Next Anim', 6: 'Zoom Out', 7: 'Zoom In',
-      8: 'Overlay', 9: 'Screenshot', 11: 'FreeCam', 12: 'Speed+', 13: 'Speed-', 14: 'Visual', 15: 'Bones'
+      8: 'Overlay', 9: 'Screenshot', 10: 'Focus', 11: 'FreeCam', 12: 'Speed+', 13: 'Speed-', 14: 'Visual', 15: 'Bones', 16: 'Focus'
     }};
     const GP_STICK_ACTIONS = {{ ls: 'Move', rs: 'Camera' }};
 
@@ -2206,14 +2209,18 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       key(col(8),y2,k,rh,'+',bs[12]); key(col(9),y2,k,rh,'−',bs[13]);
       key(col(10),y2,k,rh,'O',bs[8]); key(col(11),y2,k,rh,'P',bs[9]);
       key(col(0),y3,k,rh,'Q',tr[0]>0.5); key(col(1),y3,k,rh,'C',bs[11]); key(col(2),y3,k,rh,'E',tr[1]>0.5);
+      key(col(8),y3,k,rh,'G',bs[16]);
       s += '</svg>';
       return s;
     }}
 
     function renderMappingLegend(tp, labels) {{
       const isKB = (tp === 'keyboard');
+      const items = [[0,'Play/Pause'],[1,'Stop'],[2,'Reset Pos'],[3,'Physics'],[4,'Prev Anim'],[5,'Next Anim'],[6,'Zoom Out'],[7,'Zoom In'],[14,'Visual Mode'],[15,'Bone Cycle'],[12,'Speed +'],[13,'Speed −'],[8,'Overlay'],[9,'Screenshot']];
+      if (isKB) {{ items.push([16,'Focus'],[11,'FreeCam']); }}
+      else {{ items.push([10,'Focus'],[11,'FreeCam']); }}
       let h = '<div style="margin-top:4px;font-size:10px;line-height:17px;color:#888;columns:2;column-gap:12px">';
-      [[0,'Play/Pause'],[1,'Stop'],[2,'Reset Pos'],[3,'Physics'],[4,'Prev Anim'],[5,'Next Anim'],[6,'Zoom Out'],[7,'Zoom In'],[14,'Visual Mode'],[15,'Bone Cycle'],[12,'Speed +'],[13,'Speed −'],[8,'Overlay'],[9,'Screenshot'],[11,'FreeCam']].forEach(function(it) {{
+      items.forEach(function(it) {{
         const lbl = labels[it[0]] || '';
         if (!lbl) return;
         h += '<div style="white-space:nowrap"><span style="display:inline-block;min-width:32px;padding:1px 4px;background:#252540;border:1px solid #333;border-radius:3px;color:#ccc;text-align:center;font-family:monospace;font-size:9px">' + lbl + '</span> ' + it[1] + '</div>';
@@ -2315,8 +2322,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           const cam = this.camera;
           const right = new THREE.Vector3(cam.matrix.elements[0], cam.matrix.elements[1], cam.matrix.elements[2]);
           const up = new THREE.Vector3(cam.matrix.elements[4], cam.matrix.elements[5], cam.matrix.elements[6]);
-          this.panOffset.add(right.multiplyScalar(-e.movementX * this.panSpeed * 0.0008));
-          this.panOffset.add(up.multiplyScalar(e.movementY * this.panSpeed * 0.0008));
+          const distScale = cam.position.distanceTo(this.target) * 0.001;
+          this.panOffset.add(right.multiplyScalar(-e.movementX * this.panSpeed * distScale));
+          this.panOffset.add(up.multiplyScalar(e.movementY * this.panSpeed * distScale));
         }}
       }}
       
@@ -2854,6 +2862,15 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const maxDim = Math.max(size.x, size.y, size.z);
       const fov = camera.fov * (Math.PI / 180);
       
+      // Adapt camera clipping planes to model scale
+      camera.near = Math.max(0.01, maxDim * 0.0001);
+      camera.far = maxDim * 20;
+      camera.updateProjectionMatrix();
+      
+      // Adapt controls limits to model scale
+      controls.minDistance = maxDim * 0.01;
+      controls.maxDistance = maxDim * 10;
+      
       const aspect = camera.aspect;
       const vFOV = fov;
       const hFOV = 2 * Math.atan(Math.tan(vFOV / 2) * aspect);
@@ -2874,7 +2891,124 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       controls.spherical.setFromVector3(offset);
       controls.panOffset.set(0, 0, 0);
       
+      // Scale directional lights relative to model size
+      scene.children.forEach(c => {{
+        if (c.isDirectionalLight) {{
+          c.position.normalize().multiplyScalar(maxDim * 2);
+        }}
+      }});
+      
       controls.update();
+    }}
+
+    // Focus camera on all visible meshes (or all meshes if none visible)
+    function fitToView() {{
+      const box = new THREE.Box3();
+      const visible = meshes.filter(m => m.visible);
+      (visible.length > 0 ? visible : meshes).forEach(m => box.expandByObject(m));
+      if (box.isEmpty()) return;
+      
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      
+      // Adapt camera clipping planes
+      camera.near = Math.max(0.01, maxDim * 0.0001);
+      camera.far = maxDim * 20;
+      camera.updateProjectionMatrix();
+      
+      // Adapt controls limits
+      controls.minDistance = maxDim * 0.01;
+      controls.maxDistance = maxDim * 10;
+      
+      // Calculate framing distance
+      const fov = camera.fov * (Math.PI / 180);
+      const aspect = camera.aspect;
+      const hFOV = 2 * Math.atan(Math.tan(fov / 2) * aspect);
+      const distV = maxDim / (2 * Math.tan(fov / 2));
+      const distH = maxDim / (2 * Math.tan(hFOV / 2));
+      const dist = Math.max(distV, distH) * CONFIG.CAMERA_ZOOM;
+      
+      // Position camera
+      const direction = new THREE.Vector3(0.5, 0.5, 1).normalize();
+      camera.position.copy(center).add(direction.multiplyScalar(dist));
+      camera.lookAt(center);
+      
+      controls.target.copy(center);
+      const offset = camera.position.clone().sub(center);
+      controls.spherical.setFromVector3(offset);
+      controls.panOffset.set(0, 0, 0);
+      controls.update();
+      
+      // Update FreeCam base speed for model scale
+      freeCamBaseSpeed = maxDim * 0.02;
+      
+      // Update FreeCam position if active
+      if (freeCamMode) {{
+        tpCamTheta = Math.PI; tpCamPhi = 1.2;
+      }}
+      
+      // Scale directional lights relative to model
+      scene.children.forEach(c => {{
+        if (c.isDirectionalLight) {{
+          c.position.normalize().multiplyScalar(maxDim * 2);
+        }}
+      }});
+      
+      debug('fitToView: maxDim=' + maxDim.toFixed(1) + ' dist=' + dist.toFixed(1) + ' center=', center.toArray());
+    }}
+
+    // Focus camera on a specific mesh by index
+    function focusMesh(idx) {{
+      if (idx < 0 || idx >= meshes.length) return;
+      const mesh = meshes[idx];
+      
+      // Make mesh visible if hidden
+      if (!mesh.visible) {{
+        mesh.visible = true;
+        if (wireframeOverlayMode && mesh.userData.wireframeOverlay) {{
+          mesh.userData.wireframeOverlay.visible = true;
+        }}
+        const cb = document.getElementById(`mesh-${{idx}}`);
+        if (cb) cb.checked = true;
+        updateStats();
+      }}
+      
+      const box = new THREE.Box3().expandByObject(mesh);
+      if (box.isEmpty()) return;
+      
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      
+      // Adapt camera clipping planes
+      camera.near = Math.max(0.001, maxDim * 0.0001);
+      camera.far = Math.max(camera.far, maxDim * 40);
+      camera.updateProjectionMatrix();
+      
+      // Calculate framing distance
+      const fov = camera.fov * (Math.PI / 180);
+      const aspect = camera.aspect;
+      const hFOV = 2 * Math.atan(Math.tan(fov / 2) * aspect);
+      const distV = maxDim / (2 * Math.tan(fov / 2));
+      const distH = maxDim / (2 * Math.tan(hFOV / 2));
+      const dist = Math.max(distV, distH) * CONFIG.CAMERA_ZOOM;
+      
+      const direction = new THREE.Vector3(0.5, 0.5, 1).normalize();
+      camera.position.copy(center).add(direction.multiplyScalar(dist));
+      camera.lookAt(center);
+      
+      controls.target.copy(center);
+      const offset = camera.position.clone().sub(center);
+      controls.spherical.setFromVector3(offset);
+      controls.panOffset.set(0, 0, 0);
+      controls.update();
+      
+      if (freeCamMode) {{
+        tpCamTheta = Math.PI; tpCamPhi = 1.2;
+      }}
+      
+      debug('focusMesh[' + idx + '] ' + mesh.userData.meshName + ': maxDim=' + maxDim.toFixed(1));
     }}
 
     function loadSkeleton() {{
@@ -4183,6 +4317,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         const label = document.createElement('label');
         label.htmlFor = `mesh-${{idx}}`;
         label.textContent = mesh.userData.meshName;
+        label.style.flex = '1';
+        label.style.overflow = 'hidden';
+        label.style.textOverflow = 'ellipsis';
         
         if (mesh.userData.hasTexture) {{
           const indicator = document.createElement('span');
@@ -4191,8 +4328,17 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           label.appendChild(indicator);
         }}
         
+        const focusBtn = document.createElement('span');
+        focusBtn.textContent = '🎯';
+        focusBtn.title = 'Focus on this mesh';
+        focusBtn.style.cssText = 'cursor:pointer;font-size:12px;padding:1px 3px;border-radius:3px;opacity:0.4;flex-shrink:0;transition:opacity 0.15s';
+        focusBtn.addEventListener('mouseenter', () => {{ focusBtn.style.opacity = '1'; }});
+        focusBtn.addEventListener('mouseleave', () => {{ focusBtn.style.opacity = '0.4'; }});
+        focusBtn.addEventListener('click', (e) => {{ e.preventDefault(); e.stopPropagation(); focusMesh(idx); }});
+        
         div.appendChild(checkbox);
         div.appendChild(label);
+        div.appendChild(focusBtn);
         list.appendChild(div);
       }});
     }}
@@ -4370,28 +4516,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }});
       }}
 
-      // Reset camera
-      const box = new THREE.Box3();
-      meshes.filter(m => m.visible).forEach(m => box.expandByObject(m));
-      
-      if (box.isEmpty()) {{
-        meshes.forEach(m => box.expandByObject(m));
-      }}
-      
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const fov = camera.fov * (Math.PI / 180);
-      const dist = (maxDim / (2 * Math.tan(fov / 2))) * CONFIG.CAMERA_ZOOM;
-      
-      const direction = new THREE.Vector3(0.5, 0.5, 1).normalize();
-      camera.position.copy(center).add(direction.multiplyScalar(dist));
-      camera.lookAt(center);
-      
-      controls.target.copy(center);
-      const offset = camera.position.clone().sub(center);
-      controls.spherical.setFromVector3(offset);
-      controls.panOffset.set(0, 0, 0);
+      // Reset camera to frame model
+      fitToView();
     }}
 
     // ============================================
@@ -4647,24 +4773,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       tpIsMoving = false;
       
       // Reset camera to orbit view
-      const box = new THREE.Box3();
-      meshes.filter(m => m.visible).forEach(m => box.expandByObject(m));
-      if (box.isEmpty()) meshes.forEach(m => box.expandByObject(m));
-      if (!box.isEmpty()) {{
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const fov = camera.fov * (Math.PI / 180);
-        const dist = (maxDim / (2 * Math.tan(fov / 2))) * CONFIG.CAMERA_ZOOM;
-        const direction = new THREE.Vector3(0.5, 0.5, 1).normalize();
-        camera.position.copy(center).add(direction.multiplyScalar(dist));
-        camera.lookAt(center);
-        controls.target.copy(center);
-        const offset = camera.position.clone().sub(center);
-        controls.spherical.setFromVector3(offset);
-        controls.panOffset.set(0, 0, 0);
-        controls.update();
-      }}
+      fitToView();
       
       debug('Third-person mode OFF');
     }}
@@ -4846,7 +4955,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         const rt = kbKeys['KeyE'] ? 1 : 0;  // E = zoom in
         
         // Build virtual button states from key map
-        const vButtons = new Array(16).fill(false);
+        const vButtons = new Array(17).fill(false);
         for (const [code, idx] of Object.entries(KB_MAP)) {{
           if (kbKeys[code]) vButtons[idx] = true;
         }}
@@ -4946,14 +5055,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         if (kbJustPressed(1)) {{ stopAnimation(); tpCurrentAutoAnim = null; }}
         if (kbJustPressed(2)) {{ 
           if (freeCamMode) {{
-            // Reset camera to origin/model center
-            const box = new THREE.Box3();
-            meshes.filter(m => m.visible).forEach(m => box.expandByObject(m));
-            if (box.isEmpty()) meshes.forEach(m => box.expandByObject(m));
-            const center = box.getCenter(new THREE.Vector3());
-            const size = box.getSize(new THREE.Vector3());
-            camera.position.set(center.x, center.y + size.y, center.z + size.z * 2);
-            tpCamTheta = Math.PI; tpCamPhi = 1.2;
+            fitToView();
           }} else if (characterGroup) {{ characterGroup.position.set(0,0,0); characterYaw = 0; characterGroup.rotation.y = 0; }} }}
         if (kbJustPressed(3)) {{ toggleDynamicBones(); document.getElementById('swPhysics').checked = dynamicBonesEnabled; }}
         if (kbJustPressed(4)) {{
@@ -5001,6 +5103,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         if (kbJustPressed(9)) requestScreenshot();
         if (kbJustPressed(8)) {{ overlayMode = (overlayMode + 1) % 3; document.getElementById('overlayModeLabel').textContent = ['Off','Full','Minimal'][overlayMode]; }}
         if (kbJustPressed(11)) {{ toggleFreeCam(); document.getElementById('swFreeCam').checked = freeCamMode; }}
+        if (kbJustPressed(16)) {{ fitToView(); }}
         
         // V (14) → cycle visual modes
         if (kbJustPressed(14)) {{
@@ -5034,7 +5137,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }}
         
         // Save prev states for edge detection (store by button index)
-        for (let bi = 0; bi < 16; bi++) kbPrevKeys[bi] = vButtons[bi];
+        for (let bi = 0; bi < 17; bi++) kbPrevKeys[bi] = vButtons[bi];
         
         if (!freeCamMode) updateThirdPersonCamera();
         return;
@@ -5195,14 +5298,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // X / Square (2) → reset character to origin
       if (justPressed(2)) {{
         if (freeCamMode) {{
-          // Reset camera to model center
-          const box = new THREE.Box3();
-          meshes.filter(m => m.visible).forEach(m => box.expandByObject(m));
-          if (box.isEmpty()) meshes.forEach(m => box.expandByObject(m));
-          const center = box.getCenter(new THREE.Vector3());
-          const size = box.getSize(new THREE.Vector3());
-          camera.position.set(center.x, center.y + size.y, center.z + size.z * 2);
-          tpCamTheta = Math.PI; tpCamPhi = 1.2;
+          fitToView();
         }} else if (characterGroup) {{
           characterGroup.position.set(0, 0, 0);
           characterYaw = 0;
@@ -5341,6 +5437,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (justPressed(11)) {{
         toggleFreeCam();
         document.getElementById('swFreeCam').checked = freeCamMode;
+      }}
+      
+      // L3 (10) → Focus / fit to view
+      if (justPressed(10)) {{
+        fitToView();
       }}
       
       gamepadPrevButtons = buttons;
@@ -5941,8 +6042,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         if (overlayMode === 1 && cachedOverlaySVGImg) {{
           lines.push([cachedOverlaySVGImg, 'svgimg']);
           // Button mapping legend (structured for badge rendering)
-          const mappings = [[0,'Play/Pause'],[1,'Stop'],[2,'Reset Pos'],[3,'Physics'],[4,'Prev Anim'],[5,'Next Anim'],[6,'Zoom Out'],[7,'Zoom In'],[14,'Visual'],[15,'Bones'],[12,'Speed +'],[13,'Speed −'],[8,'Overlay'],[9,'Screenshot'],[11,'FreeCam']];
-          const legendItems = mappings.filter(m => labels[m[0]]).map(m => ({{ key: labels[m[0]], action: m[1] }}));
+          const baseMappings = [[0,'Play/Pause'],[1,'Stop'],[2,'Reset Pos'],[3,'Physics'],[4,'Prev Anim'],[5,'Next Anim'],[6,'Zoom Out'],[7,'Zoom In'],[14,'Visual'],[15,'Bones'],[12,'Speed +'],[13,'Speed −'],[8,'Overlay'],[9,'Screenshot']];
+          if (tp === 'keyboard') {{
+            baseMappings.push([16,'Focus'],[11,'FreeCam']);
+          }} else {{
+            baseMappings.push([10,'Focus'],[11,'FreeCam']);
+          }}
+          const legendItems = baseMappings.filter(m => labels[m[0]]).map(m => ({{ key: labels[m[0]], action: m[1] }}));
           if (tp !== 'keyboard') {{ legendItems.push({{ key: 'L🕹', action: 'Move' }}); legendItems.push({{ key: 'R🕹', action: 'Camera' }}); }}
           // Two items per row
           for (let i = 0; i < legendItems.length; i += 2) {{
