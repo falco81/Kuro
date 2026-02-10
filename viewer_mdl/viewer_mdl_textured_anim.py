@@ -3066,41 +3066,42 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         clearInterval(blinkTimers.get(mesh).interval);
         clearTimeout(blinkTimers.get(mesh).timeout);
         // Restore original
-        const orig = blinkTimers.get(mesh).origEmissive;
-        if (Array.isArray(mesh.material)) {{
-          mesh.material.forEach((m, i) => {{ if (m.emissive) m.emissive.copy(orig[i]); }});
-        }} else if (mesh.material.emissive) {{
-          mesh.material.emissive.copy(orig);
-        }}
+        const prev = blinkTimers.get(mesh);
+        const setMats = (fn) => {{
+          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          mats.forEach((m, i) => fn(m, i));
+        }};
+        setMats((m, i) => {{
+          if (m.emissive) m.emissive.copy(prev.origEmissive[Array.isArray(mesh.material) ? i : 0] || new THREE.Color(0));
+          m.depthTest = true;
+        }});
+        mesh.renderOrder = 0;
         blinkTimers.delete(mesh);
       }}
       
-      // Store original emissive colors
-      const origEmissive = Array.isArray(mesh.material)
-        ? mesh.material.map(m => m.emissive ? m.emissive.clone() : new THREE.Color(0))
-        : (mesh.material.emissive ? mesh.material.emissive.clone() : new THREE.Color(0));
+      // Store originals
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      const origEmissive = mats.map(m => m.emissive ? m.emissive.clone() : new THREE.Color(0));
       const redColor = new THREE.Color(0.8, 0.1, 0.1);
       let blinkOn = true;
       
       const interval = setInterval(() => {{
-        if (Array.isArray(mesh.material)) {{
-          mesh.material.forEach((m, i) => {{
-            if (m.emissive) m.emissive.copy(blinkOn ? redColor : origEmissive[i]);
-          }});
-        }} else if (mesh.material.emissive) {{
-          mesh.material.emissive.copy(blinkOn ? redColor : origEmissive);
-        }}
+        mats.forEach((m, i) => {{
+          if (m.emissive) m.emissive.copy(blinkOn ? redColor : origEmissive[i]);
+          m.depthTest = !blinkOn;  // visible through everything when red
+        }});
+        mesh.renderOrder = blinkOn ? 9999 : 0;
         blinkOn = !blinkOn;
       }}, 300);
       
       const timeout = setTimeout(() => {{
         clearInterval(interval);
         // Restore original
-        if (Array.isArray(mesh.material)) {{
-          mesh.material.forEach((m, i) => {{ if (m.emissive) m.emissive.copy(origEmissive[i]); }});
-        }} else if (mesh.material.emissive) {{
-          mesh.material.emissive.copy(origEmissive);
-        }}
+        mats.forEach((m, i) => {{
+          if (m.emissive) m.emissive.copy(origEmissive[i]);
+          m.depthTest = true;
+        }});
+        mesh.renderOrder = 0;
         blinkTimers.delete(mesh);
       }}, 5000);
       
