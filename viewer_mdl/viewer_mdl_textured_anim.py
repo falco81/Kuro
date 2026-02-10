@@ -1320,7 +1320,8 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
 def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_map: dict, 
                                 skeleton_data: dict, model_info: dict, debug_mode: bool = False,
                                 bind_matrices: dict = None, animations_data: list = None,
-                                skip_popup: bool = False, no_shaders: bool = False) -> str:
+                                skip_popup: bool = False, no_shaders: bool = False,
+                                recompute_normals: bool = False) -> str:
     """Generate HTML content with texture and skeleton support."""
     
     meshes_data = []
@@ -1866,6 +1867,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           <span class="slider"></span>
         </label>
       </div>
+      <div class="toggle-row" onclick="document.getElementById('swNormals').checked = !document.getElementById('swNormals').checked; setRecomputeNormals(document.getElementById('swNormals').checked);">
+        <span class="label">🔄 Recompute Normals</span>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="swNormals" {"checked" if recompute_normals else ""} onchange="setRecomputeNormals(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
       <div id="mesh-list"></div>
     </div>
   </div>
@@ -1900,6 +1908,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     // Debug mode flag (set by Python --debug parameter)
     const DEBUG = {str(debug_mode).lower()};
     const NO_SHADERS = {str(no_shaders).lower()};
+    const RECOMPUTE_NORMALS = {str(recompute_normals).lower()};
     
     // Helper function for conditional logging
     function debug(...args) {{
@@ -2784,6 +2793,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
         geometry.setAttribute('position', new THREE.BufferAttribute(verts, 3));
         geometry.setAttribute('normal', new THREE.BufferAttribute(norms, 3));
+        // Store original normals for toggle
+        geometry.userData = geometry.userData || {{}};
+        geometry.userData.originalNormals = new Float32Array(norms);
         
         if (meshData.uvs) {{
           const uvs = new Float32Array(meshData.uvs);
@@ -3040,6 +3052,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let focusZoomEnabled = false;  // whether 🎯 also zooms camera
     let xrayHighlight = true;  // whether blink shows through other meshes
     let fxoShadersEnabled = true;  // FXO toon shaders active
+    let recomputeNormalsEnabled = RECOMPUTE_NORMALS;  // recomputed normals active
     
     function focusMesh(idx) {{
       try {{
@@ -4548,6 +4561,124 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       updateStats();
     }}
 
+    function setRecomputeNormals(enabled) {{
+      recomputeNormalsEnabled = enabled;
+      meshes.forEach(m => {{
+        const geom = m.geometry;
+        if (!geom || !geom.userData || !geom.userData.originalNormals) return;
+        if (enabled) {{
+          computeSmoothNormals(geom);
+        }} else {{
+          const origNormals = geom.userData.originalNormals;
+          geom.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(origNormals), 3));
+        }}
+        geom.attributes.normal.needsUpdate = true;
+      }});
+      updateStats();
+    }}
+
+    function computeSmoothNormals(geometry) {{
+      const posAttr = geometry.attributes.position;
+      const indexAttr = geometry.index;
+      if (!posAttr || !indexAttr) return;
+      
+      const n = posAttr.count;
+      const positions = posAttr.array;
+      const indices = indexAttr.array;
+      const normals = new Float32Array(n * 3);
+      
+      // Step 1: Accumulate face normals per vertex
+      for (let i = 0; i < indices.length; i += 3) {{
+        const i0 = indices[i], i1 = indices[i+1], i2 = indices[i+2];
+        const ax = positions[i0*3], ay = positions[i0*3+1], az = positions[i0*3+2];
+        const bx = positions[i1*3], by = positions[i1*3+1], bz = positions[i1*3+2];
+        const cx = positions[i2*3], cy = positions[i2*3+1], cz = positions[i2*3+2];
+        
+        const e1x = bx-ax, e1y = by-ay, e1z = bz-az;
+        const e2x = cx-ax, e2y = cy-ay, e2z = cz-az;
+        let fnx = e1y*e2z - e1z*e2y;
+        let fny = e1z*e2x - e1x*e2z;
+        let fnz = e1x*e2y - e1y*e2x;
+        
+        const len = Math.sqrt(fnx*fnx + fny*fny + fnz*fnz);
+        if (len > 1e-12) {{ fnx /= len; fny /= len; fnz /= len; }}
+        
+        normals[i0*3] += fnx; normals[i0*3+1] += fny; normals[i0*3+2] += fnz;
+        normals[i1*3] += fnx; normals[i1*3+1] += fny; normals[i1*3+2] += fnz;
+        normals[i2*3] += fnx; normals[i2*3+1] += fny; normals[i2*3+2] += fnz;
+      }}
+      
+      // Step 2: Spatial hash for position sharing
+      const tol = 1e-6;
+      const cellSize = tol * 10 || 1e-5;
+      const cells = new Map();
+      
+      function hashKey(x, y, z) {{
+        return Math.floor(x/cellSize) + ',' + Math.floor(y/cellSize) + ',' + Math.floor(z/cellSize);
+      }}
+      
+      for (let i = 0; i < n; i++) {{
+        const key = hashKey(positions[i*3], positions[i*3+1], positions[i*3+2]);
+        if (!cells.has(key)) cells.set(key, []);
+        cells.get(key).push(i);
+      }}
+      
+      // Step 3: Share normals between vertices at same position
+      const visited = new Uint8Array(n);
+      for (let i = 0; i < n; i++) {{
+        if (visited[i]) continue;
+        const px = positions[i*3], py = positions[i*3+1], pz = positions[i*3+2];
+        const cx = Math.floor(px/cellSize), cy = Math.floor(py/cellSize), cz = Math.floor(pz/cellSize);
+        const matches = [i];
+        
+        for (let dx = -1; dx <= 1; dx++) {{
+          for (let dy = -1; dy <= 1; dy++) {{
+            for (let dz = -1; dz <= 1; dz++) {{
+              const key = (cx+dx) + ',' + (cy+dy) + ',' + (cz+dz);
+              const bucket = cells.get(key);
+              if (!bucket) continue;
+              for (let k = 0; k < bucket.length; k++) {{
+                const j = bucket[k];
+                if (j === i || visited[j]) continue;
+                const dx2 = positions[j*3]-px, dy2 = positions[j*3+1]-py, dz2 = positions[j*3+2]-pz;
+                if (Math.sqrt(dx2*dx2 + dy2*dy2 + dz2*dz2) < tol) {{
+                  matches.push(j);
+                }}
+              }}
+            }}
+          }}
+        }}
+        
+        if (matches.length > 1) {{
+          let sx = 0, sy = 0, sz = 0;
+          for (let m = 0; m < matches.length; m++) {{
+            const idx = matches[m];
+            sx += normals[idx*3]; sy += normals[idx*3+1]; sz += normals[idx*3+2];
+          }}
+          const slen = Math.sqrt(sx*sx + sy*sy + sz*sz);
+          if (slen > 1e-12) {{ sx /= slen; sy /= slen; sz /= slen; }}
+          for (let m = 0; m < matches.length; m++) {{
+            const idx = matches[m];
+            normals[idx*3] = sx; normals[idx*3+1] = sy; normals[idx*3+2] = sz;
+            visited[idx] = 1;
+          }}
+        }} else {{
+          visited[i] = 1;
+        }}
+      }}
+      
+      // Step 4: Normalize remaining
+      for (let i = 0; i < n; i++) {{
+        const nx = normals[i*3], ny = normals[i*3+1], nz = normals[i*3+2];
+        const len = Math.sqrt(nx*nx + ny*ny + nz*nz);
+        if (len > 1e-12) {{
+          normals[i*3] /= len; normals[i*3+1] /= len; normals[i*3+2] /= len;
+        }}
+      }}
+      
+      geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+    }}
+
     function toggleColors() {{
       colorMode = !colorMode;
       const sw = document.getElementById('swColors'); if (sw) sw.checked = colorMode;
@@ -5714,7 +5845,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       html += '<tr><td colspan="2" style="padding:0;color:#9ca3af">Shaders: ' + shInfo.mode + ' · ' + shInfo.types + '</td></tr>';
       html += '</table>';
       html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
-      html += '<div>' + dot(colorMode) + ' Colors  ' + dot(textureMode) + ' Textures  ' + dot(wireframeMode) + ' Wire  ' + dot(wireframeOverlayMode) + ' Overlay' + (shaderStats.toon > 0 && !NO_SHADERS ? '  ' + dot(fxoShadersEnabled) + ' FXO' : '') + '</div>';
+      html += '<div>' + dot(colorMode) + ' Colors  ' + dot(textureMode) + ' Textures  ' + dot(wireframeMode) + ' Wire  ' + dot(wireframeOverlayMode) + ' Overlay' + (shaderStats.toon > 0 && !NO_SHADERS ? '  ' + dot(fxoShadersEnabled) + ' FXO' : '') + (recomputeNormalsEnabled ? '  ' + dot(true) + ' Normals' : '') + '</div>';
       html += '<div>' + dot(showSkeleton) + ' Skeleton  ' + dot(showJoints) + ' Joints  ' + dot(showBoneNames) + ' Names  ' + dot(dynamicBonesEnabled) + ' Physics  ' + dot(dynCollisionsEnabled) + ' Collisions</div>';
       if (freeCamMode) {{
         html += '<div>' + dot(true) + ' FreeCam · Speed: ' + freeCamSpeed.toFixed(2) + 'x</div>';
@@ -6276,6 +6407,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         ['Wireframe', wireframeMode], ['Wire Overlay', wireframeOverlayMode],
       ];
       if (shaderStats.toon > 0 && !NO_SHADERS) opts.push(['FXO', fxoShadersEnabled]);
+      if (recomputeNormalsEnabled) opts.push(['Normals', true]);
       const optLine = opts.map(o => (o[1] ? '●' : '○') + ' ' + o[0]).join('  ');
       lines.push([optLine, 'mixed']);
 
@@ -7047,7 +7179,8 @@ def main():
     # Generate HTML
     html_content = generate_html_with_skeleton(
         mdl_path, meshes, material_texture_map, skeleton_data, model_info, debug_mode, bind_matrices,
-        animations_data=animations_data, skip_popup=skip_popup, no_shaders=no_shaders
+        animations_data=animations_data, skip_popup=skip_popup, no_shaders=no_shaders,
+        recompute_normals=recompute_normals
     )
 
     # Save HTML to temp
