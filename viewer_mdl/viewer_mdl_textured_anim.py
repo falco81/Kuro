@@ -1728,6 +1728,29 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       </div>
     </div>
 
+    <div class="section-title" style="cursor:pointer;user-select:none;" onclick="const el=document.getElementById('lightingSection'); el.style.display=el.style.display==='none'?'block':'none'; this.querySelector('.arrow').textContent=el.style.display==='none'?'▶':'▼';">💡 Lighting <span class="arrow" style="font-size:10px;margin-left:4px;">▶</span></div>
+    <div id="lightingSection" style="display:none;">
+      <div class="slider-row">
+        <span class="info-text" style="min-width:52px;">Ambient:</span>
+        <input type="range" id="lightAmbient" min="0" max="2" step="0.05" value="0.6"
+               style="flex:1;" oninput="if(ambientLight)ambientLight.intensity=parseFloat(this.value); document.getElementById('lightAmbVal').textContent=parseFloat(this.value).toFixed(2)">
+        <span id="lightAmbVal" class="info-text" style="min-width:28px;text-align:right;color:#fbbf24;">0.60</span>
+      </div>
+      <div class="slider-row">
+        <span class="info-text" style="min-width:52px;">Key:</span>
+        <input type="range" id="lightKey" min="0" max="2" step="0.05" value="0.8"
+               style="flex:1;" oninput="if(dirLight1)dirLight1.intensity=parseFloat(this.value); document.getElementById('lightKeyVal').textContent=parseFloat(this.value).toFixed(2)">
+        <span id="lightKeyVal" class="info-text" style="min-width:28px;text-align:right;color:#fbbf24;">0.80</span>
+      </div>
+      <div class="slider-row">
+        <span class="info-text" style="min-width:52px;">Fill:</span>
+        <input type="range" id="lightFill" min="0" max="2" step="0.05" value="0.4"
+               style="flex:1;" oninput="if(dirLight2)dirLight2.intensity=parseFloat(this.value); document.getElementById('lightFillVal').textContent=parseFloat(this.value).toFixed(2)">
+        <span id="lightFillVal" class="info-text" style="min-width:28px;text-align:right;color:#fbbf24;">0.40</span>
+      </div>
+      <button class="btn-action" onclick="document.getElementById('lightAmbient').value=0.6; document.getElementById('lightKey').value=0.8; document.getElementById('lightFill').value=0.4; if(ambientLight)ambientLight.intensity=0.6; if(dirLight1)dirLight1.intensity=0.8; if(dirLight2)dirLight2.intensity=0.4; document.getElementById('lightAmbVal').textContent='0.60'; document.getElementById('lightKeyVal').textContent='0.80'; document.getElementById('lightFillVal').textContent='0.40';">🔄 Reset Lights</button>
+    </div>
+
     
     <div id="skeleton-controls">
       <div class="section-title" style="cursor:pointer;user-select:none;" onclick="const el=document.getElementById('skeletonSection'); el.style.display=el.style.display==='none'?'block':'none'; this.querySelector('.arrow').textContent=el.style.display==='none'?'▶':'▼';">🦴 Skeleton <span class="arrow" style="font-size:10px;margin-left:4px;">▶</span></div>
@@ -1829,6 +1852,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           <span class="slider"></span>
         </label>
       </div>
+      <div id="fxoToggleRow" class="toggle-row" style="display:none;" onclick="document.getElementById('swFxo').checked = !document.getElementById('swFxo').checked; setFxoShaders(document.getElementById('swFxo').checked);">
+        <span class="label">✨ FXO Shaders</span>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="swFxo" checked onchange="setFxoShaders(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
       <div id="mesh-list"></div>
     </div>
   </div>
@@ -1901,6 +1931,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     }};
 
     let scene, camera, renderer, controls;
+    let ambientLight, dirLight1, dirLight2;
     let meshes = [];
     let bones = [];
     let skeleton = null;
@@ -1918,6 +1949,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (compact) {{
         if (NO_SHADERS) return 'FXO: off';
         if (shaderStats.toon > 0) {{
+          if (!fxoShadersEnabled) return 'FXO: off (toggle)';
           const fxo = shaderStats.fxo > 0 ? '+FXO(' + shaderStats.fxo + ')' : ' FXO:missing';
           return 'Toon(' + shaderStats.toon + ')' + fxo;
         }}
@@ -1925,6 +1957,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       if (NO_SHADERS) return {{ mode: 'FXO: disabled', types: typesStr }};
       if (shaderStats.toon > 0) {{
+        if (!fxoShadersEnabled) return {{ mode: 'FXO: off (toggle)', types: typesStr }};
         const fxo = shaderStats.fxo > 0 ? ' · FXO: ' + shaderStats.fxo : ' · FXO: missing';
         return {{ mode: 'Toon: ' + shaderStats.toon + fxo, types: typesStr }};
       }}
@@ -2677,14 +2710,14 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       renderer.setSize(window.innerWidth, window.innerHeight);
       document.getElementById('container').appendChild(renderer.domElement);
 
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
       scene.add(ambientLight);
       
-      const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
       dirLight1.position.set(5, 10, 7);
       scene.add(dirLight1);
       
-      const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+      dirLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
       dirLight2.position.set(-5, 5, -7);
       scene.add(dirLight2);
 
@@ -2840,6 +2873,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         mesh.userData.originalColor = colors[idx % colors.length];
         mesh.userData.hasTexture = !!meshData.material && !!materials[meshData.material];
         mesh.userData.hasSkinning = hasSkinning;
+        // Store FXO material for toggle
+        if (material.userData && material.userData.isToonMaterial) {{
+          mesh.userData.fxoMaterial = material;
+        }}
         
         const hideKeywords = ['shadow', 'kage', 'box'];
         if (CONFIG.AUTO_HIDE_SHADOW && 
@@ -2994,6 +3031,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let focusLockUntil = 0;  // timestamp to temporarily disable TP camera override
     let focusZoomEnabled = false;  // whether 🎯 also zooms camera
     let xrayHighlight = true;  // whether blink shows through other meshes
+    let fxoShadersEnabled = true;  // FXO toon shaders active
     
     function focusMesh(idx) {{
       try {{
@@ -4446,6 +4484,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         div.appendChild(focusBtn);
         list.appendChild(div);
       }});
+      // Show FXO Shaders toggle if toon materials are present
+      if (shaderStats.toon > 0 && !NO_SHADERS) {{
+        const fxoRow = document.getElementById('fxoToggleRow');
+        if (fxoRow) fxoRow.style.display = '';
+      }}
     }}
 
     function toggleAllMeshes(visible) {{
@@ -4456,6 +4499,43 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }}
         const checkbox = document.getElementById(`mesh-${{idx}}`);
         if (checkbox) checkbox.checked = visible;
+      }});
+      updateStats();
+    }}
+
+    function setFxoShaders(enabled) {{
+      fxoShadersEnabled = enabled;
+      meshes.forEach(m => {{
+        if (!m.userData.fxoMaterial) return;  // not a toon-shaded mesh
+        
+        // Use stored texture references (always up to date)
+        const tex = m.userData.originalMap || m.material.map || null;
+        const nmap = m.userData.originalNormalMap || m.material.normalMap || null;
+        
+        if (fxoShadersEnabled) {{
+          // Restore FXO material
+          const fxo = m.userData.fxoMaterial;
+          fxo.map = tex;
+          fxo.normalMap = nmap;
+          fxo.needsUpdate = true;
+          m.material = fxo;
+        }} else {{
+          // Switch to default MeshStandardMaterial
+          if (!m.userData.defaultMaterial) {{
+            const fxo = m.userData.fxoMaterial;
+            m.userData.defaultMaterial = new THREE.MeshStandardMaterial({{
+              roughness: 0.7, metalness: 0.2, side: THREE.DoubleSide, skinning: true,
+              transparent: fxo.transparent || false,
+              alphaTest: fxo.alphaTest || 0
+            }});
+          }}
+          const def = m.userData.defaultMaterial;
+          def.map = tex;
+          def.normalMap = nmap;
+          def.color.setHex(tex ? 0xffffff : 0x808080);
+          def.needsUpdate = true;
+          m.material = def;
+        }}
       }});
       updateStats();
     }}
@@ -5583,6 +5663,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           '<div>Vertices: ' + totalVerts.toLocaleString() + '</div>' +
           '<div>Visible: ' + visibleCount + '/' + meshes.length + '</div>' +
           '<div style="color:#9ca3af">Shaders: ' + sMode + '</div>';
+        // Show lighting in basic overlay only if non-default
+        const la = ambientLight ? ambientLight.intensity : 0.6;
+        const lk = dirLight1 ? dirLight1.intensity : 0.8;
+        const lf = dirLight2 ? dirLight2.intensity : 0.4;
+        if (Math.abs(la-0.6)>0.01 || Math.abs(lk-0.8)>0.01 || Math.abs(lf-0.4)>0.01) {{
+          statsEl.innerHTML += '<div style="color:#fbbf24">💡 A:' + la.toFixed(2) + ' K:' + lk.toFixed(2) + ' F:' + lf.toFixed(2) + '</div>';
+        }}
         return;
       }}
       
@@ -5619,13 +5706,20 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       html += '<tr><td colspan="2" style="padding:0;color:#9ca3af">Shaders: ' + shInfo.mode + ' · ' + shInfo.types + '</td></tr>';
       html += '</table>';
       html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
-      html += '<div>' + dot(colorMode) + ' Colors  ' + dot(textureMode) + ' Textures  ' + dot(wireframeMode) + ' Wire  ' + dot(wireframeOverlayMode) + ' Overlay</div>';
+      html += '<div>' + dot(colorMode) + ' Colors  ' + dot(textureMode) + ' Textures  ' + dot(wireframeMode) + ' Wire  ' + dot(wireframeOverlayMode) + ' Overlay' + (shaderStats.toon > 0 && !NO_SHADERS ? '  ' + dot(fxoShadersEnabled) + ' FXO' : '') + '</div>';
       html += '<div>' + dot(showSkeleton) + ' Skeleton  ' + dot(showJoints) + ' Joints  ' + dot(showBoneNames) + ' Names  ' + dot(dynamicBonesEnabled) + ' Physics  ' + dot(dynCollisionsEnabled) + ' Collisions</div>';
       if (freeCamMode) {{
         html += '<div>' + dot(true) + ' FreeCam · Speed: ' + freeCamSpeed.toFixed(2) + 'x</div>';
       }}
       if (opacity < 1.0) {{
         html += '<div style="color:#9ca3af">Opacity: ' + opacity.toFixed(2) + '</div>';
+      }}
+      // Lighting info (show when non-default)
+      const la = ambientLight ? ambientLight.intensity : 0.6;
+      const lk = dirLight1 ? dirLight1.intensity : 0.8;
+      const lf = dirLight2 ? dirLight2.intensity : 0.4;
+      if (Math.abs(la-0.6)>0.01 || Math.abs(lk-0.8)>0.01 || Math.abs(lf-0.4)>0.01) {{
+        html += '<div style="color:#fbbf24">💡 Ambient: ' + la.toFixed(2) + '  Key: ' + lk.toFixed(2) + '  Fill: ' + lf.toFixed(2) + '</div>';
       }}
       if (gamepadEnabled) {{
         const hasGamepad = gamepadButtonStates.length > 0;
@@ -6164,6 +6258,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         ['Colors', colorMode], ['Textures', textureMode],
         ['Wireframe', wireframeMode], ['Wire Overlay', wireframeOverlayMode],
       ];
+      if (shaderStats.toon > 0 && !NO_SHADERS) opts.push(['FXO', fxoShadersEnabled]);
       const optLine = opts.map(o => (o[1] ? '●' : '○') + ' ' + o[0]).join('  ');
       lines.push([optLine, 'mixed']);
 
@@ -6177,6 +6272,14 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
       if (opacity < 1.0) {{
         lines.push(['Opacity: ' + opacity.toFixed(2), 'value']);
+      }}
+
+      // Lighting info (show when non-default)
+      const laO = ambientLight ? ambientLight.intensity : 0.6;
+      const lkO = dirLight1 ? dirLight1.intensity : 0.8;
+      const lfO = dirLight2 ? dirLight2.intensity : 0.4;
+      if (Math.abs(laO-0.6)>0.01 || Math.abs(lkO-0.8)>0.01 || Math.abs(lfO-0.4)>0.01) {{
+        lines.push(['💡 A:' + laO.toFixed(2) + '  K:' + lkO.toFixed(2) + '  F:' + lfO.toFixed(2), 'value']);
       }}
 
       if (freeCamMode) {{
