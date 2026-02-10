@@ -42,8 +42,8 @@ for proper function it needs to have all necessary data extracted in the game da
 
 **Beta8**<br>
 mesh highlighting, meshes with box, shadow, cage in the name are hidden by default<br>
-<img src="doc/viewer_anim8a.gif" width="100%">
-<img src="doc/viewer_anim8a.png" width="100%">
+<img src="doc/viewer_anim8.gif" width="100%">
+<img src="doc/viewer_anim8.png" width="100%">
 
 **Beta7**<br>
 support for game shader files (FXO), fallback to original shaders if not available or force fallback with --no-shaders<br>
