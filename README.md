@@ -31,7 +31,7 @@ for proper function it needs to have all necessary data extracted in the game da
   - Physics now reacts to character movements with the mouse (requires physics display enabled in UI)
 - **fixed bug in controller autodetection**
 - **added support for additional controllers, DualSense, DualShock, Switch Pro, Generic**
-- **support for keyboard control if controller is not detected**
+- **support for keyboard control if controller is not detected (WSAD)**
 - **improved controller visualization in overlay**
 - **3D FreeCam mode for viewing models such as landscapes, buildings, etc.**
 ---
