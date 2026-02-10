@@ -16,17 +16,19 @@ REQUIREMENTS:
   pip install pywebview Pillow
 
 USAGE:
-  python viewer_mdl_textured_anim.py /path/to/model.mdl [--recompute-normals] [--debug] [--skip-popup]
+  python viewer_mdl_textured_anim.py /path/to/model.mdl [--recompute-normals] [--debug] [--skip-popup] [--no-shaders]
   
   --recompute-normals  Recompute smooth normals instead of using originals from MDL
                        (slower loading, typically no visual difference)
   --debug              Enable verbose console logging in browser
   --skip-popup         Skip loading progress popup on startup
+  --no-shaders         Disable toon shader rendering, use standard PBR materials
 """
 
 from pathlib import Path
 import sys
 import json
+import struct
 import numpy as np
 import tempfile
 import atexit
@@ -555,6 +557,83 @@ def decode_binary_mi(data: bytes) -> dict:
     return result
 
 
+def parse_fxo_capabilities(fxo_path: Path) -> dict:
+    """
+    Parse FXO (compiled DXBC shader) and extract cb_local uniform names.
+    
+    Returns dict with:
+      - 'uniforms': set of uniform names from cb_local
+      - 'textures': set of bound texture slot names (Tex0, Tex1, etc.)
+    """
+    try:
+        data = fxo_path.read_bytes()
+        if len(data) < 32 or data[:4] != b'DXBC':
+            return None
+        
+        chunk_count = struct.unpack_from('<I', data, 28)[0]
+        
+        # Find RDEF chunk
+        rdef_data = None
+        for i in range(chunk_count):
+            off = struct.unpack_from('<I', data, 32 + i * 4)[0]
+            tag = data[off:off+4]
+            size = struct.unpack_from('<I', data, off + 4)[0]
+            if tag == b'RDEF':
+                rdef_data = data[off + 8 : off + 8 + size]
+                break
+        
+        if rdef_data is None:
+            return None
+        
+        def read_string(buf, offset):
+            s = ''
+            while offset < len(buf) and buf[offset] != 0:
+                s += chr(buf[offset]) if 32 <= buf[offset] < 127 else ''
+                offset += 1
+            return s
+        
+        # Parse resource bindings for texture slots
+        cb_count = struct.unpack_from('<I', rdef_data, 0)[0]
+        cb_offset = struct.unpack_from('<I', rdef_data, 4)[0]
+        bind_count = struct.unpack_from('<I', rdef_data, 8)[0]
+        bind_offset = struct.unpack_from('<I', rdef_data, 12)[0]
+        
+        textures = set()
+        for i in range(bind_count):
+            pos = bind_offset + i * 32
+            name_off = struct.unpack_from('<I', rdef_data, pos)[0]
+            rtype = struct.unpack_from('<I', rdef_data, pos + 4)[0]
+            name = read_string(rdef_data, name_off)
+            if rtype == 2 and name.startswith('Tex'):  # Texture type
+                textures.add(name)
+        
+        # Parse cb_local uniforms (stride=40 per variable descriptor)
+        uniforms = set()
+        for i in range(cb_count):
+            pos = cb_offset + i * 24
+            name_off = struct.unpack_from('<I', rdef_data, pos)[0]
+            var_count = struct.unpack_from('<I', rdef_data, pos + 4)[0]
+            var_offset = struct.unpack_from('<I', rdef_data, pos + 8)[0]
+            name = read_string(rdef_data, name_off)
+            
+            if name == 'cb_local':
+                for v in range(var_count):
+                    vpos = var_offset + v * 40
+                    if vpos + 12 > len(rdef_data):
+                        break
+                    vname_off = struct.unpack_from('<I', rdef_data, vpos)[0]
+                    vname = read_string(rdef_data, vname_off)
+                    if vname and vname.endswith('_g'):
+                        uniforms.add(vname)
+                break
+        
+        return {'uniforms': uniforms, 'textures': textures}
+    
+    except Exception as e:
+        print(f"    [!] Failed to parse FXO: {e}")
+        return None
+
+
 def load_model_info(mdl_path: Path) -> dict:
     """
     Load external MI or JSON file containing IK, physics, colliders, dynamic bones.
@@ -830,7 +909,7 @@ def load_animations_from_directory(mdl_path: Path, skeleton_data: list) -> list:
 # -----------------------------
 # Load MDL with all data
 # -----------------------------
-def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bool = False):
+def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bool = False, no_shaders: bool = False):
     """
     Load MDL file and copy textures to temp directory.
     Also loads skeleton and model info if available.
@@ -969,11 +1048,123 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
                     else:
                         mat_textures[f'slot_{slot}'] = tex_info
             
+            # Extract shader parameters
+            shader_type = material.get('shader_name', '')
+            mat_textures['_shaderType'] = shader_type
+            mat_textures['_shaderHash'] = material.get('shader_switches_hash_referenceonly', '')
+            
+            shader_params = {}
+            for sp in material.get('shaders', []):
+                name = sp.get('shader_name', '')
+                data = sp.get('data')
+                type_int = sp.get('type_int', 0)
+                # Extract key rendering params
+                if name in (
+                    'rimIntensity_g', 'rimLightPower_g', 'rimLightColor_g',
+                    'toonEdgeStrength_g', 'toonEdgeColor_g',
+                    'shadowColor1_g', 'shadowColor2_g', 'shadowGradSharpness_g',
+                    'specularColor_g', 'specularGlossiness_g', 'specularShadowFadeRatio_g',
+                    'specularGlossiness0_g', 'specularGlossiness1_g',
+                    'emissive_g', 'alphaTestThreshold_g',
+                    'shadowBias_g', 'ssaoIntensity_g', 'shadowColor_g',
+                    'diffuseMapColor0_g', 'diffuseMapColor1_g',
+                ) or name.startswith('Switch_'):
+                    shader_params[name] = data
+            
+            mat_textures['_shaderParams'] = shader_params
+            
             if mat_textures:
                 material_texture_map[mat_name] = mat_textures
         
         loaded_count = sum(1 for v in texture_success.values() if v is not None)
         print(f"\n[OK] Loaded and converted {loaded_count}/{len(texture_success)} textures")
+        
+        # Print shader types found in materials
+        shader_types = {}
+        for material in material_struct:
+            st = material.get('shader_name', 'unknown')
+            shader_types[st] = shader_types.get(st, 0) + 1
+        if shader_types:
+            parts_str = ', '.join(f'{k}({v})' for k, v in sorted(shader_types.items()))
+            print(f"[+] Material shader types: {parts_str}")
+            chr_count = sum(v for k, v in shader_types.items() if k.startswith('chr_'))
+            if chr_count:
+                if no_shaders:
+                    print(f"[!] {chr_count} materials could use toon rendering — disabled by --no-shaders")
+                else:
+                    print(f"[+] {chr_count} materials will use toon shader rendering")
+        
+        # Discover and parse FXO shader files
+        fxo_dir = None
+        fxo_loaded = 0
+        
+        if no_shaders:
+            print(f"[NO-SHADERS] FXO shader loading skipped (--no-shaders)")
+        else:
+            parts = list(mdl_path.parent.parts)
+            for i, part in enumerate(parts):
+                if part == 'common':
+                    # asset/common/model -> asset/dx11/shader
+                    fxo_parts = parts[:i] + ['dx11', 'shader']
+                    fxo_dir = Path(*fxo_parts)
+                    break
+            
+            if fxo_dir and fxo_dir.exists():
+                # Check if directory has FXO files
+                has_fxo = any(fxo_dir.glob("*.fxo"))
+                print(f"[+] FXO directory: {fxo_dir}" + (" (scanning...)" if has_fxo else " (empty)")) 
+                
+                fxo_cache = {}  # shader_name -> caps (parse once per shader type)
+                for material in material_struct:
+                    mat_name = material['material_name']
+                    sname = material.get('shader_name', '')
+                    if not sname:
+                        continue
+                    
+                    # Skip if we already loaded an FXO for this shader type
+                    # (all variants of same shader_name share the same cb_local uniforms)
+                    if sname in fxo_cache:
+                        caps = fxo_cache[sname]
+                        if caps and mat_name in material_texture_map:
+                            material_texture_map[mat_name]['_fxoCaps'] = {
+                                'uniforms': sorted(caps['uniforms']),
+                                'textures': sorted(caps['textures']),
+                            }
+                            fxo_loaded += 1
+                        continue
+                    
+                    # FXO naming convention: {shader_name}#{8-char-hash}.fxo
+                    # The hash in MDL (16-char) doesn't match FXO filename hash (8-char)
+                    # So we match by shader_name prefix and pick first available variant
+                    fxo_glob = sorted(fxo_dir.glob(f"{sname}#*.fxo"))
+                    if not fxo_glob:
+                        # Fallback: try underscore separator (older format)
+                        fxo_glob = sorted(fxo_dir.glob(f"{sname}_*.fxo"))
+                    
+                    if fxo_glob:
+                        caps = parse_fxo_capabilities(fxo_glob[0])
+                        fxo_cache[sname] = caps
+                        if caps:
+                            fxo_loaded += 1
+                            if mat_name in material_texture_map:
+                                material_texture_map[mat_name]['_fxoCaps'] = {
+                                    'uniforms': sorted(caps['uniforms']),
+                                    'textures': sorted(caps['textures']),
+                                }
+                            print(f"  [FXO] {sname}: {fxo_glob[0].name} ({len(caps['uniforms'])} uniforms, {len(caps['textures'])} tex, {len(fxo_glob)} variants)")
+                        else:
+                            print(f"  [FXO] {sname}: {fxo_glob[0].name} — parse failed")
+                    else:
+                        fxo_cache[sname] = None
+                        print(f"  [FXO] {sname}: no matching files found")
+                if fxo_loaded > 0:
+                    print(f"[+] Loaded {fxo_loaded} FXO shader definitions")
+                else:
+                    print(f"[!] No FXO matches found — check filenames above vs expected patterns")
+            elif fxo_dir:
+                print(f"[!] FXO shader directory not found: {fxo_dir}")
+            else:
+                print(f"[!] Could not determine FXO shader path from MDL location")
     else:
         print("\n[!] Texture loading disabled or dependencies missing")
 
@@ -1129,7 +1320,7 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
 def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_map: dict, 
                                 skeleton_data: dict, model_info: dict, debug_mode: bool = False,
                                 bind_matrices: dict = None, animations_data: list = None,
-                                skip_popup: bool = False) -> str:
+                                skip_popup: bool = False, no_shaders: bool = False) -> str:
     """Generate HTML content with texture and skeleton support."""
     
     meshes_data = []
@@ -1656,6 +1847,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
   <script>
     // Debug mode flag (set by Python --debug parameter)
     const DEBUG = {str(debug_mode).lower()};
+    const NO_SHADERS = {str(no_shaders).lower()};
     
     // Helper function for conditional logging
     function debug(...args) {{
@@ -1689,6 +1881,24 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let textureLoader = new THREE.TextureLoader();
     let totalTexturesCount = 0;
     let loadedTexturesCount = 0;
+    const shaderStats = {{ toon: 0, standard: 0, fxo: 0, types: {{}} }};
+    function getShaderInfoStr(compact) {{
+      const typesStr = Object.entries(shaderStats.types).map(([k,v]) => k + '(' + v + ')').join(', ') || 'none';
+      if (compact) {{
+        if (NO_SHADERS) return 'FXO: off';
+        if (shaderStats.toon > 0) {{
+          const fxo = shaderStats.fxo > 0 ? '+FXO(' + shaderStats.fxo + ')' : ' FXO:missing';
+          return 'Toon(' + shaderStats.toon + ')' + fxo;
+        }}
+        return 'Std(' + shaderStats.standard + ')';
+      }}
+      if (NO_SHADERS) return {{ mode: 'FXO: disabled', types: typesStr }};
+      if (shaderStats.toon > 0) {{
+        const fxo = shaderStats.fxo > 0 ? ' · FXO: ' + shaderStats.fxo : ' · FXO: missing';
+        return {{ mode: 'Toon: ' + shaderStats.toon + fxo, types: typesStr }};
+      }}
+      return {{ mode: 'Std: ' + shaderStats.standard, types: typesStr }};
+    }}
 
     let colorMode = false;
     let textureMode = true;
@@ -2189,6 +2399,154 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }});
       }}
 
+      const shaderType = matData._shaderType || '';
+      const sp = matData._shaderParams || {{}};
+      const isChrShader = shaderType.startsWith('chr_');
+      
+      if (isChrShader && !NO_SHADERS) {{
+        // Use MeshPhongMaterial with onBeforeCompile for toon effects
+        // This preserves native skinning support while adding rim light + toon shading
+        
+        // FXO capabilities: if present, only apply effects confirmed by compiled shader
+        const fxoCaps = matData._fxoCaps;
+        const fxoUniforms = fxoCaps ? new Set(fxoCaps.uniforms) : null;
+        const hasFxo = fxoUniforms !== null;
+        
+        // Check if effect is enabled: FXO present → must be in uniforms; no FXO → always enabled
+        const hasRim = !hasFxo || fxoUniforms.has('rimIntensity_g');
+        const hasToonEdge = !hasFxo || fxoUniforms.has('toonEdgeStrength_g');
+        const hasShadowColors = !hasFxo || fxoUniforms.has('shadowColor1_g');
+        const hasSpecular = !hasFxo || fxoUniforms.has('specularColor_g');
+        const hasEmissive = !hasFxo || fxoUniforms.has('emissive_g');
+        
+        const rimColor = hasRim ? (sp.rimLightColor_g || [0.3, 0.3, 0.4]) : [0,0,0];
+        const rimIntensity = hasRim ? (sp.rimIntensity_g != null ? sp.rimIntensity_g : 0.8) : 0;
+        const rimPower = hasRim ? (sp.rimLightPower_g || 4.0) : 1;
+        const shadowCol1 = hasShadowColors ? (sp.shadowColor1_g || sp.shadowColor_g || [0.15, 0.1, 0.2]) : [0,0,0];
+        const shadowCol2 = hasShadowColors ? (sp.shadowColor2_g || sp.shadowColor_g || [0.08, 0.05, 0.12]) : [0,0,0];
+        const shadowSharpness = hasShadowColors ? (sp.shadowGradSharpness_g || 0.5) : 0;
+        const toonEdge = hasToonEdge ? (sp.toonEdgeStrength_g || 0.0) : 0;
+        const toonEdgeCol = hasToonEdge ? (sp.toonEdgeColor_g || [0.0, 0.0, 0.0]) : [0,0,0];
+        
+        const matParams = {{
+          color: 0xffffff,
+          shininess: hasSpecular ? (sp.specularGlossiness_g || sp.specularGlossiness0_g || 25.0) : 30,
+          specular: hasSpecular ? new THREE.Color().fromArray(sp.specularColor_g || [0.2, 0.2, 0.3]) : new THREE.Color(0x333344),
+          side: THREE.DoubleSide,
+          skinning: true,
+        }};
+        
+        if (hasEmissive && sp.emissive_g && sp.emissive_g > 0) {{
+          matParams.emissive = new THREE.Color(0xffffff);
+          matParams.emissiveIntensity = sp.emissive_g;
+        }}
+        
+        if (sp.Switch_AlphaTest === 1) {{
+          matParams.alphaTest = sp.alphaTestThreshold_g || 0.5;
+          matParams.transparent = true;
+        }}
+        
+        const mat = new THREE.MeshPhongMaterial(matParams);
+        mat.userData.isToonMaterial = true;
+        mat.userData.shaderType = shaderType;
+        mat.userData.hasFxo = hasFxo;
+        shaderStats.toon++;
+        shaderStats.types[shaderType] = (shaderStats.types[shaderType] || 0) + 1;
+        if (hasFxo) shaderStats.fxo = (shaderStats.fxo || 0) + 1;
+        
+        // Inject rim light + toon shading via onBeforeCompile (only for effects confirmed by FXO or fallback)
+        const needsCompileHook = hasRim || hasToonEdge;
+        if (needsCompileHook) {{
+        mat.onBeforeCompile = function(shader) {{
+          // Add custom uniforms
+          shader.uniforms.uRimIntensity = {{ value: rimIntensity }};
+          shader.uniforms.uRimPower = {{ value: rimPower }};
+          shader.uniforms.uRimColor = {{ value: new THREE.Color(rimColor[0], rimColor[1], rimColor[2]) }};
+          shader.uniforms.uToonEdge = {{ value: toonEdge }};
+          shader.uniforms.uToonEdgeColor = {{ value: new THREE.Color(toonEdgeCol[0], toonEdgeCol[1], toonEdgeCol[2]) }};
+          
+          // Inject uniforms into fragment shader
+          shader.fragmentShader = shader.fragmentShader.replace(
+            'uniform float opacity;',
+            `uniform float opacity;
+            uniform float uRimIntensity;
+            uniform float uRimPower;
+            uniform vec3 uRimColor;
+            uniform float uToonEdge;
+            uniform vec3 uToonEdgeColor;`
+          );
+          
+          // Inject toon + rim effects after output_fragment (where gl_FragColor is set)
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <output_fragment>',
+            `#include <output_fragment>
+            vec3 toonViewDir = normalize(vViewPosition);
+            ${{hasRim ? `
+            // Rim light
+            float rimDot = 1.0 - max(dot(normal, toonViewDir), 0.0);
+            float rimFactor = pow(rimDot, uRimPower) * uRimIntensity;
+            gl_FragColor.rgb += uRimColor * rimFactor;` : ''}}
+            ${{hasToonEdge ? `
+            // Toon edge darkening
+            if (uToonEdge > 0.0) {{
+              float edgeFactor = 1.0 - smoothstep(0.0, uToonEdge * 0.3, max(dot(normal, toonViewDir), 0.0));
+              gl_FragColor.rgb = mix(gl_FragColor.rgb, uToonEdgeColor, edgeFactor * uToonEdge);
+            }}` : ''}}`
+          );
+        }};
+        }}
+        
+        // Load diffuse texture
+        if (matData.diffuse) {{
+          totalTexturesCount++;
+          const texInfo = matData.diffuse;
+          const texPath = typeof texInfo === 'string' ? texInfo : texInfo.path;
+          const wrapS = typeof texInfo === 'object' ? (texInfo.wrapS || 0) : 0;
+          const wrapT = typeof texInfo === 'object' ? (texInfo.wrapT || 0) : 0;
+          
+          loadTexture(texPath, wrapS, wrapT, texture => {{
+            const mesh = meshes.find(m => m.userData.meshName === meshName);
+            if (mesh) {{
+              mesh.material.map = texture;
+              mesh.userData.originalMap = texture;
+              mesh.material.needsUpdate = true;
+            }}
+          }});
+        }} else {{
+          mat.color.setHex(0x808080);
+        }}
+        
+        // Load normal map
+        if (matData.normal) {{
+          totalTexturesCount++;
+          const texInfo = matData.normal;
+          const texPath = typeof texInfo === 'string' ? texInfo : texInfo.path;
+          const wrapS = typeof texInfo === 'object' ? (texInfo.wrapS || 0) : 0;
+          const wrapT = typeof texInfo === 'object' ? (texInfo.wrapT || 0) : 0;
+          loadTexture(texPath, wrapS, wrapT, texture => {{
+            const mesh = meshes.find(m => m.userData.meshName === meshName);
+            if (mesh) {{
+              mesh.material.normalMap = texture;
+              mesh.userData.originalNormalMap = texture;
+              mesh.material.needsUpdate = true;
+            }}
+          }});
+        }}
+        
+        const effects = [];
+        if (hasRim) effects.push('rim');
+        if (hasToonEdge) effects.push('edge');
+        if (hasShadowColors) effects.push('shadow');
+        if (hasSpecular) effects.push('spec');
+        if (hasEmissive && sp.emissive_g > 0) effects.push('emissive');
+        debug('Toon material:', materialName, 'type:', shaderType,
+              hasFxo ? '(FXO)' : '(fallback)',
+              'effects:', effects.join('+') || 'none');
+        
+        return mat;
+      }}
+      
+      // Fallback: standard material for non-character shaders
       const matParams = {{ roughness: 0.7, metalness: 0.2, side: THREE.DoubleSide, skinning: true }};
 
       if (matData.diffuse) {{
@@ -2227,6 +2585,18 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }});
       }}
 
+      // Apply shader params to standard material too
+      if (sp.emissive_g && sp.emissive_g > 0) {{
+        matParams.emissiveIntensity = sp.emissive_g;
+        matParams.emissive = 0xffffff;
+      }}
+      if (sp.Switch_AlphaTest === 1) {{
+        matParams.alphaTest = sp.alphaTestThreshold_g || 0.5;
+        matParams.transparent = true;
+      }}
+
+      shaderStats.standard++;
+      if (shaderType) shaderStats.types[shaderType] = (shaderStats.types[shaderType] || 0) + 1;
       return new THREE.MeshStandardMaterial(matParams);
     }}
 
@@ -5000,10 +5370,12 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (!extended) {{
         // Basic mode — compact width
         statsEl.style.minWidth = '';
+        const sMode = getShaderInfoStr(true);
         statsEl.innerHTML = '<div>FPS: ' + currentFps + '</div>' +
           '<div>Triangles: ' + totalTris.toLocaleString() + '</div>' +
           '<div>Vertices: ' + totalVerts.toLocaleString() + '</div>' +
-          '<div>Visible: ' + visibleCount + '/' + meshes.length + '</div>';
+          '<div>Visible: ' + visibleCount + '/' + meshes.length + '</div>' +
+          '<div style="color:#9ca3af">Shaders: ' + sMode + '</div>';
         return;
       }}
       
@@ -5035,6 +5407,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       html += '<tr><td style="padding:0 6px 0 0">Tris: ' + totalTris.toLocaleString() + '</td><td style="border-left:1px solid #444;padding:0 0 0 6px">Verts: ' + totalVerts.toLocaleString() + '</td></tr>';
       html += '<tr><td style="padding:0 6px 0 0">Meshes: ' + visibleCount + '/' + meshes.length + '</td><td style="border-left:1px solid #444;padding:0 0 0 6px">Bones: ' + boneCount + '</td></tr>';
       html += '<tr><td style="padding:0 6px 0 0">Textures: ' + loadedTexturesCount + '/' + totalTexturesCount + '</td><td style="border-left:1px solid #444;padding:0 0 0 6px">Anims: ' + animCount + '</td></tr>';
+      // Shader info row
+      const shInfo = getShaderInfoStr(false);
+      html += '<tr><td colspan="2" style="padding:0;color:#9ca3af">Shaders: ' + shInfo.mode + ' · ' + shInfo.types + '</td></tr>';
       html += '</table>';
       html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
       html += '<div>' + dot(colorMode) + ' Colors  ' + dot(textureMode) + ' Textures  ' + dot(wireframeMode) + ' Wire  ' + dot(wireframeOverlayMode) + ' Overlay</div>';
@@ -5518,6 +5893,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         [pad('Meshes: ' + visibleMeshes + '/' + meshes.length, col) + '│  Bones: ' + boneCount, 'value'],
         [pad('Textures: ' + loadedTexturesCount + '/' + totalTexturesCount, col) + '│  Anims: ' + animCount, 'value'],
       ];
+      // Shader info
+      const shInfoOvl = getShaderInfoStr(false);
+      rows.push([pad('Shaders: ' + shInfoOvl.mode, col) + '│  ' + shInfoOvl.types, 'value']);
 
       // Build lines
       const divLen = 30;
@@ -6226,13 +6604,14 @@ class API:
 # -----------------------------
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python viewer_mdl_textured.py <path_to_model.mdl> [--recompute-normals] [--debug] [--skip-popup]")
+        print("Usage: python viewer_mdl_textured.py <path_to_model.mdl> [--recompute-normals] [--debug] [--skip-popup] [--no-shaders]")
         sys.exit(1)
 
     mdl_path = Path(sys.argv[1])
     recompute_normals = '--recompute-normals' in sys.argv
     debug_mode = '--debug' in sys.argv
     skip_popup = '--skip-popup' in sys.argv
+    no_shaders = '--no-shaders' in sys.argv
     
     if debug_mode:
         print("[DEBUG MODE] Verbose console logging enabled")
@@ -6276,7 +6655,7 @@ def main():
 
     # Load MDL with skeleton and model info
     meshes, material_texture_map, skeleton_data, model_info, bind_matrices = load_mdl_with_textures(
-        mdl_path, temp_dir, recompute_normals
+        mdl_path, temp_dir, recompute_normals, no_shaders
     )
 
     if not meshes:
@@ -6291,7 +6670,7 @@ def main():
     # Generate HTML
     html_content = generate_html_with_skeleton(
         mdl_path, meshes, material_texture_map, skeleton_data, model_info, debug_mode, bind_matrices,
-        animations_data=animations_data, skip_popup=skip_popup
+        animations_data=animations_data, skip_popup=skip_popup, no_shaders=no_shaders
     )
 
     # Save HTML to temp
