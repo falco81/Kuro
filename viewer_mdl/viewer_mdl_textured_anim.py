@@ -1867,7 +1867,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     // Helper function for conditional logging
     function debug(...args) {{
       if (DEBUG) {{
-        console.log(...args);
+        debug(...args);
       }}
     }}
     
@@ -2422,7 +2422,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }},
         undefined,
         error => {{
-          console.error('Error loading texture:', url, error);
+          if (DEBUG) console.error('Error loading texture:', url, error);
           if (onError) onError(error);
         }}
       );
@@ -2774,8 +2774,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
             debug('  Unique indices used:', uniqueIndices.length, '/', skeleton.bones.length);
             debug('  Index range:', Math.min(...indices), '-', Math.max(...indices));
             if (outOfRange.length > 0) {{
-              console.warn('⚠️ INVALID BONE INDICES:', outOfRange.length, 'indices > ', maxBoneIndex);
-              console.warn('  Sample invalid indices:', outOfRange.slice(0, 10));
+              if (DEBUG) console.warn('⚠️ INVALID BONE INDICES:', outOfRange.length, 'indices > ', maxBoneIndex);
+              if (DEBUG) console.warn('  Sample invalid indices:', outOfRange.slice(0, 10));
             }} else {{
               debug('  ✅ All bone indices valid!');
             }}
@@ -2819,7 +2819,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           mesh.bind(skeleton, identityBindMatrix);
           
           // Verify skinning is properly set up
-          console.log('✅ SkinnedMesh bound:', meshData.name,
+          debug('✅ SkinnedMesh bound:', meshData.name,
                 '| isSkinnedMesh:', mesh.isSkinnedMesh,
                 '| skeleton bones:', mesh.skeleton ? mesh.skeleton.bones.length : 'NONE',
                 '| boneTexture:', mesh.skeleton && mesh.skeleton.boneTexture ? 'YES' : 'NO',
@@ -2831,7 +2831,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }} else {{
           mesh = new THREE.Mesh(geometry, material);
           if (hasSkinning && !skeleton) {{
-            console.warn('Mesh has skinning but NO skeleton!', meshData.name);
+            if (DEBUG) console.warn('Mesh has skinning but NO skeleton!', meshData.name);
           }}
         }}
         
@@ -3074,47 +3074,46 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (blinkTimers.has(mesh)) {{
         clearInterval(blinkTimers.get(mesh).interval);
         clearTimeout(blinkTimers.get(mesh).timeout);
-        // Restore original
+        // Restore original materials
         const prev = blinkTimers.get(mesh);
-        const setMats = (fn) => {{
-          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-          mats.forEach((m, i) => fn(m, i));
-        }};
-        setMats((m, i) => {{
-          if (m.emissive) m.emissive.copy(prev.origEmissive[Array.isArray(mesh.material) ? i : 0] || new THREE.Color(0));
-          m.depthTest = true;
-        }});
+        mesh.material = prev.origMaterial;
         mesh.renderOrder = 0;
         blinkTimers.delete(mesh);
       }}
       
-      // Store originals
-      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      const origEmissive = mats.map(m => m.emissive ? m.emissive.clone() : new THREE.Color(0));
-      const redColor = new THREE.Color(0.8, 0.1, 0.1);
+      // Store original material
+      const origMaterial = mesh.material;
+      
+      // Create highlight wireframe material (bright green, always visible)
+      const wireMat = new THREE.MeshBasicMaterial({{
+        color: 0x00ff88,
+        wireframe: true,
+        depthTest: !xrayHighlight
+      }});
+      
       let blinkOn = true;
       
       const interval = setInterval(() => {{
-        mats.forEach((m, i) => {{
-          if (m.emissive) m.emissive.copy(blinkOn ? redColor : origEmissive[i]);
-          if (xrayHighlight) m.depthTest = !blinkOn;
-        }});
-        if (xrayHighlight) mesh.renderOrder = blinkOn ? 9999 : 0;
+        if (blinkOn) {{
+          mesh.material = wireMat;
+          wireMat.depthTest = !xrayHighlight;
+          if (xrayHighlight) mesh.renderOrder = 9999;
+        }} else {{
+          mesh.material = origMaterial;
+          mesh.renderOrder = 0;
+        }}
         blinkOn = !blinkOn;
       }}, 300);
       
       const timeout = setTimeout(() => {{
         clearInterval(interval);
-        // Restore original
-        mats.forEach((m, i) => {{
-          if (m.emissive) m.emissive.copy(origEmissive[i]);
-          m.depthTest = true;
-        }});
+        mesh.material = origMaterial;
         mesh.renderOrder = 0;
+        wireMat.dispose();
         blinkTimers.delete(mesh);
       }}, 5000);
       
-      blinkTimers.set(mesh, {{ interval, timeout, origEmissive }});
+      blinkTimers.set(mesh, {{ interval, timeout, origMaterial }});
     }}
 
     function loadSkeleton() {{
@@ -3123,8 +3122,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         return;
       }}
 
-      console.log('=== LOADING SKELETON ===');
-      console.log('Bones:', skeletonData.length);
+      debug('=== LOADING SKELETON ===');
+      debug('Bones:', skeletonData.length);
       
       document.getElementById('skeleton-info').textContent = `${{skeletonData.length}} bones loaded`;
       document.getElementById('skeleton-available').style.display = 'block';
@@ -3188,13 +3187,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (typeof skeleton.computeBoneTexture === 'function') {{
         skeleton.computeBoneTexture();
       }}
-      console.log('Skeleton created with', skeleton.bones.length, 'bones');
-      console.log('Inverse bind matrices: calculated from Three.js bone world matrices');
+      debug('Skeleton created with', skeleton.bones.length, 'bones');
+      debug('Inverse bind matrices: calculated from Three.js bone world matrices');
       
       // STEP 5: Diagnostic - verify bind pose + compare with MDL matrices
       if (DEBUG) {{
         skeleton.update();
-        console.log('=== BIND POSE VERIFICATION ===');
+        debug('=== BIND POSE VERIFICATION ===');
         let allIdentity = true;
         for (let i = 0; i < Math.min(10, bones.length); i++) {{
           const bm = new THREE.Matrix4();
@@ -3205,13 +3204,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
                        Math.abs(bm.elements[10] - 1) < 0.001 &&
                        Math.abs(t[0]) < 0.001 && Math.abs(t[1]) < 0.001 && Math.abs(t[2]) < 0.001;
           if (!isId) allIdentity = false;
-          console.log('  Bone[' + i + '] ' + bones[i].name + ': ~identity? ' + isId);
+          debug('  Bone[' + i + '] ' + bones[i].name + ': ~identity? ' + isId);
         }}
-        console.log('All first 10 bones identity at bind pose:', allIdentity);
+        debug('All first 10 bones identity at bind pose:', allIdentity);
         
         // Compare Three.js world matrices with MDL bind matrices
         if (bindMatricesData) {{
-          console.log('=== THREE.JS vs MDL MATRIX COMPARISON ===');
+          debug('=== THREE.JS vs MDL MATRIX COMPARISON ===');
           ['Root', 'Hips', 'Head', 'LeftArm', 'LeftUpLeg'].forEach(name => {{
             const bone = bones.find(b => b.name === name);
             const mdl = bindMatricesData[name];
@@ -3227,7 +3226,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
               const col0Match = Math.abs(wm[0]-mdl[0][0]) < 0.01 && Math.abs(wm[1]-mdl[0][1]) < 0.01;
               // Check if Three.js col0 matches MDL col0 (would mean MDL == ThreeJS, no transpose needed)
               const noTrMatch = Math.abs(wm[0]-mdl[0][0]) < 0.01 && Math.abs(wm[1]-mdl[1][0]) < 0.01;
-              console.log('  ' + name + ': posDiff=' + posDiff.toFixed(6) + 
+              debug('  ' + name + ': posDiff=' + posDiff.toFixed(6) + 
                 ' col0=MDLrow0?' + col0Match + ' col0=MDLcol0?' + noTrMatch +
                 ' TJS=[' + tjsPos.map(v=>v.toFixed(4)) + '] MDL=[' + mdlPos.map(v=>v.toFixed(4)) + ']');
             }}
@@ -3255,7 +3254,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }}
       }});
 
-      console.log('=== SKELETON READY ===');
+      debug('=== SKELETON READY ===');
       
       // Animation clips are built separately in async init flow
     }}
@@ -3425,7 +3424,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           if (idx < total) {{
             setTimeout(processBatch, 0);
           }} else {{
-            console.log('Built', Object.keys(animationClips).length, 'animation clips');
+            debug('Built', Object.keys(animationClips).length, 'animation clips');
             populateAnimationList();
             resolve();
           }}
@@ -3476,7 +3475,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }}
       }});
       
-      console.log('Built', Object.keys(animationClips).length, 'animation clips');
+      debug('Built', Object.keys(animationClips).length, 'animation clips');
     }}
 
     function populateAnimationList() {{
@@ -3497,7 +3496,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     function playAnimation(animName) {{
       if (!bones || bones.length === 0) return;
       const clip = animationClips[animName];
-      if (!clip) {{ console.warn('Clip not found:', animName); return; }}
+      if (!clip) {{ DEBUG && console.warn('Clip not found:', animName); return; }}
 
       // Stop current
       if (animationMixer) {{
@@ -6437,7 +6436,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
             hideConvertingModal();
             if (result.success) {{
               showScreenshotModal(result.filepath);
-              if (result.warning) console.warn('[Recording]', result.warning);
+              if (result.warning) DEBUG && console.warn('[Recording]', result.warning);
             }} else {{
               alert('Save failed: ' + result.error);
             }}
