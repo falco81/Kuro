@@ -17,6 +17,7 @@ for proper function it needs to have all necessary data extracted in the game da
     │   └───model_info
     └───dx11
         └───image
+        └───shader
 ```
 
 ## New Features in Beta
