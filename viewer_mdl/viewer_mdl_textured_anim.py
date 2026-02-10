@@ -1474,7 +1474,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       <div id="freeCamSubmenu" style="display:none;padding:2px 8px 4px 8px;">
         <div style="display:flex;align-items:center;gap:4px;margin:2px 0">
           <span style="font-size:10px;color:#9ca3af;min-width:62px">Cam Speed:</span>
-          <input type="range" id="freeCamSpeedSlider" min="2" max="200" value="100" style="flex:1"
+          <input type="range" id="freeCamSpeedSlider" min="2" max="600" value="100" style="flex:1"
                  oninput="freeCamSpeed = this.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'">
           <span id="freeCamStatus" style="font-size:10px;color:#60a5fa;min-width:45px;text-align:right">1.00x</span>
         </div>
@@ -1592,10 +1592,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         </div>
         
         <div id="dynBonesSection" style="display:none;margin-top:8px;">
-          <div class="toggle-row" onclick="toggleDynamicBones(); document.getElementById('swDynBones').checked = dynamicBonesEnabled;">
-            <span class="label">⚡ Dynamic Bones</span>
+          <div class="toggle-row" onclick="toggleDynamicBones(); document.getElementById('swPhysics').checked = dynamicBonesEnabled;">
+            <span class="label">⚡ Physics</span>
             <label class="toggle-switch" onclick="event.stopPropagation()">
-              <input type="checkbox" id="swDynBones" onchange="toggleDynamicBones()">
+              <input type="checkbox" id="swPhysics" onchange="toggleDynamicBones()">
               <span class="slider"></span>
             </label>
           </div>
@@ -1791,7 +1791,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
     // Action mapping (button index → description)
     const GP_ACTIONS = {{
-      0: 'Play/Pause', 1: 'Stop', 2: 'Reset Pos', 3: 'DynBones',
+      0: 'Play/Pause', 1: 'Stop', 2: 'Reset Pos', 3: 'Physics',
       4: 'Prev Anim', 5: 'Next Anim', 6: 'Zoom Out', 7: 'Zoom In',
       8: 'Overlay', 9: 'Screenshot', 11: 'FreeCam', 12: 'Speed+', 13: 'Speed-', 14: 'Visual', 15: 'Bones'
     }};
@@ -2003,7 +2003,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     function renderMappingLegend(tp, labels) {{
       const isKB = (tp === 'keyboard');
       let h = '<div style="margin-top:4px;font-size:10px;line-height:17px;color:#888;columns:2;column-gap:12px">';
-      [[0,'Play/Pause'],[1,'Stop'],[2,'Reset Pos'],[3,'DynBones'],[4,'Prev Anim'],[5,'Next Anim'],[6,'Zoom Out'],[7,'Zoom In'],[14,'Visual Mode'],[15,'Bone Cycle'],[12,'Speed +'],[13,'Speed −'],[8,'Overlay'],[9,'Screenshot'],[11,'FreeCam']].forEach(function(it) {{
+      [[0,'Play/Pause'],[1,'Stop'],[2,'Reset Pos'],[3,'Physics'],[4,'Prev Anim'],[5,'Next Anim'],[6,'Zoom Out'],[7,'Zoom In'],[14,'Visual Mode'],[15,'Bone Cycle'],[12,'Speed +'],[13,'Speed −'],[8,'Overlay'],[9,'Screenshot'],[11,'FreeCam']].forEach(function(it) {{
         const lbl = labels[it[0]] || '';
         if (!lbl) return;
         h += '<div style="white-space:nowrap"><span style="display:inline-block;min-width:32px;padding:1px 4px;background:#252540;border:1px solid #333;border-radius:3px;color:#ccc;text-align:center;font-family:monospace;font-size:9px">' + lbl + '</span> ' + it[1] + '</div>';
@@ -3245,7 +3245,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
     function toggleDynamicBones() {{
       dynamicBonesEnabled = !dynamicBonesEnabled;
-      const sw = document.getElementById('swDynBones'); if (sw) sw.checked = dynamicBonesEnabled;
+      const sw = document.getElementById('swPhysics'); if (sw) sw.checked = dynamicBonesEnabled;
       if (dynamicBonesEnabled && dynChains.length === 0) initDynamicBones();
       
       // Show/hide intensity slider
@@ -4585,7 +4585,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
             camera.position.set(center.x, center.y + size.y, center.z + size.z * 2);
             tpCamTheta = Math.PI; tpCamPhi = 1.2;
           }} else if (characterGroup) {{ characterGroup.position.set(0,0,0); characterYaw = 0; characterGroup.rotation.y = 0; }} }}
-        if (kbJustPressed(3)) {{ toggleDynamicBones(); document.getElementById('swDynBones').checked = dynamicBonesEnabled; }}
+        if (kbJustPressed(3)) {{ toggleDynamicBones(); document.getElementById('swPhysics').checked = dynamicBonesEnabled; }}
         if (kbJustPressed(4)) {{
           const sel = document.getElementById('animation-select');
           if (sel && sel.selectedIndex > 0) {{ sel.selectedIndex--; playAnimationCrossfade(sel.value, 0.25); tpCurrentAutoAnim = null; }}
@@ -4612,7 +4612,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
               const s = document.getElementById('freeCamSpeedSlider');
               if (s) {{
                 const step = h < 90 ? 1 : 2;
-                s.value = dpadUp ? Math.min(200, parseInt(s.value) + step) : Math.max(2, parseInt(s.value) - step);
+                s.value = dpadUp ? Math.min(600, parseInt(s.value) + step) : Math.max(2, parseInt(s.value) - step);
                 freeCamSpeed = s.value / 100;
                 document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x';
               }}
@@ -4843,7 +4843,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // Y / Triangle (3) → toggle dynamic bones
       if (justPressed(3)) {{
         toggleDynamicBones();
-        document.getElementById('swDynBones').checked = dynamicBonesEnabled;
+        document.getElementById('swPhysics').checked = dynamicBonesEnabled;
       }}
       
       // LB (4) → previous animation
@@ -4883,7 +4883,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
             const s = document.getElementById('freeCamSpeedSlider');
             if (s) {{
               const step = h < 90 ? 1 : 2;
-              s.value = gpUp ? Math.min(200, parseInt(s.value) + step) : Math.max(2, parseInt(s.value) - step);
+              s.value = gpUp ? Math.min(600, parseInt(s.value) + step) : Math.max(2, parseInt(s.value) - step);
               freeCamSpeed = s.value / 100;
               document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x';
             }}
@@ -5038,7 +5038,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       html += '</table>';
       html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
       html += '<div>' + dot(colorMode) + ' Colors  ' + dot(textureMode) + ' Textures  ' + dot(wireframeMode) + ' Wire  ' + dot(wireframeOverlayMode) + ' Overlay</div>';
-      html += '<div>' + dot(showSkeleton) + ' Skeleton  ' + dot(showJoints) + ' Joints  ' + dot(showBoneNames) + ' Names  ' + dot(dynamicBonesEnabled) + ' DynBones  ' + dot(dynCollisionsEnabled) + ' Collisions</div>';
+      html += '<div>' + dot(showSkeleton) + ' Skeleton  ' + dot(showJoints) + ' Joints  ' + dot(showBoneNames) + ' Names  ' + dot(dynamicBonesEnabled) + ' Physics  ' + dot(dynCollisionsEnabled) + ' Collisions</div>';
       if (freeCamMode) {{
         html += '<div>' + dot(true) + ' FreeCam · Speed: ' + freeCamSpeed.toFixed(2) + 'x</div>';
       }}
@@ -5539,7 +5539,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
       const opts2 = [
         ['Skeleton', showSkeleton], ['Joints', showJoints],
-        ['Names', showBoneNames], ['DynBones', dynamicBonesEnabled],
+        ['Names', showBoneNames], ['Physics', dynamicBonesEnabled],
         ['Collisions', dynCollisionsEnabled],
       ];
       const optLine2 = opts2.map(o => (o[1] ? '●' : '○') + ' ' + o[0]).join('  ');
@@ -5562,15 +5562,15 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         // Insert cached SVG controller image only in full mode
         if (overlayMode === 1 && cachedOverlaySVGImg) {{
           lines.push([cachedOverlaySVGImg, 'svgimg']);
-          // Button mapping legend
-          const mappings = [[0,'Play/Pause'],[1,'Stop'],[2,'Reset Pos'],[3,'DynBones'],[4,'Prev Anim'],[5,'Next Anim'],[6,'Zoom Out'],[7,'Zoom In'],[14,'Visual'],[15,'Bones'],[12,'Speed +'],[13,'Speed −'],[8,'Overlay'],[9,'Screenshot'],[11,'FreeCam']];
-          const legendItems = mappings.filter(m => labels[m[0]]).map(m => labels[m[0]] + '=' + m[1]);
-          if (tp !== 'keyboard') {{ legendItems.push('L🕹=Move', 'R🕹=Camera'); }}
-          // Split into two-column rows
+          // Button mapping legend (structured for badge rendering)
+          const mappings = [[0,'Play/Pause'],[1,'Stop'],[2,'Reset Pos'],[3,'Physics'],[4,'Prev Anim'],[5,'Next Anim'],[6,'Zoom Out'],[7,'Zoom In'],[14,'Visual'],[15,'Bones'],[12,'Speed +'],[13,'Speed −'],[8,'Overlay'],[9,'Screenshot'],[11,'FreeCam']];
+          const legendItems = mappings.filter(m => labels[m[0]]).map(m => ({{ key: labels[m[0]], action: m[1] }}));
+          if (tp !== 'keyboard') {{ legendItems.push({{ key: 'L🕹', action: 'Move' }}); legendItems.push({{ key: 'R🕹', action: 'Camera' }}); }}
+          // Two items per row
           for (let i = 0; i < legendItems.length; i += 2) {{
-            const left = legendItems[i] || '';
-            const right = legendItems[i+1] || '';
-            lines.push([pad(left, 18) + right, 'dim']);
+            const row = [legendItems[i]];
+            if (legendItems[i+1]) row.push(legendItems[i+1]);
+            lines.push([row, 'legend']);
           }}
         }}
       }}
@@ -5606,6 +5606,20 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           const aspect = img.naturalWidth / (img.naturalHeight || 1);
           svgImgH = Math.round(svgImgTargetW / aspect);
           if (svgImgTargetW > maxW) maxW = svgImgTargetW;
+        }} else if (l[1] === 'legend') {{
+          // Estimate width for two badge+action pairs
+          const badgeFontSize = Math.round(9 * sf);
+          const row = l[0];
+          let rowW = 0;
+          row.forEach((item, idx) => {{
+            ctx.font = badgeFontSize + 'px monospace';
+            const kw = ctx.measureText(item.key).width + Math.round(8 * sf);
+            ctx.font = fontSize + 'px monospace';
+            const aw = ctx.measureText(' ' + item.action).width;
+            rowW += kw + aw;
+            if (idx < row.length - 1) rowW += Math.round(16 * sf);
+          }});
+          if (rowW > maxW) maxW = rowW;
         }} else {{
           const m = ctx.measureText(String(l[0]));
           if (m.width > maxW) maxW = m.width;
@@ -5663,6 +5677,51 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           const ix = boxX + padding + (maxW - drawW) / 2;  // center in box
           ctx.drawImage(img, ix, ty, drawW, drawH);
           ty += drawH;
+          return;
+        }}
+        
+        if (type === 'legend') {{
+          // Draw badge-styled button mappings
+          const row = text;
+          const badgeFontSize = Math.round(9 * sf);
+          const badgeH = Math.round(fontSize * 1.1);
+          const badgePadX = Math.round(4 * sf);
+          const badgeR = Math.round(3 * sf);
+          let tx = boxX + padding;
+          row.forEach((item, idx) => {{
+            // Draw badge background
+            ctx.font = badgeFontSize + 'px monospace';
+            const kw = ctx.measureText(item.key).width + badgePadX * 2;
+            const bx = tx;
+            const by = ty + (lineHeight - badgeH) / 2 - Math.round(1 * sf);
+            ctx.fillStyle = '#252540';
+            ctx.beginPath();
+            ctx.moveTo(bx + badgeR, by);
+            ctx.lineTo(bx + kw - badgeR, by);
+            ctx.quadraticCurveTo(bx + kw, by, bx + kw, by + badgeR);
+            ctx.lineTo(bx + kw, by + badgeH - badgeR);
+            ctx.quadraticCurveTo(bx + kw, by + badgeH, bx + kw - badgeR, by + badgeH);
+            ctx.lineTo(bx + badgeR, by + badgeH);
+            ctx.quadraticCurveTo(bx, by + badgeH, bx, by + badgeH - badgeR);
+            ctx.lineTo(bx, by + badgeR);
+            ctx.quadraticCurveTo(bx, by, bx + badgeR, by);
+            ctx.fill();
+            // Badge border
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 1 * sf;
+            ctx.stroke();
+            // Badge text
+            ctx.fillStyle = '#ccc';
+            ctx.font = badgeFontSize + 'px monospace';
+            ctx.fillText(item.key, bx + badgePadX, by + (badgeH - badgeFontSize) / 2);
+            tx += kw + Math.round(3 * sf);
+            // Action text
+            ctx.fillStyle = '#888';
+            ctx.font = fontSize + 'px monospace';
+            ctx.fillText(item.action, tx, ty);
+            tx += ctx.measureText(item.action).width + Math.round(12 * sf);
+          }});
+          ty += lineHeight;
           return;
         }}
         
