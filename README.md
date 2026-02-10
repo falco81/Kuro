@@ -36,6 +36,7 @@ for proper function it needs to have all necessary data extracted in the game da
 - **improved controller visualization in overlay**
 - **3D FreeCam mode for viewing models such as landscapes, buildings, etc.**
 - **support for game shader files (FXO), fallback to original shaders if not available or force fallback with --no-shaders**
+- **adding a focus function in the UI on the overall model and within individual meshes, for large models such as landscapes, etc.**
 ---
 
 **Beta7**<br>
