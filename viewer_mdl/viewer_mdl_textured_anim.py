@@ -1473,10 +1473,16 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       </div>
       <div id="freeCamSubmenu" style="display:none;padding:2px 8px 4px 8px;">
         <div style="display:flex;align-items:center;gap:4px;margin:2px 0">
-          <span style="font-size:10px;color:#9ca3af;min-width:40px">Speed:</span>
+          <span style="font-size:10px;color:#9ca3af;min-width:62px">Cam Speed:</span>
           <input type="range" id="freeCamSpeedSlider" min="2" max="200" value="100" style="flex:1"
                  oninput="freeCamSpeed = this.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'">
-          <span id="freeCamStatus" style="font-size:10px;color:#60a5fa;min-width:55px;text-align:right">1.00x</span>
+          <span id="freeCamStatus" style="font-size:10px;color:#60a5fa;min-width:45px;text-align:right">1.00x</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;margin:2px 0">
+          <span style="font-size:10px;color:#9ca3af;min-width:62px">Mouse Sens:</span>
+          <input type="range" id="freeCamMouseSens" min="-100" max="100" value="0" style="flex:1"
+                 oninput="freeCamMouseSensValue = Math.pow(2, this.value / 50); document.getElementById('freeCamSensStatus').textContent = (this.value > 0 ? '+' : '') + this.value + '%'">
+          <span id="freeCamSensStatus" style="font-size:10px;color:#60a5fa;min-width:45px;text-align:right">0%</span>
         </div>
       </div>
     </div>
@@ -1524,12 +1530,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           <option value="webm" selected>WebM (VP9)</option>
         </select>
       </div>
-      <div class="toggle-row" onclick="document.getElementById('swInfoOverlay').checked = !document.getElementById('swInfoOverlay').checked;">
+      <div class="toggle-row" onclick="overlayMode = (overlayMode + 1) % 3; document.getElementById('overlayModeLabel').textContent = ['Off','Full','Minimal'][overlayMode];">
         <span class="label">📊 Info Overlay</span>
-        <label class="toggle-switch" onclick="event.stopPropagation()">
-          <input type="checkbox" id="swInfoOverlay">
-          <span class="slider"></span>
-        </label>
+        <span id="overlayModeLabel" style="font-size:11px;color:#a78bfa;min-width:52px;text-align:right;cursor:pointer;">Off</span>
       </div>
     </div>
 
@@ -2027,6 +2030,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let tpIsMoving = false;
     let freeCamMode = false;      // free camera fly mode
     let freeCamSpeed = 1.0;       // speed multiplier (adjusted by D-pad)
+    let freeCamMouseSensValue = 1.0; // mouse sensitivity multiplier
+    let overlayMode = 0; // 0=off, 1=full, 2=minimal
     let freeCamBaseSpeed = 0.1;   // computed from model size
     let skeletonGroup = null, jointsGroup = null;
 
@@ -2070,14 +2075,14 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           const mx = e.movementX || 0;
           const my = e.movementY || 0;
           if (mx === 0 && my === 0) return;
-          const sens = 0.0015;
+          const sens = 0.0015 * freeCamMouseSensValue;
           const invX = gamepadInvertX ? -1 : 1;
           const invY = gamepadInvertY ? -1 : 1;
           if (this.mouseButton === 0) {{
             tpCamTheta += mx * sens * invX;
             tpCamPhi = Math.max(0.1, Math.min(Math.PI - 0.1, tpCamPhi + my * sens * invY));
           }} else if (this.mouseButton === 2) {{
-            const speed = freeCamBaseSpeed * freeCamSpeed * 0.08;
+            const speed = freeCamBaseSpeed * freeCamSpeed * 0.08 * freeCamMouseSensValue;
             const phi = tpCamPhi, theta = tpCamTheta;
             const lookDir = new THREE.Vector3(
               -Math.sin(phi) * Math.sin(theta), -Math.cos(phi),
@@ -2113,7 +2118,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           const lookDir = new THREE.Vector3(
             -Math.sin(phi) * Math.sin(theta), -Math.cos(phi),
             -Math.sin(phi) * Math.cos(theta)).normalize();
-          this.camera.position.addScaledVector(lookDir, -e.deltaY * speed * 0.02);
+          this.camera.position.addScaledVector(lookDir, -e.deltaY * speed * 0.02 * freeCamMouseSensValue);
           return;
         }}
         if (this._tpMode) return;
@@ -4589,24 +4594,42 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           const sel = document.getElementById('animation-select');
           if (sel && sel.selectedIndex < sel.options.length - 1) {{ sel.selectedIndex++; playAnimationCrossfade(sel.value, 0.25); tpCurrentAutoAnim = null; }}
         }}
-        if (kbJustPressed(12)) {{
-          if (freeCamMode) {{
-            const s = document.getElementById('freeCamSpeedSlider');
-            if (s) {{ s.value = Math.min(200, parseInt(s.value) + 3); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
+        if (freeCamMode) {{
+          // FreeCam: D-pad with accelerating hold
+          const dpadUp = vButtons[12];
+          const dpadDn = vButtons[13];
+          if (dpadUp || dpadDn) {{
+            if (!window._fcKbHold) window._fcKbHold = 0;
+            window._fcKbHold++;
+            // Frame 1: immediate step. Then pause. Then slow, then accelerate.
+            const h = window._fcKbHold;
+            let doStep = false;
+            if (h === 1) doStep = true;                    // instant first
+            else if (h < 30) doStep = (h % 12 === 0);     // slow phase: ~5fps equiv
+            else if (h < 90) doStep = (h % 6 === 0);      // medium: ~10fps
+            else doStep = (h % 3 === 0);                   // fast: ~20fps
+            if (doStep) {{
+              const s = document.getElementById('freeCamSpeedSlider');
+              if (s) {{
+                const step = h < 90 ? 1 : 2;
+                s.value = dpadUp ? Math.min(200, parseInt(s.value) + step) : Math.max(2, parseInt(s.value) - step);
+                freeCamSpeed = s.value / 100;
+                document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x';
+              }}
+            }}
           }} else {{
-            const s = document.getElementById('animSpeedSlider'); if (s) {{ s.value = Math.min(100, parseInt(s.value) + 10); updateAnimSpeed(s.value); }}
+            window._fcKbHold = 0;
           }}
+        }} else {{
+        if (kbJustPressed(12)) {{
+            const s = document.getElementById('animSpeedSlider'); if (s) {{ s.value = Math.min(100, parseInt(s.value) + 10); updateAnimSpeed(s.value); }}
         }}
         if (kbJustPressed(13)) {{
-          if (freeCamMode) {{
-            const s = document.getElementById('freeCamSpeedSlider');
-            if (s) {{ s.value = Math.max(2, parseInt(s.value) - 3); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
-          }} else {{
             const s = document.getElementById('animSpeedSlider'); if (s) {{ s.value = Math.max(-100, parseInt(s.value) - 10); updateAnimSpeed(s.value); }}
-          }}
+        }}
         }}
         if (kbJustPressed(9)) requestScreenshot();
-        if (kbJustPressed(8)) {{ const sw = document.getElementById('swInfoOverlay'); if (sw) sw.checked = !sw.checked; }}
+        if (kbJustPressed(8)) {{ overlayMode = (overlayMode + 1) % 3; document.getElementById('overlayModeLabel').textContent = ['Off','Full','Minimal'][overlayMode]; }}
         if (kbJustPressed(11)) {{ toggleFreeCam(); document.getElementById('swFreeCam').checked = freeCamMode; }}
         
         // V (14) → cycle visual modes
@@ -4843,26 +4866,40 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }}
       }}
       
-      // D-pad Up (12) → speed up (or FreeCam speed)
-      if (justPressed(12)) {{
-        if (freeCamMode) {{
-          const s = document.getElementById('freeCamSpeedSlider');
-          if (s) {{ s.value = Math.min(200, parseInt(s.value) + 3); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
+      // D-pad Up (12) / Down (13) → speed (accelerating hold in FreeCam)
+      if (freeCamMode) {{
+        const gpUp = buttons[12];
+        const gpDn = buttons[13];
+        if (gpUp || gpDn) {{
+          if (!window._fcGpHold) window._fcGpHold = 0;
+          window._fcGpHold++;
+          const h = window._fcGpHold;
+          let doStep = false;
+          if (h === 1) doStep = true;
+          else if (h < 30) doStep = (h % 12 === 0);
+          else if (h < 90) doStep = (h % 6 === 0);
+          else doStep = (h % 3 === 0);
+          if (doStep) {{
+            const s = document.getElementById('freeCamSpeedSlider');
+            if (s) {{
+              const step = h < 90 ? 1 : 2;
+              s.value = gpUp ? Math.min(200, parseInt(s.value) + step) : Math.max(2, parseInt(s.value) - step);
+              freeCamSpeed = s.value / 100;
+              document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x';
+            }}
+          }}
         }} else {{
+          window._fcGpHold = 0;
+        }}
+      }} else {{
+      if (justPressed(12)) {{
           const slider = document.getElementById('animSpeedSlider');
           if (slider) {{ slider.value = Math.min(100, parseInt(slider.value) + 10); updateAnimSpeed(slider.value); }}
-        }}
       }}
-      
-      // D-pad Down (13) → slow down (or FreeCam speed)
       if (justPressed(13)) {{
-        if (freeCamMode) {{
-          const s = document.getElementById('freeCamSpeedSlider');
-          if (s) {{ s.value = Math.max(2, parseInt(s.value) - 3); freeCamSpeed = s.value / 100; document.getElementById('freeCamStatus').textContent = freeCamSpeed.toFixed(2) + 'x'; }}
-        }} else {{
           const slider = document.getElementById('animSpeedSlider');
           if (slider) {{ slider.value = Math.max(-100, parseInt(slider.value) - 10); updateAnimSpeed(slider.value); }}
-        }}
+      }}
       }}
       
       // D-pad Left (14) → cycle display modes:
@@ -4924,10 +4961,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         requestScreenshot();
       }}
       
-      // Back / View / Share (8) → toggle advanced info overlay
+      // Back / View / Share (8) → cycle info overlay mode
       if (justPressed(8)) {{
-        const sw = document.getElementById('swInfoOverlay');
-        if (sw) {{ sw.checked = !sw.checked; }}
+        overlayMode = (overlayMode + 1) % 3;
+        document.getElementById('overlayModeLabel').textContent = ['Off','Full','Minimal'][overlayMode];
       }}
       
       // R3 (11) → toggle FreeCam
@@ -4958,7 +4995,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }});
       
       const statsEl = document.getElementById('stats');
-      const extended = document.getElementById('swInfoOverlay') && document.getElementById('swInfoOverlay').checked;
+      const extended = overlayMode > 0;
       
       if (!extended) {{
         // Basic mode — compact width
@@ -4970,8 +5007,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         return;
       }}
       
-      // Extended mode — wider for controller SVG
-      statsEl.style.minWidth = '440px';
+      // Extended mode — wider for controller SVG (full only)
+      statsEl.style.minWidth = overlayMode === 1 ? '440px' : '';
       const boneCount = bones ? bones.length : 0;
       const animCount = Object.keys(animationClips).length;
       const opacity = parseFloat(document.getElementById('meshOpacity').value);
@@ -5021,12 +5058,14 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
         html += '<div style="color:#a78bfa;font-weight:bold;text-align:center">🎮 ' + typeName + (hasGamepad ? '' : ' · Waiting') + '</div>';
         
-        if (tp === 'keyboard') {{
-          html += renderKeyboardSVG(bs, ax, tr);
-        }} else {{
-          html += renderControllerSVG(tp, bs, ax, tr, labels, colors);
+        if (overlayMode === 1) {{
+          if (tp === 'keyboard') {{
+            html += renderKeyboardSVG(bs, ax, tr);
+          }} else {{
+            html += renderControllerSVG(tp, bs, ax, tr, labels, colors);
+          }}
+          html += renderMappingLegend(tp, labels);
         }}
-        html += renderMappingLegend(tp, labels);
       }}
       html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
       html += '<div style="color:#60a5fa">Anim: ' + animName + '</div>';
@@ -5425,7 +5464,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
 
       // Info overlay (if enabled)
-      if (document.getElementById('swInfoOverlay') && document.getElementById('swInfoOverlay').checked) {{
+      if (overlayMode > 0) {{
         drawInfoOverlay(ctx, w, h, sf);
       }}
     }}
@@ -5517,11 +5556,22 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (gamepadEnabled) {{
         const tp = gamepadType;
         const typeName = GP_TYPE_NAMES[tp] || 'Gamepad';
+        const labels = GP_LABELS[tp] || GP_LABELS.generic;
         lines.push([div, 'divider']);
         lines.push(['🎮 ' + typeName, 'title']);
-        // Insert cached SVG controller image (rendered from same renderControllerSVG/renderKeyboardSVG)
-        if (cachedOverlaySVGImg) {{
+        // Insert cached SVG controller image only in full mode
+        if (overlayMode === 1 && cachedOverlaySVGImg) {{
           lines.push([cachedOverlaySVGImg, 'svgimg']);
+          // Button mapping legend
+          const mappings = [[0,'Play/Pause'],[1,'Stop'],[2,'Reset Pos'],[3,'DynBones'],[4,'Prev Anim'],[5,'Next Anim'],[6,'Zoom Out'],[7,'Zoom In'],[14,'Visual'],[15,'Bones'],[12,'Speed +'],[13,'Speed −'],[8,'Overlay'],[9,'Screenshot'],[11,'FreeCam']];
+          const legendItems = mappings.filter(m => labels[m[0]]).map(m => labels[m[0]] + '=' + m[1]);
+          if (tp !== 'keyboard') {{ legendItems.push('L🕹=Move', 'R🕹=Camera'); }}
+          // Split into two-column rows
+          for (let i = 0; i < legendItems.length; i += 2) {{
+            const left = legendItems[i] || '';
+            const right = legendItems[i+1] || '';
+            lines.push([pad(left, 18) + right, 'dim']);
+          }}
         }}
       }}
 
