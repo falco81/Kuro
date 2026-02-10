@@ -42,7 +42,7 @@ for proper function it needs to have all necessary data extracted in the game da
 ---
 
 **Beta8**<br>
-mesh highlighting, meshes with box, shadow, cage in the name are hidden by default<br>
+mesh highlighting, meshes with box, shadow, kage in the name are hidden by default<br>
 support for lighting settings, enabling and disabling FXO shaders on the fly<br>
 <img src="doc/viewer_anim8b.png" width="100%">
 <img src="doc/viewer_anim8.gif" width="100%">
