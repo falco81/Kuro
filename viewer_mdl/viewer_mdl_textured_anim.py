@@ -1857,6 +1857,26 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
     }}
     
+    // On-screen toast notification
+    function showToast(msg, duration) {{
+      duration = duration || 3000;
+      let t = document.getElementById('_toast');
+      if (!t) {{
+        t = document.createElement('div');
+        t.id = '_toast';
+        t.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(15,15,25,0.88);color:#86efac;font:12px/1.5 system-ui,sans-serif;padding:8px 18px;border-radius:10px;z-index:99999;pointer-events:none;white-space:pre;max-width:90%;text-align:center;border:1px solid rgba(34,197,94,0.4);backdrop-filter:blur(8px);animation:toastPulse 0.6s ease-in-out infinite';
+        document.body.appendChild(t);
+        // Add keyframes
+        const style = document.createElement('style');
+        style.textContent = '@keyframes toastPulse {{ 0%,100% {{ opacity:0.7; border-color:rgba(34,197,94,0.25); }} 50% {{ opacity:1; border-color:rgba(34,197,94,0.6); }} }}';
+        document.head.appendChild(style);
+      }}
+      t.textContent = msg;
+      t.style.display = 'block';
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => {{ t.style.display = 'none'; }}, duration);
+    }}
+    
     const data = {json.dumps(meshes_data)};
     const materials = {json.dumps(materials_json)};
     const skeletonData = {skeleton_json};
@@ -2811,7 +2831,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         mesh.userData.hasTexture = !!meshData.material && !!materials[meshData.material];
         mesh.userData.hasSkinning = hasSkinning;
         
-        const hideKeywords = ['shadow', 'kage'];
+        const hideKeywords = ['shadow', 'kage', 'box'];
         if (CONFIG.AUTO_HIDE_SHADOW && 
             hideKeywords.some(keyword => meshData.name.toLowerCase().includes(keyword))) {{
           mesh.visible = false;
@@ -2929,9 +2949,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const distH = maxDim / (2 * Math.tan(hFOV / 2));
       const dist = Math.max(distV, distH) * CONFIG.CAMERA_ZOOM;
       
-      // Position camera
-      const direction = new THREE.Vector3(0.5, 0.5, 1).normalize();
-      camera.position.copy(center).add(direction.multiplyScalar(dist));
+      // Position camera so it faces the center from current viewing direction
+      const forward = new THREE.Vector3();
+      camera.getWorldDirection(forward);
+      camera.position.copy(center).addScaledVector(forward, -dist);
       camera.lookAt(center);
       
       controls.target.copy(center);
@@ -2943,9 +2964,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // Update FreeCam base speed for model scale
       freeCamBaseSpeed = maxDim * 0.02;
       
-      // Update FreeCam position if active
+      // Update FreeCam angles if active
       if (freeCamMode) {{
-        tpCamTheta = Math.PI; tpCamPhi = 1.2;
+        tpCamPhi = Math.acos(-forward.y);
+        tpCamTheta = Math.atan2(-forward.x, -forward.z);
       }}
       
       // Scale directional lights relative to model
@@ -2959,7 +2981,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     }}
 
     // Focus camera on a specific mesh by index
+    let focusLockUntil = 0;  // timestamp to temporarily disable TP camera override
+    
     function focusMesh(idx) {{
+      try {{
       if (idx < 0 || idx >= meshes.length) return;
       const mesh = meshes[idx];
       
@@ -2981,10 +3006,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const size = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
       
-      // Adapt camera clipping planes
-      camera.near = Math.max(0.001, maxDim * 0.0001);
-      camera.far = Math.max(camera.far, maxDim * 40);
-      camera.updateProjectionMatrix();
+      // In controller mode (third-person), only blink — don't move camera
+      if (gamepadEnabled && !freeCamMode) {{
+        const triCount = mesh.geometry && mesh.geometry.index ? mesh.geometry.index.count / 3 : '?';
+        showToast('🎯 ' + mesh.userData.meshName + '\\n' + triCount + ' tris · size ' + maxDim.toFixed(1), 5000);
+        blinkMesh(mesh);
+        return;
+      }}
       
       // Calculate framing distance
       const fov = camera.fov * (Math.PI / 180);
@@ -2992,8 +3020,15 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const hFOV = 2 * Math.atan(Math.tan(fov / 2) * aspect);
       const distV = maxDim / (2 * Math.tan(fov / 2));
       const distH = maxDim / (2 * Math.tan(hFOV / 2));
-      const dist = Math.max(distV, distH) * CONFIG.CAMERA_ZOOM;
+      const dist = Math.max(distV, distH, 0.1) * CONFIG.CAMERA_ZOOM;
       
+      // Adapt camera clipping planes and controls limits
+      camera.near = Math.max(0.001, maxDim * 0.0001);
+      camera.far = Math.max(camera.far, maxDim * 40);
+      camera.updateProjectionMatrix();
+      controls.maxDistance = Math.max(controls.maxDistance, dist * 5);
+      
+      // Position camera: place it looking at mesh center from a standard angle
       const direction = new THREE.Vector3(0.5, 0.5, 1).normalize();
       camera.position.copy(center).add(direction.multiplyScalar(dist));
       camera.lookAt(center);
@@ -3005,13 +3040,23 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       controls.update();
       
       if (freeCamMode) {{
-        tpCamTheta = Math.PI; tpCamPhi = 1.2;
+        const lookDir = new THREE.Vector3().subVectors(center, camera.position).normalize();
+        tpCamPhi = Math.acos(-lookDir.y);
+        tpCamTheta = Math.atan2(-lookDir.x, -lookDir.z);
       }}
       
-      debug('focusMesh[' + idx + '] ' + mesh.userData.meshName + ': maxDim=' + maxDim.toFixed(1));
+      // Prevent TP camera from overriding for 500ms
+      focusLockUntil = Date.now() + 500;
+      
+      // Show info toast for duration of blink
+      const triCount = mesh.geometry && mesh.geometry.index ? mesh.geometry.index.count / 3 : '?';
+      showToast('🎯 ' + mesh.userData.meshName + '\\n' + triCount + ' tris · size ' + maxDim.toFixed(1), 5000);
       
       // Blink mesh red for ~5 seconds
       blinkMesh(mesh);
+      }} catch(err) {{
+        console.error('focusMesh error:', err);
+      }}
     }}
     
     let blinkTimers = new Map();  // mesh -> timer id
@@ -4557,7 +4602,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // Show all meshes, then re-hide shadow meshes (matching initial state)
       toggleAllMeshes(true);
       if (CONFIG.AUTO_HIDE_SHADOW) {{
-        const hideKeywords = ['shadow', 'kage'];
+        const hideKeywords = ['shadow', 'kage', 'box'];
         meshes.forEach((m, idx) => {{
           if (hideKeywords.some(kw => m.userData.meshName.toLowerCase().includes(kw))) {{
             m.visible = false;
@@ -4831,6 +4876,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
     function updateThirdPersonCamera() {{
       if (!characterGroup) return;
+      if (Date.now() < focusLockUntil) return;  // focusMesh lock active
       
       // Camera orbits around character center
       const targetPos = characterGroup.position.clone();
