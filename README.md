@@ -48,8 +48,13 @@ support for game shader files (FXO), fallback to original shaders if not availab
         └───image
         └───shader
 ```
-<img src="doc/viewer_anim7.gif" width="100%">
-<img src="doc/viewer_anim7.png" width="100%">
+Game FXO shaders
+<img src="doc/viewer_anim7a.gif" width="100%">
+<img src="doc/viewer_anim7a.png" width="100%">
+
+Generated shaders - no FXO files
+<img src="doc/viewer_anim7b.gif" width="100%">
+<img src="doc/viewer_anim7b.png" width="100%">
 
 **Beta6**<br>
 3D FreeCam mode<br>
