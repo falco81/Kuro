@@ -111,6 +111,7 @@ python.exe ...\asset\common\model\viewer_mdl_textured_scene.py --scene mp1010.js
 ```
 
 <img src="doc/scene.png" width="100%">
+
 **viewer_mdl_textured.exe**
 new tool for quick preview of model. ideally associate exe with mdl file. for correct display of textures it looks for standard folder structure
 ```
