@@ -2717,8 +2717,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
 
       // Apply shader params to standard material too
-      if (sp.emissive_g && sp.emissive_g > 0) {{
-        matParams.emissiveIntensity = sp.emissive_g;
+      // Note: emissive_g in non-chr shaders (e.g. 'monster') is NOT PBR emission —
+      // it's a shader-specific brightness/crystal parameter. Apply conservatively.
+      if (sp.emissive_g && sp.emissive_g > 0 && sp.Switch_Crystal !== 1) {{
+        matParams.emissiveIntensity = Math.min(sp.emissive_g * 0.15, 0.5);
         matParams.emissive = 0xffffff;
       }}
       if (sp.Switch_AlphaTest === 1) {{
