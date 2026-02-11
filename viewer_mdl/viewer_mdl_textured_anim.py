@@ -2577,11 +2577,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         
         // Note: emissive_g in Trails engine shaders is NOT PBR emission —
         // it's a shader-specific brightness parameter. Store for optional toggle.
-        // Only apply when Switch_Glow=1 AND glowIntensity_g > 0 (real glow meshes)
-        const glowEligible = sp.Switch_Glow === 1 && (sp.glowIntensity_g || 0) > 0;
-        if (hasEmissive && sp.emissive_g && sp.emissive_g > 0 && glowEligible) {{
-          // Don't apply at startup — store for toggle
-          matParams._emissiveGlow = sp.glowIntensity_g || 0.1;
+        if (hasEmissive && sp.emissive_g && sp.emissive_g > 0) {{
+          matParams._emissiveGlow = Math.min(sp.emissive_g * 0.2, 0.5);
         }}
         
         if (sp.Switch_AlphaTest === 1) {{
@@ -2732,10 +2729,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // Apply shader params to standard material too
       // Note: emissive_g in non-chr shaders (e.g. 'monster') is NOT PBR emission —
       // it's a shader-specific brightness/crystal parameter. Store for optional toggle.
-      const glowEligibleStd = sp.Switch_Glow === 1 && (sp.glowIntensity_g || 0) > 0 && sp.Switch_Crystal !== 1;
       let stdEmissiveGlow = 0;
-      if (sp.emissive_g && sp.emissive_g > 0 && glowEligibleStd) {{
-        stdEmissiveGlow = sp.glowIntensity_g || 0.1;
+      if (sp.emissive_g && sp.emissive_g > 0) {{
+        stdEmissiveGlow = Math.min(sp.emissive_g * 0.2, 0.5);
       }}
       if (sp.Switch_AlphaTest === 1) {{
         matParams.alphaTest = sp.alphaTestThreshold_g || 0.5;
@@ -6028,8 +6024,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           '<div>Vertices: ' + totalVerts.toLocaleString() + '</div>' +
           '<div>Visible: ' + visibleCount + '/' + meshes.length + '</div>' +
           '<div style="color:#9ca3af">Shaders: ' + sMode + '</div>' +
-          '<div style="color:#9ca3af">Tangents: ' + getTangentInfoStr() + '</div>' +
-          (emissiveEnabled ? '<div style="color:#fbbf24">✨ Emissive Glow</div>' : '');
+          '<div style="color:#9ca3af">Tangents: ' + getTangentInfoStr() + '</div>';
         // Show lighting in basic overlay only if non-default
         const la = ambientLight ? ambientLight.intensity : 0.6;
         const lk = dirLight1 ? dirLight1.intensity : 0.8;
