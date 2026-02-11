@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-viewer_mdl_textured_anim.py — Direct .mdl preview with TEXTURE SUPPORT + SKELETON + ANIMATIONS
+viewer_mdl_textured_scene.py — Direct .mdl preview with TEXTURE SUPPORT + SKELETON + ANIMATIONS + SCENE MODE
 
 FEATURES:
 - Loads and displays textures from DDS files
@@ -17,8 +17,8 @@ REQUIREMENTS:
   pip install pywebview Pillow
 
 USAGE:
-  python viewer_mdl_textured_anim.py /path/to/model.mdl [--recompute-normals] [--debug] [--skip-popup] [--no-shaders]
-  python viewer_mdl_textured_anim.py --scene mp0010.json [--debug]
+  python viewer_mdl_textured_scene.py /path/to/model.mdl [--recompute-normals] [--debug] [--skip-popup] [--no-shaders]
+  python viewer_mdl_textured_scene.py --scene mp0010.json [--debug]
   
   --scene <file>       Load a scene file (.json binary format) from scene/ directory
                        (scene/ is at the same level as asset/)
@@ -1574,6 +1574,42 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     .mesh-toggle:hover {{ background: rgba(124, 58, 237, 0.2); }}
     .mesh-toggle input {{ margin-right: 10px; cursor: pointer; width: 16px; height: 16px; accent-color: #7c3aed; }}
     .mesh-toggle label {{ cursor: pointer; flex-grow: 1; font-size: 12px; }}
+    
+    /* === Scene Objects panel === */
+    .so-cat-hdr {{
+      display:flex;align-items:center;gap:5px;padding:5px 6px;cursor:pointer;user-select:none;
+      border-radius:5px;transition:background 0.15s;
+    }}
+    .so-cat-hdr:hover {{ background:rgba(124,58,237,0.15); }}
+    .so-cat-hdr input {{ width:14px;height:14px;accent-color:#7c3aed;cursor:pointer;flex-shrink:0; }}
+    .so-cat-hdr .so-dot {{ width:8px;height:8px;border-radius:50%;flex-shrink:0; }}
+    .so-cat-hdr .so-name {{ color:#e0e0e0;font-size:12px;flex:1;font-weight:600; }}
+    .so-cat-hdr .so-cnt {{ color:#6b7280;font-size:10px;min-width:20px;text-align:right; }}
+    .so-cat-hdr .so-arrow {{ color:#6b7280;font-size:8px;flex-shrink:0;transition:transform 0.15s;width:10px;text-align:center; }}
+    .so-ibtn {{ cursor:pointer;font-size:11px;opacity:0.3;flex-shrink:0;transition:opacity 0.12s;padding:0 1px;line-height:1; }}
+    .so-ibtn:hover {{ opacity:1; }}
+    .so-actor-row {{
+      display:flex;align-items:center;gap:4px;padding:3px 6px;border-radius:4px;
+      transition:background 0.12s;min-height:26px;
+    }}
+    .so-actor-row:hover {{ background:rgba(124,58,237,0.12); }}
+    .so-actor-row input {{ width:13px;height:13px;accent-color:#7c3aed;cursor:pointer;flex-shrink:0; }}
+    .so-actor-row .so-albl {{ flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#c4b5fd;cursor:default; }}
+    .so-actor-row .so-arrow {{ color:#6b7280;font-size:7px;flex-shrink:0;transition:transform 0.15s;width:10px;text-align:center;cursor:pointer; }}
+    .so-sub-row {{
+      display:flex;align-items:center;gap:4px;padding:2px 6px 2px 10px;border-radius:3px;
+      transition:background 0.12s;min-height:22px;
+    }}
+    .so-sub-row:hover {{ background:rgba(124,58,237,0.1); }}
+    .so-sub-row input {{ width:12px;height:12px;accent-color:#6d28d9;cursor:pointer;flex-shrink:0; }}
+    .so-sub-row .so-slbl {{ flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:#9ca3af;cursor:default; }}
+    .so-mmap-toggle {{
+      position:fixed;bottom:4px;right:4px;z-index:101;width:22px;height:22px;
+      background:rgba(20,20,35,0.85);border:1px solid rgba(124,58,237,0.3);border-radius:4px;
+      color:#a78bfa;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+      transition:background 0.15s;line-height:1;
+    }}
+    .so-mmap-toggle:hover {{ background:rgba(124,58,237,0.3); }}
     .texture-indicator {{
       display: inline-block; width: 12px; height: 12px; border-radius: 3px;
       margin-left: 6px; background: linear-gradient(135deg, #10b981, #34d399);
@@ -2468,6 +2504,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         this.scale = 1;
         this.panOffset = new THREE.Vector3();
         this.isMouseDown = false;
+        this._tpMode = false;
         this.rotateSpeed = 0.5;
         this.zoomSpeed = 1;
         this.panSpeed = 1;
@@ -2476,7 +2513,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         this.domElement.addEventListener('contextmenu', e => e.preventDefault());
         this.domElement.addEventListener('mousedown', this.onMouseDown.bind(this));
         this.domElement.addEventListener('mousemove', this.onMouseMove.bind(this));
-        this.domElement.addEventListener('mouseup', this.onMouseUp.bind(this));
+        // CRITICAL: mouseup on window so releasing outside canvas still clears drag state
+        window.addEventListener('mouseup', this.onMouseUp.bind(this));
         this.domElement.addEventListener('wheel', this.onMouseWheel.bind(this));
       }}
       
@@ -2562,6 +2600,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         this.spherical.phi += this.sphericalDelta.phi;
         this.spherical.phi = Math.max(0.01, Math.min(Math.PI - 0.01, this.spherical.phi));
         this.spherical.radius *= this.scale;
+        // Enforce min/max distance
+        if (this.minDistance !== undefined) this.spherical.radius = Math.max(this.minDistance, this.spherical.radius);
+        if (this.maxDistance !== undefined) this.spherical.radius = Math.min(this.maxDistance, this.spherical.radius);
         
         this.target.add(this.panOffset);
         
@@ -7209,6 +7250,9 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
     cx = (min(xs) + max(xs)) / 2
     cy = max(ys) + 40
     cz = (min(zs) + max(zs)) / 2
+    # Ground-level Y for orbit target (median Y is a good proxy for ground level)
+    sorted_ys = sorted(ys)
+    groundY = sorted_ys[len(sorted_ys) // 2]  # median Y
     spanX = max(xs) - min(xs)
     spanZ = max(zs) - min(zs)
     gridSz = max(spanX, spanZ) + 60
@@ -7224,6 +7268,7 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
     const SCENE_CFG = {{
       name: '{scene_name}',
       cx: {cx:.1f}, cy: {cy:.1f}, cz: {cz:.1f},
+      groundY: {groundY:.1f},
       spanX: {spanX:.0f}, spanZ: {spanZ:.0f}, gridSz: {gridSz:.0f},
       minX: {minX:.1f}, maxX: {maxX:.1f}, minZ: {minZ:.1f}, maxZ: {maxZ:.1f},
       actorCount: {len(actors)}, modelCount: {scene_data.get('model_count', 0)},
@@ -7338,6 +7383,12 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
         let sceneResolved = 0, scenePlaceholder = 0;
         
         SCENE_ACTORS.forEach((actor, i) => {
+          // Skip area-definition actors with extreme scale (vegetation zones, etc.)
+          const maxS = Math.max(Math.abs(actor.s[0]), Math.abs(actor.s[1]), Math.abs(actor.s[2]));
+          if (maxS > 50 && actor.c !== 'terrain') {
+            return; // vegetation area / zone definition, not a visual object
+          }
+          
           const group = new THREE.Group();
           group.position.set(actor.p[0], actor.p[1], actor.p[2]);
           group.rotation.order = 'YXZ';
@@ -7353,7 +7404,9 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
             // Clone all meshes from this model
             modelRegistry[mk].forEach(templateMesh => {
               const clone = templateMesh.clone();
-              clone.visible = true;
+              // Hide shadow/kage/box submeshes (non-visual collision/shadow geometry)
+              const _cmn = (clone.userData?.meshName || clone.name || '').toLowerCase();
+              clone.visible = !(_cmn.includes('box') || _cmn.includes('shadow') || _cmn.includes('kage'));
               clone.userData._isTemplate = false;
               clone.userData.sceneActor = actor;
               // IMPORTANT: Do NOT clone material — shared material receives async textures
@@ -7402,23 +7455,41 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
         window._sceneCatMeshes = sceneCatMeshes;
         window._sceneN2M = sceneN2M;
         
+        // ── Default-hide engine-only categories (shadow proxies, occluders) ──
+        const _defaultHidden = new Set(['shadow', 'special', 'probe', 'event', 'monster', 'cover', 'light']);
+        for (const cat of Object.keys(sceneCats)) {
+          if (_defaultHidden.has(cat)) {
+            sceneCats[cat].vis = false;
+            if (sceneCatMeshes[cat]) sceneCatMeshes[cat].forEach(g => g.visible = false);
+          }
+        }
+        window._defaultHiddenCats = _defaultHidden;
+        
         // ── CRITICAL: Override camera settings that loadMeshes() clobbered ──
         camera.near = 0.3;
         camera.far = 2000;
         camera.fov = 70;
         camera.updateProjectionMatrix();
-        camera.position.set(SCENE_CFG.cx, SCENE_CFG.cy, SCENE_CFG.cz);
         
         // Override controls limits for scene scale
         controls.minDistance = 0.1;
         controls.maxDistance = 2000;
-        // Place orbit target 30 units ahead in default direction
-        controls.target.set(SCENE_CFG.cx, SCENE_CFG.cy - 10, SCENE_CFG.cz - 30);
+        
+        // Orbit target at ground level (center of scene), NOT high in the sky
+        const orbitGroundY = SCENE_CFG.groundY !== undefined ? SCENE_CFG.groundY + 5 : 5;
+        controls.target.set(SCENE_CFG.cx, orbitGroundY, SCENE_CFG.cz);
+        
+        // Camera starts above, looking down at the scene center
+        camera.position.set(SCENE_CFG.cx + 30, orbitGroundY + 40, SCENE_CFG.cz + 50);
         camera.lookAt(controls.target);
-        const initOffset = camera.position.clone().sub(controls.target);
-        controls.spherical.setFromVector3(initOffset);
+        
+        // Fully sync orbit state from current camera position
+        controls._tpMode = false;
+        controls.sphericalDelta.set(0, 0, 0);
         controls.panOffset.set(0, 0, 0);
         controls.scale = 1;
+        const initOffset = camera.position.clone().sub(controls.target);
+        controls.spherical.setFromVector3(initOffset);
         controls.update();
         
         // Scene mode: controller OFF by default, normal orbit mouse controls
@@ -7435,10 +7506,11 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
         // Pre-compute FreeCam base speed for when controller is enabled
         window._sceneFreeCamBaseSpeed = Math.max(SCENE_CFG.spanX, SCENE_CFG.spanZ) * 0.01;
         
-        // Set camera to scene start position
-        camera.position.set(SCENE_CFG.cx, SCENE_CFG.cy, SCENE_CFG.cz);
-        tpCamTheta = Math.PI;
-        tpCamPhi = Math.PI * 0.6; // looking slightly down
+        // Pre-compute FreeCam angles from current camera direction (for when controller is later enabled)
+        const _initDir = new THREE.Vector3();
+        camera.getWorldDirection(_initDir);
+        tpCamPhi = Math.acos(Math.max(-1, Math.min(1, -_initDir.y)));
+        tpCamTheta = Math.atan2(-_initDir.x, -_initDir.z);
         freeCamBaseSpeed = Math.max(SCENE_CFG.spanX, SCENE_CFG.spanZ) * 0.01;
         freeCamSpeed = 1.0;
         
@@ -7491,15 +7563,32 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
         const meshList = document.getElementById('mesh-list');
         if (!meshList) return;
         meshList.innerHTML = '';
+        meshList.style.cssText = 'max-height:calc(100vh - 420px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#333 transparent;padding-right:2px;';
+        
+        // Hidden submesh keywords (shadow geometry, collision boxes)
+        const _hideSubKW = ['shadow', 'kage', 'box'];
+        function _isHiddenSubmesh(m) {
+          const n = (m.userData?.meshName || m.name || '').toLowerCase();
+          return _hideSubKW.some(kw => n.includes(kw));
+        }
         
         // Scene toggle all function
         window._sceneToggleAll = function(vis) {
           Object.keys(cats).forEach(cat => {
             cats[cat].vis = vis;
-            catMeshes[cat].forEach(g => { g.visible = vis; });
+            catMeshes[cat].forEach(g => {
+              g.visible = vis;
+              g.traverse(ch => {
+                if (ch.isMesh) ch.visible = vis && !_isHiddenSubmesh(ch);
+              });
+            });
           });
           document.querySelectorAll('.scene-cat-cb').forEach(cb => { cb.checked = vis; });
           document.querySelectorAll('.scene-actor-cb').forEach(cb => { cb.checked = vis; });
+          // Sync submesh checkboxes: hidden submeshes stay unchecked
+          document.querySelectorAll('.so-sub-cb').forEach(cb => {
+            cb.checked = vis && !cb.dataset.hiddenSub;
+          });
         };
         window.toggleAllMeshes = window._sceneToggleAll;
         
@@ -7562,42 +7651,43 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
         
         sortedCats.forEach(([cat, info]) => {
           const catDiv = document.createElement('div');
-          catDiv.style.cssText = 'margin-bottom:2px;';
+          catDiv.style.cssText = 'margin-bottom:1px;';
           
           // Category header row
           const hdr = document.createElement('div');
-          hdr.style.cssText = 'display:flex;align-items:center;gap:4px;padding:3px 0;cursor:pointer;user-select:none;';
+          hdr.className = 'so-cat-hdr';
           
           const cb = document.createElement('input');
-          cb.type = 'checkbox'; cb.checked = true;
+          cb.type = 'checkbox'; cb.checked = info.vis !== false;
           cb.className = 'scene-cat-cb';
-          cb.style.cssText = 'flex-shrink:0;cursor:pointer;';
           cb.addEventListener('change', (e) => {
             e.stopPropagation();
             cats[cat].vis = cb.checked;
             catMeshes[cat].forEach(g => { g.visible = cb.checked; });
             catDiv.querySelectorAll('.scene-actor-cb').forEach(acb => { acb.checked = cb.checked; });
+            catDiv.querySelectorAll('.so-sub-cb').forEach(scb => {
+              scb.checked = cb.checked && !scb.dataset.hiddenSub;
+            });
           });
           cb.addEventListener('click', e => e.stopPropagation());
           
           const dot = document.createElement('span');
-          dot.style.cssText = 'width:8px;height:8px;border-radius:50%;flex-shrink:0;background:' + info.color;
+          dot.className = 'so-dot';
+          dot.style.background = info.color;
           
           const nameSpan = document.createElement('span');
-          nameSpan.style.cssText = 'color:#e0e0e0;font-size:11px;flex:1;';
+          nameSpan.className = 'so-name';
           nameSpan.textContent = cat;
           
           const cnt = document.createElement('span');
-          cnt.style.cssText = 'color:#6b7280;font-size:10px;margin-right:2px;';
+          cnt.className = 'so-cnt';
           cnt.textContent = info.count;
           
           // Highlight all actors in this category
           const catHlBtn = document.createElement('span');
           catHlBtn.textContent = '💡';
           catHlBtn.title = 'Highlight all ' + cat;
-          catHlBtn.style.cssText = 'cursor:pointer;font-size:11px;opacity:0.3;flex-shrink:0;transition:opacity 0.15s;';
-          catHlBtn.addEventListener('mouseenter', () => { catHlBtn.style.opacity = '1'; });
-          catHlBtn.addEventListener('mouseleave', () => { catHlBtn.style.opacity = '0.3'; });
+          catHlBtn.className = 'so-ibtn';
           catHlBtn.addEventListener('click', (e) => {
             e.preventDefault(); e.stopPropagation();
             catMeshes[cat].forEach(g => blinkGroup(g));
@@ -7605,7 +7695,7 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
           });
           
           const arrow = document.createElement('span');
-          arrow.style.cssText = 'color:#6b7280;font-size:9px;flex-shrink:0;transition:transform 0.15s;';
+          arrow.className = 'so-arrow';
           arrow.textContent = '▶';
           
           hdr.appendChild(cb);
@@ -7617,7 +7707,7 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
           
           // Actor list (collapsed by default)
           const actorList = document.createElement('div');
-          actorList.style.cssText = 'display:none;padding-left:16px;max-height:200px;overflow-y:auto;';
+          actorList.style.cssText = 'display:none;padding-left:12px;max-height:300px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#333 transparent;';
           
           hdr.addEventListener('click', () => {
             const open = actorList.style.display !== 'none';
@@ -7625,45 +7715,123 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
             arrow.textContent = open ? '▶' : '▼';
           });
           
-          // Build actor entries — same style as mesh-toggle entries
+          // Build actor entries with submesh expansion
           const actorGroups = catMeshes[cat];
           actorGroups.forEach((group, gi) => {
+            const actorDiv = document.createElement('div');
+            
+            // Actor row
             const row = document.createElement('div');
-            row.className = 'mesh-toggle';
+            row.className = 'so-actor-row';
             
             const acb = document.createElement('input');
-            acb.type = 'checkbox'; acb.checked = true;
+            acb.type = 'checkbox'; acb.checked = info.vis !== false;
             acb.className = 'scene-actor-cb';
-            acb.addEventListener('change', () => { group.visible = acb.checked; });
+            acb.addEventListener('change', () => {
+              group.visible = acb.checked;
+              // Sync submesh checkboxes — keep hidden submeshes unchecked
+              actorDiv.querySelectorAll('.so-sub-cb').forEach(scb => {
+                scb.checked = acb.checked && !scb.dataset.hiddenSub;
+              });
+            });
+            acb.addEventListener('click', e => e.stopPropagation());
             
-            const lbl = document.createElement('label');
-            lbl.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:default;';
+            const lbl = document.createElement('span');
+            lbl.className = 'so-albl';
             lbl.textContent = group.userData.name || ('actor_' + gi);
             lbl.title = lbl.textContent;
             
-            // Highlight button — green wireframe blink (no camera move)
+            // Highlight button
             const hlBtn = document.createElement('span');
             hlBtn.textContent = '💡';
-            hlBtn.title = 'Highlight this object';
-            hlBtn.style.cssText = 'cursor:pointer;font-size:12px;padding:1px 3px;border-radius:3px;opacity:0.4;flex-shrink:0;transition:opacity 0.15s;';
-            hlBtn.addEventListener('mouseenter', () => { hlBtn.style.opacity = '1'; });
-            hlBtn.addEventListener('mouseleave', () => { hlBtn.style.opacity = '0.4'; });
+            hlBtn.title = 'Highlight';
+            hlBtn.className = 'so-ibtn';
             hlBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); blinkGroup(group); showToast(group.userData.name || 'object', 2000); });
             
-            // Focus button — camera fly + blink
+            // Focus button
             const focusBtn = document.createElement('span');
             focusBtn.textContent = '🎯';
-            focusBtn.title = 'Focus on this object';
-            focusBtn.style.cssText = 'cursor:pointer;font-size:12px;padding:1px 3px;border-radius:3px;opacity:0.4;flex-shrink:0;transition:opacity 0.15s;';
-            focusBtn.addEventListener('mouseenter', () => { focusBtn.style.opacity = '1'; });
-            focusBtn.addEventListener('mouseleave', () => { focusBtn.style.opacity = '0.4'; });
+            focusBtn.title = 'Focus';
+            focusBtn.className = 'so-ibtn';
             focusBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); focusGroup(group); });
+            
+            // Submesh arrow (only if group has mesh children)
+            const childMeshes = [];
+            group.traverse(ch => { if (ch.isMesh && ch !== group) childMeshes.push(ch); });
+            
+            const subArrow = document.createElement('span');
+            subArrow.className = 'so-arrow';
+            if (childMeshes.length > 0) {
+              subArrow.textContent = '▶';
+              subArrow.title = childMeshes.length + ' submeshes';
+            } else {
+              subArrow.textContent = '';
+              subArrow.style.pointerEvents = 'none';
+            }
             
             row.appendChild(acb);
             row.appendChild(lbl);
             row.appendChild(hlBtn);
             row.appendChild(focusBtn);
-            actorList.appendChild(row);
+            row.appendChild(subArrow);
+            actorDiv.appendChild(row);
+            
+            // Submesh list (collapsed)
+            if (childMeshes.length > 0) {
+              const subList = document.createElement('div');
+              subList.style.cssText = 'display:none;padding-left:18px;';
+              
+              subArrow.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const open = subList.style.display !== 'none';
+                subList.style.display = open ? 'none' : 'block';
+                subArrow.textContent = open ? '▶' : '▼';
+              });
+              
+              // Click row label also expands submeshes
+              lbl.style.cursor = 'pointer';
+              lbl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const open = subList.style.display !== 'none';
+                subList.style.display = open ? 'none' : 'block';
+                subArrow.textContent = open ? '▶' : '▼';
+              });
+              
+              childMeshes.forEach((cm, ci) => {
+                const subRow = document.createElement('div');
+                subRow.className = 'so-sub-row';
+                
+                const scb = document.createElement('input');
+                scb.className = 'so-sub-cb';
+                scb.addEventListener('change', () => { cm.visible = scb.checked; });
+                scb.addEventListener('click', e => e.stopPropagation());
+                
+                const slbl = document.createElement('span');
+                slbl.className = 'so-slbl';
+                const meshName = cm.userData?.meshName || cm.name || cm.material?.name || ('mesh_' + ci);
+                const _isHidden = _isHiddenSubmesh(cm);
+                if (_isHidden) { cm.visible = false; }
+                scb.type = 'checkbox'; scb.checked = !_isHidden;
+                if (_isHidden) scb.dataset.hiddenSub = '1';
+                slbl.textContent = meshName;
+                slbl.title = meshName;
+                
+                const shl = document.createElement('span');
+                shl.textContent = '💡';
+                shl.className = 'so-ibtn';
+                shl.style.fontSize = '10px';
+                shl.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); if (cm.material) blinkMesh(cm); });
+                
+                subRow.appendChild(scb);
+                subRow.appendChild(slbl);
+                subRow.appendChild(shl);
+                subList.appendChild(subRow);
+              });
+              
+              actorDiv.appendChild(subList);
+            }
+            
+            actorList.appendChild(actorDiv);
           });
           
           catDiv.appendChild(hdr);
@@ -7674,13 +7842,40 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
       
       function _buildSceneMinimap() {
         if (typeof SCENE_MODE === 'undefined' || !SCENE_MODE) return;
+        
+        // Container for minimap + toggle
+        let mmWrap = document.getElementById('scene-mmap-wrap');
+        if (!mmWrap) {
+          mmWrap = document.createElement('div');
+          mmWrap.id = 'scene-mmap-wrap';
+          mmWrap.style.cssText = 'position:fixed;bottom:10px;right:10px;z-index:100;';
+          document.body.appendChild(mmWrap);
+        }
+        
         let mc = document.getElementById('scene-minimap');
         if (!mc) {
           mc = document.createElement('canvas');
           mc.id = 'scene-minimap';
           mc.width = 200; mc.height = 200;
-          mc.style.cssText = 'position:fixed;bottom:10px;right:10px;z-index:100;border:1px solid rgba(124,58,237,0.3);border-radius:8px;overflow:hidden;cursor:pointer';
-          document.body.appendChild(mc);
+          mc.style.cssText = 'display:block;border:1px solid rgba(124,58,237,0.3);border-radius:8px;overflow:hidden;cursor:pointer';
+          mmWrap.appendChild(mc);
+        }
+        
+        // Toggle button at bottom-right corner
+        let mmBtn = document.getElementById('scene-mmap-btn');
+        if (!mmBtn) {
+          mmBtn = document.createElement('div');
+          mmBtn.id = 'scene-mmap-btn';
+          mmBtn.className = 'so-mmap-toggle';
+          mmBtn.textContent = '🗺';
+          mmBtn.title = 'Toggle minimap';
+          let mmVisible = true;
+          mmBtn.addEventListener('click', () => {
+            mmVisible = !mmVisible;
+            mc.style.display = mmVisible ? 'block' : 'none';
+            mmBtn.style.opacity = mmVisible ? '1' : '0.5';
+          });
+          document.body.appendChild(mmBtn);
         }
         
         const ctx = mc.getContext('2d');
@@ -7838,150 +8033,93 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
 # SCENE MODE — Parse binary scene JSON and render 3D scene layout
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _scene_find_doubles(data: bytes, start: int, end: int, key_id: int) -> list:
-    """Find all type-03 double values with given key ID in binary scene JSON."""
-    pattern = struct.pack('<BHH', 0x03, key_id, 0x0000)
-    results = []
-    pos = start
-    while pos < end:
-        idx = data.find(pattern, pos, end)
-        if idx < 0:
-            break
-        val = struct.unpack_from('<d', data, idx + 5)[0]
-        results.append(val)
-        pos = idx + 1
-    return results
-
-
-def parse_scene_json(path: Path) -> list:
-    """Parse Trails engine binary JSON scene file → list of actor entries.
-    
-    The binary format uses 'JSON' magic + serialized key-value data with
-    type 0x03 markers for double values. Keys 0xef/0xf5/0xfb correspond to
-    x/y/z components for translation, rotation, and scale groups.
-    
-    Each actor has both an instance name (e.g. 'door_mp0010_00') and a model
-    reference (e.g. 'ob0010dor01'). We extract both by scanning strings around
-    the actor type marker.
-    """
-    import re as _re
+def _parse_single_scene_json(path: Path, source_tag: str = '') -> list:
+    """Parse a single Trails engine binary JSON scene file → list of actor entries."""
     data = path.read_bytes()
     if data[:4] != b'JSON':
         raise ValueError(f"Not a Trails scene JSON: bad magic {data[:4]}")
 
-    actor_types = [
-        b'MapObject\x00', b'FieldTerrain\x00', b'PlantActor\x00',
-        b'SpotLightActor\x00', b'PointLight\x00', b'DirectionalLight\x00',
-        b'EventBox\x00', b'LightProbe\x00', b'MonsterArea\x00',
-    ]
-    
-    # MDL-like name patterns (game asset naming conventions)
-    _mdl_pat = _re.compile(
-        r'^(ob\d{4}|mp\d{4}|a\d{4}|bg\d{4}|ef\d{4}|ev\d{4}|wp\d{4}|chrx?\d{3})',
-        _re.IGNORECASE
-    )
-
-    def _extract_strings(blob: bytes, min_len=3) -> list:
-        """Extract all ASCII strings from a byte blob."""
-        strings = []
-        for part in blob.split(b'\x00'):
-            try:
-                s = part.decode('ascii').strip()
-                if len(s) >= min_len and all(c.isprintable() for c in s):
-                    strings.append(s)
-            except:
-                pass
-        return strings
-    
-    def _find_mdl_refs(blob: bytes) -> list:
-        """Find .mdl filename references in binary data."""
-        refs = []
-        for m in _re.finditer(rb'([a-zA-Z0-9_]{3,40})\.mdl', blob):
-            stem = m.group(1).decode('ascii')
-            if '_m_' not in stem:
-                refs.append(stem)
-        return refs
+    parsed = decode_binary_mi(data)
+    actor_list = parsed.get('Actor', [])
 
     entries = []
-    for atype in actor_types:
-        pos = 0
-        while True:
-            idx = data.find(atype, pos)
-            if idx < 0:
-                break
+    for actor in actor_list:
+        actor_type = actor.get('type', '')
+        actor_name = actor.get('name', 'unknown')
+        model_path = actor.get('model_path', '')
 
-            type_name = atype.rstrip(b'\x00').decode('ascii')
-            
-            # Find next actor boundary to avoid scanning into next actor
-            next_boundary = len(data)
-            for other_type in actor_types:
-                ni = data.find(other_type, idx + len(atype))
-                if ni > 0 and ni < next_boundary:
-                    next_boundary = ni
-            
-            # Extract strings BEFORE type marker (actor instance name, ~100 bytes)
-            pre_chunk = data[max(0, idx - 100):idx]
-            pre_strings = _extract_strings(pre_chunk)
-            
-            # Extract strings AFTER type marker (up to next actor or 1200 bytes)
-            search_limit = min(next_boundary, idx + 1200)
-            post_chunk = data[idx + len(atype):search_limit]
-            post_strings = _extract_strings(post_chunk)
-            
-            # Actor name: last printable string before type marker
-            name = None
-            for s in reversed(pre_strings):
-                if len(s) >= 3:
-                    name = s
-                    break
-            
-            # Model reference: multiple strategies
-            model_ref = None
-            
-            # Strategy A: Find MDL-like pattern in post_strings
-            for s in post_strings:
-                if _mdl_pat.match(s) and '_m_' not in s:
-                    model_ref = s
-                    break
-            
-            # Strategy B: Find .mdl filename references in nearby data
-            if not model_ref:
-                search_blob = data[idx:search_limit]
-                mdl_refs = _find_mdl_refs(search_blob)
-                for ref in mdl_refs:
-                    if _mdl_pat.match(ref):
-                        model_ref = ref
-                        break
-            
-            # Strategy C: Check pre-strings for model reference
-            if not model_ref:
-                for s in pre_strings:
-                    if _mdl_pat.match(s) and '_m_' not in s:
-                        model_ref = s
-                        break
+        t = actor.get('translation', {})
+        r = actor.get('rotation', {})
+        s = actor.get('scale', {})
 
-            # Parse transform doubles
-            search_end = min(len(data), idx + 500)
-            xs = _scene_find_doubles(data, idx, search_end, 0xef)
-            ys = _scene_find_doubles(data, idx, search_end, 0xf5)
-            zs = _scene_find_doubles(data, idx, search_end, 0xfb)
+        tx, ty, tz = float(t.get('x', 0.0)), float(t.get('y', 0.0)), float(t.get('z', 0.0))
+        rx, ry, rz = float(r.get('x', 0.0)), float(r.get('y', 0.0)), float(r.get('z', 0.0))
+        sx, sy, sz = float(s.get('x', 1.0)), float(s.get('y', 1.0)), float(s.get('z', 1.0))
 
-            if len(xs) >= 1 and len(ys) >= 1 and len(zs) >= 1:
-                # Use model_ref as 'name' for MDL resolution, store instance name separately
-                entry_name = model_ref or name or 'unknown'
-                entries.append({
-                    'name': entry_name, 'type': type_name,
-                    'instance_name': name or 'unknown',
-                    'tx': xs[0], 'ty': ys[0], 'tz': zs[0],
-                    'rx': xs[1] if len(xs) > 1 else 0.0,
-                    'ry': ys[1] if len(ys) > 1 else 0.0,
-                    'rz': zs[1] if len(zs) > 1 else 0.0,
-                    'sx': xs[2] if len(xs) > 2 else 1.0,
-                    'sy': ys[2] if len(ys) > 2 else 1.0,
-                    'sz': zs[2] if len(zs) > 2 else 1.0,
-                })
-            pos = idx + 1
+        entry_name = model_path or actor_name
 
+        # FieldTerrain actors whose model_path is NOT a terrain chunk (mp*)
+        # are actually buildings placed in the scene — treat them as MapObject
+        effective_type = actor_type
+        if actor_type == 'FieldTerrain' and model_path and not model_path.startswith('mp'):
+            effective_type = 'MapObject'
+
+        entries.append({
+            'name': entry_name,
+            'type': effective_type,
+            'instance_name': actor_name,
+            'source': source_tag,
+            'tx': tx, 'ty': ty, 'tz': tz,
+            'rx': rx, 'ry': ry, 'rz': rz,
+            'sx': sx, 'sy': sy, 'sz': sz,
+        })
+
+    return entries
+
+
+def parse_scene_json(path: Path) -> list:
+    """Parse Trails engine scene — main file + all numbered sub-scene files.
+
+    The engine splits maps into sectors:
+      mp0010.json      — main scene (outdoor objects, building shells, terrain)
+      mp0010_01.json   — sub-scene sector 01 (interior details, lights, doors, ...)
+      mp0010_02.json   — sub-scene sector 02
+      ...
+      mp0010_12.json   — sub-scene sector 12
+
+    All sub-scene actors share the same world coordinate system as the main scene.
+    This function discovers and merges actors from all related files.
+    """
+    import re as _re
+
+    # Parse main scene
+    entries = _parse_single_scene_json(path, source_tag=path.stem)
+    print(f"[scene] {path.name}: {len(entries)} actors (main)")
+
+    # Discover sub-scene files: mp0010_01.json, mp0010_02.json, ...
+    scene_dir = path.parent
+    stem = path.stem  # e.g. 'mp0010'
+    pattern = _re.compile(_re.escape(stem) + r'_(\d{2})\.json$', _re.I)
+
+    sub_files = sorted([
+        f for f in scene_dir.iterdir()
+        if pattern.match(f.name) and '_sys' not in f.name
+    ])
+
+    for sf in sub_files:
+        try:
+            sub_entries = _parse_single_scene_json(sf, source_tag=sf.stem)
+            # Skip duplicate FieldTerrain terrain entries from sub-scenes
+            # (each sub-scene has its own terrain ref — we only need the main one)
+            filtered = [e for e in sub_entries if not (
+                e['type'] == 'FieldTerrain' and e['name'].startswith('mp')
+            )]
+            entries.extend(filtered)
+            print(f"[scene] {sf.name}: +{len(filtered)} actors (sub-scene, {len(sub_entries) - len(filtered)} terrain refs skipped)")
+        except Exception as exc:
+            print(f"[scene] {sf.name}: SKIP — {exc}")
+
+    print(f"[scene] Total: {len(entries)} actors from {1 + len(sub_files)} files")
     return entries
 
 
@@ -8061,6 +8199,9 @@ def _scene_categorize(entry: dict) -> tuple:
         return 'probe', '#38bdf8', 'light', (0.8, 0.8, 0.8)
     if entry['type'] == 'MonsterArea':
         return 'monster', '#f87171', 'event', (5, 1, 5)
+    if entry['type'] in ('VolumeFogActor', 'ParticleFogActor', 'GodRayActor',
+                          'VFX', 'EnvironmentSound', 'NavigationPath', 'LookPoint', 'Path'):
+        return 'special', '#6b7280', 'light', (0.4, 0.4, 0.4)
 
     name = entry['name']
     for patterns, cat, color, shape, size in _SCENE_CATEGORY_RULES:
@@ -8241,6 +8382,9 @@ function mkM(cl,c){
 const allM=[],cats={},catM={},n2m={};
 
 D.forEach((d,i)=>{
+  // Skip area-definition actors with extreme scale
+  const _maxS=Math.max(Math.abs(d.s[0]),Math.abs(d.s[1]),Math.abs(d.s[2]));
+  if(_maxS>50&&d.c!=='terrain')return;
   const g=mkG(d.sh),mat=mkM(d.cl,d.c);
   const m=new THREE.Mesh(g,mat);
   m.position.set(d.p[0],d.p[1],d.p[2]);
@@ -8254,6 +8398,10 @@ D.forEach((d,i)=>{
   if(!catM[d.c])catM[d.c]=[];catM[d.c].push(m);
   if(!n2m[d.n])n2m[d.n]=[];n2m[d.n].push(m);
 });
+
+// Default-hide engine-only categories
+const _dH=new Set(['shadow','special','probe','event','monster','cover']);
+for(const c of Object.keys(cats)){if(_dH.has(c)){cats[c].vis=false;if(catM[c])catM[c].forEach(m=>m.visible=false)}}
 
 // Labels
 const lblGrp=new THREE.Group();let lblMode=0;sc.add(lblGrp);
@@ -8279,7 +8427,7 @@ function updLbl(){lblGrp.children.forEach(s=>{s.visible=lblMode>=s.userData.lc})
 const fD=document.getElementById('cflt');
 Object.entries(cats).sort((a,b)=>b[1].count-a[1].count).forEach(([c,info])=>{
   const l=document.createElement('label');
-  const cb=document.createElement('input');cb.type='checkbox';cb.checked=true;
+  const cb=document.createElement('input');cb.type='checkbox';cb.checked=info.vis !== false;
   cb.addEventListener('change',()=>{cats[c].vis=cb.checked;catM[c].forEach(m=>m.visible=cb.checked)});
   l.appendChild(cb);
   const d=document.createElement('span');d.className='cd';d.style.background=info.color;l.appendChild(d);
@@ -8763,7 +8911,18 @@ def main():
 
         from collections import Counter
         entries = parse_scene_json(scene_path)
-        names = Counter(e['name'] for e in entries)
+        
+        # Non-visual actor types that don't need MDL resolution
+        _NON_VISUAL_TYPES = {
+            'PointLight', 'SpotLightActor', 'DirectionalLight',
+            'VolumeFogActor', 'ParticleFogActor', 'GodRayActor',
+            'VFX', 'EnvironmentSound', 'NavigationPath', 'LookPoint', 'Path',
+            'LightProbe',
+        }
+        
+        # Only count names from visual actors for MDL resolution
+        visual_entries = [e for e in entries if e['type'] not in _NON_VISUAL_TYPES]
+        names = Counter(e['name'] for e in visual_entries)
         types = Counter(e['type'] for e in entries)
         print(f"[+] Parsed {len(entries)} actors ({len(names)} unique models)")
         for t, c in sorted(types.items(), key=lambda x: -x[1]):
@@ -8884,8 +9043,20 @@ def main():
         if map_id:
             print(f"\n[+] Map ID: {map_id} (from {scene_stem})")
         
+        # Names/patterns that are engine primitives (occluders, shadow proxies) — skip loading
+        _SKIP_PATTERNS = [
+            re.compile(r'^ob_s\d{2}_\d+\w*$', re.I),       # ob_s02_000, ob_s05_000g — occluder walls
+        ]
+        # Model name patterns that should be hidden by default (shadow casters, etc.)
+        _HIDDEN_CATS = {'shadow', 'special'}
+        
         for name in unique_names:
             if not asset_dir.exists():
+                model_paths[name] = None
+                continue
+            
+            # Strategy 0: Skip engine primitives (no visual model exists)
+            if any(p.match(name) for p in _SKIP_PATTERNS):
                 model_paths[name] = None
                 continue
             
@@ -8948,7 +9119,9 @@ def main():
             
             # Strategy 6: Type names (PlantActor, LightProbe etc.) → skip (no MDL)
             if name in ('PlantActor', 'LightProbe', 'EventBox', 'MonsterArea', 
-                        'SpotLightActor', 'PointLight', 'DirectionalLight'):
+                        'SpotLightActor', 'PointLight', 'DirectionalLight',
+                        'VolumeFogActor', 'VFX', 'ParticleFogActor', 'GodRayActor',
+                        'EnvironmentSound', 'NavigationPath', 'LookPoint', 'Path'):
                 model_paths[name] = None
                 continue
             
@@ -9068,16 +9241,29 @@ def main():
                     print(f"    [!] Failed to load terrain {tname}: {e}")
             print(f"[+] Terrain: {len(terrain_models)} chunks loaded")
 
-        # ── Annotate actors with model_key for JS instancing ──
-        ft_idx = 0
+        # ── Replace FieldTerrain entries with per-chunk synthetic entries ──
+        # Terrain chunks have world-space vertices baked in, so all placed at origin.
+        # Remove old FieldTerrain entries and add one entry per loaded terrain chunk.
         terrain_keys = sorted(terrain_models.keys())
+        if terrain_keys:
+            entries = [e for e in entries if e['type'] != 'FieldTerrain']
+            for tkey in terrain_keys:
+                entries.append({
+                    'name': tkey,
+                    'type': 'FieldTerrain',
+                    'instance_name': tkey,
+                    'source': 'terrain',
+                    'model_key': tkey,
+                    'tx': 0.0, 'ty': 0.0, 'tz': 0.0,
+                    'rx': 0.0, 'ry': 0.0, 'rz': 0.0,
+                    'sx': 1.0, 'sy': 1.0, 'sz': 1.0,
+                })
+            print(f"[+] Created {len(terrain_keys)} terrain chunk entries (at origin)")
+
+        # ── Annotate actors with model_key for JS instancing ──
         for entry in entries:
-            # FieldTerrain: cycle through terrain chunk models
-            if entry['type'] == 'FieldTerrain' and terrain_keys:
-                entry['model_key'] = terrain_keys[ft_idx % len(terrain_keys)]
-                ft_idx += 1
-                continue
-            
+            if entry.get('model_key'):
+                continue  # Already set (e.g. terrain chunks)
             if entry['name'] in resolved:
                 entry['model_key'] = entry['name']
             else:
