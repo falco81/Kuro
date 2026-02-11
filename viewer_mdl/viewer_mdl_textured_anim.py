@@ -2050,6 +2050,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let cachedOverlaySVGStr = '';    // last SVG string (to detect changes)
     const kbKeys = {{}};  // currently held keys
     const kbPrevKeys = {{}};  // previous frame keys (for edge detection)
+    // Mouse input for controller keyboard mode
+    let mouseDeltaX = 0, mouseDeltaY = 0;  // accumulated per frame
+    let mouseRightDown = false;
+    let mouseWheelDelta = 0;  // accumulated per frame
     
     // Keyboard → gamepad button mapping
     // Movement: WASD, Camera: Arrow keys, Zoom: QE
@@ -2842,7 +2846,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
         }}
         
-        // Tangents: use MDL data or compute fallback
+        geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+        
+        // Tangents: use MDL data or compute fallback (needs index set first)
         if (meshData.tangents) {{
           const tangents = new Float32Array(meshData.tangents);
           geometry.setAttribute('tangent', new THREE.BufferAttribute(tangents, 4));
@@ -2905,7 +2911,6 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           debug('Mesh has NO skinning data:', meshData.name);
         }}
         
-        geometry.setIndex(new THREE.BufferAttribute(indices, 1));
         geometry.computeBoundingSphere();
 
         const material = createMaterial(meshData.material, meshData.name);
@@ -5021,7 +5026,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         gamepadStaleFrames = 0;
         gamepadLastTimestamp = 0;
         if (statusEl) {{
-          statusEl.textContent = '⌨️ Keyboard Mode · Press controller button to switch';
+          statusEl.textContent = '⌨️🖱️ Keyboard+Mouse · Press controller button to switch';
           statusEl.style.color = '#60a5fa';
         }}
       }} else {{
@@ -5046,6 +5051,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         gamepadLastTimestamp = 0;
         Object.keys(kbKeys).forEach(k => kbKeys[k] = false);
         Object.keys(kbPrevKeys).forEach(k => kbPrevKeys[k] = false);
+        mouseDeltaX = 0; mouseDeltaY = 0; mouseWheelDelta = 0; mouseRightDown = false;
         if (submenu) submenu.style.display = 'none';
         if (statusEl) statusEl.textContent = '';
       }}
@@ -5294,6 +5300,31 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       kbKeys[e.code] = false;
     }});
 
+    // Mouse events for controller keyboard mode (right-drag = camera, wheel = zoom)
+    // Use document-level listeners since renderer may not exist yet
+    document.addEventListener('mousedown', (e) => {{
+      if (!gamepadEnabled || lastActiveInput !== 'keyboard') return;
+      if (e.target && e.target.tagName === 'CANVAS' && e.button === 2) {{ mouseRightDown = true; e.preventDefault(); }}
+    }});
+    window.addEventListener('mouseup', (e) => {{
+      if (e.button === 2) mouseRightDown = false;
+    }});
+    document.addEventListener('mousemove', (e) => {{
+      if (!gamepadEnabled || lastActiveInput !== 'keyboard' || !mouseRightDown) return;
+      mouseDeltaX += e.movementX;
+      mouseDeltaY += e.movementY;
+    }});
+    document.addEventListener('wheel', (e) => {{
+      if (!gamepadEnabled || lastActiveInput !== 'keyboard') return;
+      if (e.target && e.target.tagName === 'CANVAS') {{
+        mouseWheelDelta += e.deltaY;
+        e.preventDefault();
+      }}
+    }}, {{ passive: false }});
+    document.addEventListener('contextmenu', (e) => {{
+      if (gamepadEnabled && e.target && e.target.tagName === 'CANVAS') e.preventDefault();
+    }});
+
     // ── FreeCam camera update helper ──
     function updateFreeCamCamera() {{
       const lookDir = new THREE.Vector3(
@@ -5391,7 +5422,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           gamepadType = 'keyboard';
           const statusEl = document.getElementById('gamepadStatus');
           if (statusEl) {{
-            statusEl.textContent = '⌨️ Keyboard Mode' + (gp ? ' (controller idle)' : '');
+            statusEl.textContent = '⌨️🖱️ Keyboard+Mouse Mode' + (gp ? ' (controller idle)' : '');
             statusEl.style.color = '#60a5fa';
           }}
         }}
@@ -5401,8 +5432,17 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         const ly = (kbKeys['KeyW'] ? -1 : 0) + (kbKeys['KeyS'] ? 1 : 0);  // W=forward=-1
         const rx = (kbKeys['ArrowRight'] ? 1 : 0) - (kbKeys['ArrowLeft'] ? 1 : 0);
         const ry = (kbKeys['ArrowDown'] ? 1 : 0) - (kbKeys['ArrowUp'] ? 1 : 0);
-        const lt = kbKeys['KeyQ'] ? 1 : 0;  // Q = zoom out
-        const rt = kbKeys['KeyE'] ? 1 : 0;  // E = zoom in
+        let lt = kbKeys['KeyQ'] ? 1 : 0;  // Q = zoom out
+        let rt = kbKeys['KeyE'] ? 1 : 0;  // E = zoom in
+        
+        // Mouse wheel → zoom
+        if (mouseWheelDelta !== 0) {{
+          if (mouseWheelDelta > 0) lt = Math.min(1, lt + 0.5);
+          else rt = Math.min(1, rt + 0.5);
+        }}
+        // Capture mouse deltas for this frame, then consume
+        const mDx = mouseDeltaX, mDy = mouseDeltaY;
+        mouseDeltaX = 0; mouseDeltaY = 0; mouseWheelDelta = 0;
         
         // Build virtual button states from key map
         const vButtons = new Array(17).fill(false);
@@ -5424,6 +5464,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           // Look: right stick / arrows
           if (rx !== 0) tpCamTheta += rx * 0.03 * invX;
           if (ry !== 0) tpCamPhi = Math.max(0.1, Math.min(Math.PI - 0.1, tpCamPhi + ry * 0.02 * invY));
+          // Mouse: right-drag camera look
+          if (mDx !== 0) tpCamTheta += mDx * 0.003 * invX;
+          if (mDy !== 0) tpCamPhi = Math.max(0.1, Math.min(Math.PI - 0.1, tpCamPhi + mDy * 0.003 * invY));
           
           const speed = freeCamBaseSpeed * freeCamSpeed;
           // Full 3D look direction (includes pitch)
@@ -5452,6 +5495,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         // Camera orbit
         if (rx !== 0) tpCamTheta += rx * 0.03 * invX;
         if (ry !== 0) tpCamPhi = Math.max(0.3, Math.min(Math.PI * 0.45, tpCamPhi + ry * 0.02 * invY));
+        // Mouse: right-drag camera orbit
+        if (mDx !== 0) tpCamTheta += mDx * 0.003 * invX;
+        if (mDy !== 0) tpCamPhi = Math.max(0.3, Math.min(Math.PI * 0.45, tpCamPhi + mDy * 0.002 * invY));
         
         // Zoom
         if (lt > 0.05 || rt > 0.05) {{
@@ -6581,6 +6627,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           }}
           const legendItems = baseMappings.filter(m => labels[m[0]]).map(m => ({{ key: labels[m[0]], action: m[1] }}));
           if (tp !== 'keyboard') {{ legendItems.push({{ key: 'L🕹', action: 'Move' }}); legendItems.push({{ key: 'R🕹', action: 'Camera' }}); }}
+          else {{ legendItems.push({{ key: 'WASD', action: 'Move' }}); legendItems.push({{ key: '🖱️RMB', action: 'Camera' }}); legendItems.push({{ key: '⬆⬇⬅➡', action: 'Camera' }}); legendItems.push({{ key: '🖱️Whl', action: 'Zoom' }}); }}
           // Two items per row
           for (let i = 0; i < legendItems.length; i += 2) {{
             const row = [legendItems[i]];
