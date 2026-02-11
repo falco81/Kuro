@@ -1790,6 +1790,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         <span id="lightFillVal" class="info-text" style="min-width:28px;text-align:right;color:#fbbf24;">0.40</span>
       </div>
       <button class="btn-action" onclick="document.getElementById('lightAmbient').value=0.6; document.getElementById('lightKey').value=0.8; document.getElementById('lightFill').value=0.4; if(ambientLight)ambientLight.intensity=0.6; if(dirLight1)dirLight1.intensity=0.8; if(dirLight2)dirLight2.intensity=0.4; document.getElementById('lightAmbVal').textContent='0.60'; document.getElementById('lightKeyVal').textContent='0.80'; document.getElementById('lightFillVal').textContent='0.40';">🔄 Reset Lights</button>
+      <div class="toggle-row" onclick="toggleEmissive(); document.getElementById('swEmissive').checked = emissiveEnabled;">
+        <span class="label">✨ Emissive Glow</span>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="swEmissive" onchange="toggleEmissive()">
+          <span class="slider"></span>
+        </label>
+      </div>
     </div>
 
     
@@ -2023,6 +2030,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let colorMode = false;
     let textureMode = true;
     let wireframeMode = false;
+    let emissiveEnabled = false;  // Emissive glow (default OFF — emissive_g is engine-specific, not PBR)
     let wireframeOverlayMode = false;
     let showSkeleton = false, showJoints = false, showBoneNames = false;
     let currentFps = 0;
@@ -2567,9 +2575,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           skinning: true,
         }};
         
-        if (hasEmissive && sp.emissive_g && sp.emissive_g > 0) {{
-          matParams.emissive = new THREE.Color(0xffffff);
-          matParams.emissiveIntensity = sp.emissive_g;
+        // Note: emissive_g in Trails engine shaders is NOT PBR emission —
+        // it's a shader-specific brightness parameter. Store for optional toggle.
+        // Only apply when Switch_Glow=1 AND glowIntensity_g > 0 (real glow meshes)
+        const glowEligible = sp.Switch_Glow === 1 && (sp.glowIntensity_g || 0) > 0;
+        if (hasEmissive && sp.emissive_g && sp.emissive_g > 0 && glowEligible) {{
+          // Don't apply at startup — store for toggle
+          matParams._emissiveGlow = sp.glowIntensity_g || 0.1;
         }}
         
         if (sp.Switch_AlphaTest === 1) {{
@@ -2581,6 +2593,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         mat.userData.isToonMaterial = true;
         mat.userData.shaderType = shaderType;
         mat.userData.hasFxo = hasFxo;
+        if (matParams._emissiveGlow) mat.userData.emissiveGlow = matParams._emissiveGlow;
         shaderStats.toon++;
         shaderStats.types[shaderType] = (shaderStats.types[shaderType] || 0) + 1;
         if (hasFxo) shaderStats.fxo = (shaderStats.fxo || 0) + 1;
@@ -2718,10 +2731,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
       // Apply shader params to standard material too
       // Note: emissive_g in non-chr shaders (e.g. 'monster') is NOT PBR emission —
-      // it's a shader-specific brightness/crystal parameter. Apply conservatively.
-      if (sp.emissive_g && sp.emissive_g > 0 && sp.Switch_Crystal !== 1) {{
-        matParams.emissiveIntensity = Math.min(sp.emissive_g * 0.15, 0.5);
-        matParams.emissive = 0xffffff;
+      // it's a shader-specific brightness/crystal parameter. Store for optional toggle.
+      const glowEligibleStd = sp.Switch_Glow === 1 && (sp.glowIntensity_g || 0) > 0 && sp.Switch_Crystal !== 1;
+      let stdEmissiveGlow = 0;
+      if (sp.emissive_g && sp.emissive_g > 0 && glowEligibleStd) {{
+        stdEmissiveGlow = sp.glowIntensity_g || 0.1;
       }}
       if (sp.Switch_AlphaTest === 1) {{
         matParams.alphaTest = sp.alphaTestThreshold_g || 0.5;
@@ -2730,7 +2744,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
       shaderStats.standard++;
       if (shaderType) shaderStats.types[shaderType] = (shaderStats.types[shaderType] || 0) + 1;
-      return new THREE.MeshStandardMaterial(matParams);
+      const stdMat = new THREE.MeshStandardMaterial(matParams);
+      if (stdEmissiveGlow > 0) stdMat.userData.emissiveGlow = stdEmissiveGlow;
+      return stdMat;
     }}
 
     let loadingStartTime = Date.now();
@@ -4603,6 +4619,14 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
             fxo.color.setHex(tex ? 0xffffff : 0x808080);
           }}
           fxo.wireframe = wireframeMode;
+          // Apply emissive state
+          if (emissiveEnabled && m.userData.fxoMaterial.userData.emissiveGlow > 0) {{
+            fxo.emissive = new THREE.Color(0xffffff);
+            fxo.emissiveIntensity = Math.min(m.userData.fxoMaterial.userData.emissiveGlow, 0.5);
+          }} else {{
+            fxo.emissive = new THREE.Color(0x000000);
+            fxo.emissiveIntensity = 0;
+          }}
           fxo.needsUpdate = true;
           m.material = fxo;
         }} else {{
@@ -4614,6 +4638,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
               transparent: fxo.transparent || false,
               alphaTest: fxo.alphaTest || 0
             }});
+            // Copy emissive glow eligibility
+            if (fxo.userData.emissiveGlow) m.userData.defaultMaterial.userData.emissiveGlow = fxo.userData.emissiveGlow;
           }}
           const def = m.userData.defaultMaterial;
           def.map = tex;
@@ -4624,6 +4650,14 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
             def.color.setHex(tex ? 0xffffff : 0x808080);
           }}
           def.wireframe = wireframeMode;
+          // Apply emissive state
+          if (emissiveEnabled && def.userData.emissiveGlow > 0) {{
+            def.emissive = new THREE.Color(0xffffff);
+            def.emissiveIntensity = Math.min(def.userData.emissiveGlow, 0.5);
+          }} else {{
+            def.emissive = new THREE.Color(0x000000);
+            def.emissiveIntensity = 0;
+          }}
           def.needsUpdate = true;
           m.material = def;
         }}
@@ -4904,6 +4938,25 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           }}
         }});
       }}
+    }}
+
+    function toggleEmissive() {{
+      emissiveEnabled = !emissiveEnabled;
+      const sw = document.getElementById('swEmissive'); if (sw) sw.checked = emissiveEnabled;
+      meshes.forEach(m => {{
+        const mat = m.material;
+        const glow = mat.userData.emissiveGlow;
+        if (glow && glow > 0) {{
+          if (emissiveEnabled) {{
+            mat.emissive = new THREE.Color(0xffffff);
+            mat.emissiveIntensity = Math.min(glow, 0.5);
+          }} else {{
+            mat.emissive = new THREE.Color(0x000000);
+            mat.emissiveIntensity = 0;
+          }}
+          mat.needsUpdate = true;
+        }}
+      }});
     }}
 
     function resetView() {{
@@ -5975,7 +6028,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           '<div>Vertices: ' + totalVerts.toLocaleString() + '</div>' +
           '<div>Visible: ' + visibleCount + '/' + meshes.length + '</div>' +
           '<div style="color:#9ca3af">Shaders: ' + sMode + '</div>' +
-          '<div style="color:#9ca3af">Tangents: ' + getTangentInfoStr() + '</div>';
+          '<div style="color:#9ca3af">Tangents: ' + getTangentInfoStr() + '</div>' +
+          (emissiveEnabled ? '<div style="color:#fbbf24">✨ Emissive Glow</div>' : '');
         // Show lighting in basic overlay only if non-default
         const la = ambientLight ? ambientLight.intensity : 0.6;
         const lk = dirLight1 ? dirLight1.intensity : 0.8;
@@ -6020,7 +6074,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       html += '<tr><td colspan="2" style="padding:0;color:#9ca3af">Tangents: ' + getTangentInfoStr() + '</td></tr>';
       html += '</table>';
       html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
-      html += '<div>' + dot(colorMode) + ' Colors  ' + dot(textureMode) + ' Textures  ' + dot(wireframeMode) + ' Wire  ' + dot(wireframeOverlayMode) + ' Overlay' + (shaderStats.toon > 0 && !NO_SHADERS ? '  ' + dot(fxoShadersEnabled) + ' FXO' : '') + (recomputeNormalsEnabled ? '  ' + dot(true) + ' Normals' : '') + '</div>';
+      html += '<div>' + dot(colorMode) + ' Colors  ' + dot(textureMode) + ' Textures  ' + dot(wireframeMode) + ' Wire  ' + dot(wireframeOverlayMode) + ' Overlay' + (shaderStats.toon > 0 && !NO_SHADERS ? '  ' + dot(fxoShadersEnabled) + ' FXO' : '') + (recomputeNormalsEnabled ? '  ' + dot(true) + ' Normals' : '') + '  ' + dot(emissiveEnabled) + ' Emissive</div>';
       html += '<div>' + dot(showSkeleton) + ' Skeleton  ' + dot(showJoints) + ' Joints  ' + dot(showBoneNames) + ' Names  ' + dot(dynamicBonesEnabled) + ' Physics  ' + dot(dynCollisionsEnabled) + ' Collisions</div>';
       if (freeCamMode) {{
         html += '<div>' + dot(true) + ' FreeCam · Speed: ' + freeCamSpeed.toFixed(2) + 'x</div>';
@@ -6584,6 +6638,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       ];
       if (shaderStats.toon > 0 && !NO_SHADERS) opts.push(['FXO', fxoShadersEnabled]);
       if (recomputeNormalsEnabled) opts.push(['Normals', true]);
+      opts.push(['Emissive', emissiveEnabled]);
       const optLine = opts.map(o => (o[1] ? '●' : '○') + ' ' + o[0]).join('  ');
       lines.push([optLine, 'mixed']);
 
