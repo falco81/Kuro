@@ -55,7 +55,7 @@ i may never finish it :)<br>
         └───image
         └───shader
 Example:
-python.exe viewer_mdl_textured_scene.py --scene mp1010.json
+python.exe ...\asset\common\model\viewer_mdl_textured_scene.py --scene mp1010.json
 ```
 <img src="doc/scene.png" width="100%">
 
