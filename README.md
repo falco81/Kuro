@@ -39,6 +39,7 @@ for proper function it needs to have all necessary data extracted in the game da
 - **adding a focus function in the UI on the overall model and within individual meshes, for large models such as landscapes, etc.**
 - **mesh highlighting, meshes with box, shadow, kage in the name are hidden by default**
 - **support for lighting settings, enabling and disabling FXO shaders on the fly**
+- **emissive_g fix**
 ---
 
 **Beta8**<br>
