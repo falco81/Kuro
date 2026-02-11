@@ -42,23 +42,6 @@ for proper function it needs to have all necessary data extracted in the game da
 - **emissive_g fix**
 ---
 
-**Alpha - viewer_mdl_textured_scene.py**<br>
-alpha version<br>
-i may never finish it :)<br>
-```
-├───scene
-└───asset
-    ├───common
-    │   └───model
-    │   └───model_info
-    └───dx11
-        └───image
-        └───shader
-Example:
-python.exe ...\asset\common\model\viewer_mdl_textured_scene.py --scene mp1010.json
-```
-<img src="doc/scene.png" width="100%">
-
 **Beta8 - viewer_mdl_textured_anim.py/exe**<br>
 mesh highlighting, meshes with box, shadow, kage in the name are hidden by default<br>
 support for lighting settings, enabling and disabling FXO shaders on the fly<br>
@@ -111,6 +94,23 @@ demo with collision on/off, physics intensity, and more<br>
 **Beta1 - viewer_mdl_textured_anim.py/exe**<br>
 <img src="doc/viewer_anim.png" width="100%">
 
+**Alpha - viewer_mdl_textured_scene.py**<br>
+alpha version<br>
+i may never finish it :)<br>
+```
+├───scene
+└───asset
+    ├───common
+    │   └───model
+    │   └───model_info
+    └───dx11
+        └───image
+        └───shader
+Example:
+python.exe ...\asset\common\model\viewer_mdl_textured_scene.py --scene mp1010.json
+```
+
+<img src="doc/scene.png" width="100%">
 **viewer_mdl_textured.exe**
 new tool for quick preview of model. ideally associate exe with mdl file. for correct display of textures it looks for standard folder structure
 ```
