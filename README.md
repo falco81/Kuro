@@ -42,6 +42,23 @@ for proper function it needs to have all necessary data extracted in the game da
 - **emissive_g fix**
 ---
 
+**Alpha - viewer_mdl_textured_scene.py**<br>
+alpha version<br>
+i may never finish it :)<br>
+```
+├───scene
+└───asset
+    ├───common
+    │   └───model
+    │   └───model_info
+    └───dx11
+        └───image
+        └───shader
+Example:
+python.exe viewer_mdl_textured_scene.py --scene mp1010.json
+```
+<img src="doc/scene.png" width="100%">
+
 **Beta8**<br>
 mesh highlighting, meshes with box, shadow, kage in the name are hidden by default<br>
 support for lighting settings, enabling and disabling FXO shaders on the fly<br>
