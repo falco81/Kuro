@@ -59,14 +59,14 @@ python.exe viewer_mdl_textured_scene.py --scene mp1010.json
 ```
 <img src="doc/scene.png" width="100%">
 
-**Beta8**<br>
+**Beta8 - viewer_mdl_textured_anim.py/exe**<br>
 mesh highlighting, meshes with box, shadow, kage in the name are hidden by default<br>
 support for lighting settings, enabling and disabling FXO shaders on the fly<br>
 <img src="doc/viewer_anim8b.png" width="100%">
 <img src="doc/viewer_anim8.gif" width="100%">
 <img src="doc/viewer_anim8.png" width="100%">
 
-**Beta7**<br>
+**Beta7 - viewer_mdl_textured_anim.py/exe**<br>
 support for game shader files (FXO), fallback to original shaders if not available or force fallback with --no-shaders<br>
 ```
 └───asset
@@ -85,30 +85,30 @@ Generated shaders - no FXO files
 <img src="doc/viewer_anim7b.gif" width="100%">
 <img src="doc/viewer_anim7b.png" width="100%">
 
-**Beta6**<br>
+**Beta6 - viewer_mdl_textured_anim.py/exe**<br>
 3D FreeCam mode<br>
 <img src="doc/viewer_anim6.gif" width="100%">
 <img src="doc/viewer_anim6.png" width="100%">
 
-**Beta5**<br>
+**Beta5 - viewer_mdl_textured_anim.py/exe**<br>
 Added controller support<br>
 <img src="doc/viewer_anim5a.png" width="100%">
 <img src="doc/viewer_anim5b.png" width="100%">
 
-**Beta4**<br>
+**Beta4 - viewer_mdl_textured_anim.py/exe**<br>
 character movement support<br>
 <img src="doc/viewer_anim4.gif" width="100%">
 <img src="doc/viewer_anim4.png" width="100%">
 
-**Beta3**<br>
+**Beta3 - viewer_mdl_textured_anim.py/exe**<br>
 demo with collision on/off, physics intensity, and more<br>
 <img src="doc/viewer_anim3.gif" width="100%">
 <img src="doc/viewer_anim3.png" width="100%">
 
-**Beta2**<br>
+**Beta2 - viewer_mdl_textured_anim.py/exe**<br>
 <img src="doc/viewer_anim2.png" width="100%">
 
-**Beta1**<br>
+**Beta1 - viewer_mdl_textured_anim.py/exe**<br>
 <img src="doc/viewer_anim.png" width="100%">
 
 **viewer_mdl_textured.exe**
