@@ -1917,7 +1917,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     <div id="meshSection" style="display:none;">
       <button class="btn-action" onclick="toggleAllMeshes(true)">✅ Show All</button>
       <button class="btn-action" onclick="toggleAllMeshes(false)">❌ Hide All</button>
-      <div class="toggle-row" onclick="toggleHideShadow(); document.getElementById('swShadow').checked = hideShadowMeshes;">
+      <div id="shadowToggleRow" class="toggle-row" style="display:none;" onclick="toggleHideShadow(); document.getElementById('swShadow').checked = hideShadowMeshes;">
         <span class="label">👤 Hide Shadow</span>
         <label class="toggle-switch" onclick="event.stopPropagation()">
           <input type="checkbox" id="swShadow" checked onchange="toggleHideShadow()">
@@ -4621,6 +4621,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (shaderStats.toon > 0 && !NO_SHADERS) {{
         const fxoRow = document.getElementById('fxoToggleRow');
         if (fxoRow) fxoRow.style.display = '';
+      }}
+      // Show Hide Shadow toggle if any shadow meshes exist
+      if (meshes.some(m => m.userData.isShadowMesh)) {{
+        const shadowRow = document.getElementById('shadowToggleRow');
+        if (shadowRow) shadowRow.style.display = '';
       }}
     }}
 
