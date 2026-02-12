@@ -2118,6 +2118,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           </select>
           <select id="face-subsection-select" class="styled-select" style="display:none;margin-top:4px;font-size:11px;" onchange="setFaceSubsection(this.value)">
           </select>
+          <div id="face-body-idle-row" class="toggle-row" style="display:none;margin-top:4px;" onclick="toggleFaceBodyIdle(); document.getElementById('swFaceBodyIdle').checked = !!bodyIdleAction;">
+            <span class="label">🏃 Body Idle</span>
+            <label class="toggle-switch" onclick="event.stopPropagation()">
+              <input type="checkbox" id="swFaceBodyIdle" onchange="toggleFaceBodyIdle()">
+              <span class="slider"></span>
+            </label>
+          </div>
           <button class="btn-action" id="btnAnimToggle" onclick="toggleAnimPlayback()">⏹️ Stop</button>
           <div class="slider-row">
             <span id="animTimeLabel" class="info-text" style="min-width:60px;">0.00 / 0.00</span>
@@ -3884,6 +3891,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let animationClips = {{}};
     let currentAnimName = null;
     let faceSubRange = null; // {{start, end}} or null for full loop
+    let bodyIdleAction = null; // body idle playing alongside face anim
 
     function buildAnimationClipsAsync(onProgress) {{
       return new Promise((resolve) => {{
@@ -4027,6 +4035,18 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
     }}
 
+    function findIdleAnimName() {{
+      const names = Object.keys(animationClips);
+      let best = null;
+      for (const name of names) {{
+        if (name.startsWith('face:')) continue;
+        const lower = name.toLowerCase();
+        if (lower === 'wait') return name;
+        if (!best && (lower.includes('wait') || lower.includes('idle') || lower.includes('stand'))) best = name;
+      }}
+      return best;
+    }}
+
     function playAnimation(animName) {{
       if (!bones || bones.length === 0) return;
       const clip = animationClips[animName];
@@ -4036,20 +4056,25 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (animationMixer) {{
         animationMixer.stopAllAction();
       }}
+      bodyIdleAction = null;
 
       // Create mixer on root bone
       const target = bones[0];
       animationMixer = new THREE.AnimationMixer(target);
       // Apply current speed slider
       const speedSlider = document.getElementById('animSpeedSlider');
-      if (speedSlider) animationMixer.timeScale = Math.pow(2, parseInt(speedSlider.value) / 50);
-      // Face animations run at half speed (baked at 2x in source data)
-      const isFaceAnim = animName.startsWith('face:');
-      if (isFaceAnim) animationMixer.timeScale *= 0.2;
+      const baseSpeed = speedSlider ? Math.pow(2, parseInt(speedSlider.value) / 50) : 1;
+      animationMixer.timeScale = baseSpeed;
       currentAnimName = animName;
       faceSubRange = null;
 
+      const isFaceAnim = animName.startsWith('face:');
+
       currentAnimation = animationMixer.clipAction(clip);
+      // Face animations: slow down via per-action timeScale (not mixer-level)
+      if (isFaceAnim) {{
+        currentAnimation.timeScale = 0.2;
+      }}
       currentAnimation.play();
       
       // Update toggle button
@@ -4080,6 +4105,19 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }}
       }}
       
+      // Body idle toggle (only for face animations)
+      const idleRow = document.getElementById('face-body-idle-row');
+      const idleSw = document.getElementById('swFaceBodyIdle');
+      if (idleRow) {{
+        if (isFaceAnim && findIdleAnimName()) {{
+          idleRow.style.display = '';
+          if (idleSw) idleSw.checked = false;
+        }} else {{
+          idleRow.style.display = 'none';
+          if (idleSw) idleSw.checked = false;
+        }}
+      }}
+      
       // Reset dynamic bone particles to new animated pose after one frame
       if (dynamicBonesEnabled) {{
         setTimeout(() => {{ resetDynamicBones(); }}, 50);
@@ -4104,6 +4142,32 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }}
         debug('Face subsection:', sub.label, sub.start.toFixed(2), '-', sub.end.toFixed(2));
       }}
+    }}
+
+    function toggleFaceBodyIdle() {{
+      if (!currentAnimName || !currentAnimName.startsWith('face:') || !animationMixer) return;
+      
+      if (bodyIdleAction) {{
+        // Turn off: stop body idle
+        bodyIdleAction.stop();
+        bodyIdleAction = null;
+        debug('Body idle OFF');
+      }} else {{
+        // Turn on: start body idle
+        const idleName = findIdleAnimName();
+        if (idleName) {{
+          const idleClip = animationClips[idleName];
+          if (idleClip) {{
+            bodyIdleAction = animationMixer.clipAction(idleClip);
+            bodyIdleAction.timeScale = 1.0;
+            if (currentAnimation && currentAnimation.paused) bodyIdleAction.paused = true;
+            bodyIdleAction.play();
+            debug('Body idle ON:', idleName);
+          }}
+        }}
+      }}
+      const sw = document.getElementById('swFaceBodyIdle');
+      if (sw) sw.checked = !!bodyIdleAction;
     }}
 
     // Smooth crossfade for third-person auto-animations (reuses same mixer)
@@ -4136,8 +4200,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       currentAnimation = newAction;
       currentAnimName = animName;
       faceSubRange = null;
+      bodyIdleAction = null;
       const subSel = document.getElementById('face-subsection-select');
       if (subSel) subSel.style.display = 'none';
+      const idleRow2 = document.getElementById('face-body-idle-row');
+      if (idleRow2) idleRow2.style.display = 'none';
       
       const btn = document.getElementById('btnAnimToggle');
       if (btn) {{ btn.textContent = '⏸️ Pause'; btn.className = 'btn-action active'; }}
@@ -4145,15 +4212,17 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
     function updateAnimSpeed(val) {{
       const v = parseInt(val);
-      // -100→0.25x, 0→1.0x, +100→4.0x (exponential for natural feel)
-      let speed = Math.pow(2, v / 50);
-      // Face animations run at half speed
-      if (currentAnimName && currentAnimName.startsWith('face:')) speed *= 0.2;
+      const baseSpeed = Math.pow(2, v / 50);
       if (animationMixer) {{
-        animationMixer.timeScale = speed;
+        animationMixer.timeScale = baseSpeed;
+      }}
+      // Face anim uses per-action timeScale, mixer stays at base speed
+      if (currentAnimation && currentAnimName && currentAnimName.startsWith('face:')) {{
+        currentAnimation.timeScale = 0.2;
+        if (bodyIdleAction) bodyIdleAction.timeScale = 1.0;
       }}
       const label = document.getElementById('animSpeedLabel');
-      if (label) label.textContent = speed.toFixed(1) + 'x';
+      if (label) label.textContent = baseSpeed.toFixed(1) + 'x';
     }}
 
     function toggleAnimPlayback() {{
@@ -4167,9 +4236,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const btn = document.getElementById('btnAnimToggle');
       if (currentAnimation.paused) {{
         currentAnimation.paused = false;
+        if (bodyIdleAction) bodyIdleAction.paused = false;
         if (btn) {{ btn.textContent = '⏸️ Pause'; btn.className = 'btn-action active'; }}
       }} else {{
         currentAnimation.paused = true;
+        if (bodyIdleAction) bodyIdleAction.paused = true;
         if (btn) {{ btn.textContent = '▶️ Play'; btn.className = 'btn-action'; }}
       }}
     }}
@@ -4182,12 +4253,15 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       currentAnimation = null;
       currentAnimName = null;
       faceSubRange = null;
+      bodyIdleAction = null;
 
       // Reset dropdown and button
       const sel = document.getElementById('animation-select');
       if (sel) sel.value = '';
       const subSel = document.getElementById('face-subsection-select');
       if (subSel) subSel.style.display = 'none';
+      const idleRow = document.getElementById('face-body-idle-row');
+      if (idleRow) idleRow.style.display = 'none';
       const btn = document.getElementById('btnAnimToggle');
       if (btn) {{ btn.textContent = '⏹️ Stop'; btn.className = 'btn-action'; }}
       const slider = document.getElementById('animTimeline');
@@ -6629,6 +6703,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
       html += '<div style="color:#60a5fa">Anim: ' + animName + '</div>';
+      if (bodyIdleAction) {{
+        html += '<div style="color:#60a5fa;padding-left:6ch">+ body: idle</div>';
+      }}
       if (faceSubRange) {{
         html += '<div style="color:#60a5fa;padding-left:6ch">subsection: ' + faceSubRange.label + ' (' + faceSubRange.start.toFixed(2) + '-' + faceSubRange.end.toFixed(2) + 's)</div>';
       }}
@@ -7224,6 +7301,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // Animation info (always show)
       lines.push([div, 'divider']);
       lines.push(['Anim: ' + animName, 'anim']);
+      if (bodyIdleAction) {{
+        lines.push(['      + body: idle', 'anim']);
+      }}
       if (faceSubRange) {{
         lines.push(['      sub: ' + faceSubRange.label + ' (' + faceSubRange.start.toFixed(2) + '-' + faceSubRange.end.toFixed(2) + 's)', 'anim']);
       }}
