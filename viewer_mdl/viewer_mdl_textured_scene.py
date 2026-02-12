@@ -42,6 +42,17 @@ import atexit
 import time
 import shutil
 import fractions
+import os
+
+# Windows CLI encoding fix: ensure stdout can handle all characters
+if sys.platform == 'win32':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass  # Python < 3.7 fallback
+    # Also set console code page
+    os.system('chcp 65001 >nul 2>&1')
 
 # Import parser functions
 from kuro_mdl_export_meshes import decryptCLE, obtain_material_data, obtain_mesh_data  # type: ignore
@@ -1149,7 +1160,7 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
             chr_count = sum(v for k, v in shader_types.items() if k.startswith('chr_'))
             if chr_count:
                 if no_shaders:
-                    print(f"[!] {chr_count} materials could use toon rendering — disabled by --no-shaders")
+                    print(f"[!] {chr_count} materials could use toon rendering - disabled by --no-shaders")
                 else:
                     print(f"[+] {chr_count} materials will use toon shader rendering")
         
@@ -1212,14 +1223,14 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
                                 }
                             print(f"  [FXO] {sname}: {fxo_glob[0].name} ({len(caps['uniforms'])} uniforms, {len(caps['textures'])} tex, {len(fxo_glob)} variants)")
                         else:
-                            print(f"  [FXO] {sname}: {fxo_glob[0].name} — parse failed")
+                            print(f"  [FXO] {sname}: {fxo_glob[0].name} - parse failed")
                     else:
                         fxo_cache[sname] = None
                         print(f"  [FXO] {sname}: no matching files found")
                 if fxo_loaded > 0:
                     print(f"[+] Loaded {fxo_loaded} FXO shader definitions")
                 else:
-                    print(f"[!] No FXO matches found — check filenames above vs expected patterns")
+                    print(f"[!] No FXO matches found - check filenames above vs expected patterns")
             elif fxo_dir:
                 print(f"[!] FXO shader directory not found: {fxo_dir}")
             else:
@@ -1369,6 +1380,7 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
 
             mesh_data = {
                 "name": f"{i}_{base_name}_{j:02d}",
+                "mesh_block_name": base_name,
                 "vertices": vertices,
                 "normals": normals,
                 "uvs": uvs,
@@ -1436,6 +1448,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         
         mesh_info = {
             "name": m["name"],
+            "blockName": m.get("mesh_block_name", ""),
             "vertices": verts.astype(np.float32).flatten().tolist(),
             "normals": norms.astype(np.float32).flatten().tolist(),
             "indices": idxs.astype(np.uint32).tolist(),
@@ -2691,6 +2704,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           skinning: true,
         }};
         
+        // Apply diffuse map color tint — engine multiplies texture by this color
+        if (sp.Switch_DiffuseMapColor0 === 1 && sp.diffuseMapColor0_g) {{
+          matParams.color = new THREE.Color().fromArray(sp.diffuseMapColor0_g);
+        }}
+        
         // Note: emissive_g in Trails engine shaders is NOT PBR emission —
         // it's a shader-specific brightness parameter. Store for optional toggle.
         if (hasEmissive && sp.emissive_g && sp.emissive_g > 0) {{
@@ -2706,6 +2724,12 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         mat.userData.isToonMaterial = true;
         mat.userData.shaderType = shaderType;
         mat.userData.hasFxo = hasFxo;
+        mat.userData.isShadowOnly = !!(sp.Switch_ShadowOnly);
+        mat.userData.isGlow = !!(sp.Switch_Glow);
+        mat.userData.isBillboard = !!(sp.Switch_Billboard || sp.Switch_BillboardY);
+        // Store diffuse tint for toggle/reset paths (default white = no tint)
+        mat.userData.diffuseTint = (sp.Switch_DiffuseMapColor0 === 1 && sp.diffuseMapColor0_g)
+          ? new THREE.Color().fromArray(sp.diffuseMapColor0_g).getHex() : 0xffffff;
         if (matParams._emissiveGlow) mat.userData.emissiveGlow = matParams._emissiveGlow;
         shaderStats.toon++;
         shaderStats.types[shaderType] = (shaderStats.types[shaderType] || 0) + 1;
@@ -2762,7 +2786,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           const wrapT = typeof texInfo === 'object' ? (texInfo.wrapT || 0) : 0;
           
           loadTexture(texPath, wrapS, wrapT, texture => {{
-            const mesh = meshes.find(m => m.userData.meshName === meshName);
+            const mesh = meshes.find(m => m.userData.materialName === materialName);
             if (mesh) {{
               mesh.material.map = texture;
               mesh.userData.originalMap = texture;
@@ -2781,7 +2805,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           const wrapS = typeof texInfo === 'object' ? (texInfo.wrapS || 0) : 0;
           const wrapT = typeof texInfo === 'object' ? (texInfo.wrapT || 0) : 0;
           loadTexture(texPath, wrapS, wrapT, texture => {{
-            const mesh = meshes.find(m => m.userData.meshName === meshName);
+            const mesh = meshes.find(m => m.userData.materialName === materialName);
             if (mesh) {{
               mesh.material.normalMap = texture;
               mesh.userData.originalNormalMap = texture;
@@ -2805,6 +2829,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       
       // Fallback: standard material for non-character shaders
       const matParams = {{ roughness: 0.7, metalness: 0.2, side: THREE.DoubleSide, skinning: true }};
+      
+      // Apply diffuse map color tint — engine multiplies texture by this color
+      if (sp.Switch_DiffuseMapColor0 === 1 && sp.diffuseMapColor0_g) {{
+        matParams.color = new THREE.Color().fromArray(sp.diffuseMapColor0_g);
+      }}
 
       if (matData.diffuse) {{
         totalTexturesCount++;
@@ -2814,7 +2843,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         const wrapT = typeof texInfo === 'object' ? (texInfo.wrapT || 0) : 0;
         
         loadTexture(texPath, wrapS, wrapT, texture => {{
-          const mesh = meshes.find(m => m.userData.meshName === meshName);
+          const mesh = meshes.find(m => m.userData.materialName === materialName);
           if (mesh) {{
             mesh.material.map = texture;
             mesh.userData.originalMap = texture;
@@ -2833,7 +2862,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         const wrapT = typeof texInfo === 'object' ? (texInfo.wrapT || 0) : 0;
         
         loadTexture(texPath, wrapS, wrapT, texture => {{
-          const mesh = meshes.find(m => m.userData.meshName === meshName);
+          const mesh = meshes.find(m => m.userData.materialName === materialName);
           if (mesh) {{
             mesh.material.normalMap = texture;
             mesh.userData.originalNormalMap = texture;
@@ -2857,6 +2886,12 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       shaderStats.standard++;
       if (shaderType) shaderStats.types[shaderType] = (shaderStats.types[shaderType] || 0) + 1;
       const stdMat = new THREE.MeshStandardMaterial(matParams);
+      stdMat.userData.isShadowOnly = !!(sp.Switch_ShadowOnly);
+      stdMat.userData.isGlow = !!(sp.Switch_Glow);
+      stdMat.userData.isBillboard = !!(sp.Switch_Billboard || sp.Switch_BillboardY);
+      // Store diffuse tint for toggle/reset paths (default white = no tint)
+      stdMat.userData.diffuseTint = (sp.Switch_DiffuseMapColor0 === 1 && sp.diffuseMapColor0_g)
+        ? new THREE.Color().fromArray(sp.diffuseMapColor0_g).getHex() : 0xffffff;
       if (stdEmissiveGlow > 0) stdMat.userData.emissiveGlow = stdEmissiveGlow;
       return stdMat;
     }}
@@ -2888,6 +2923,25 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     }}
 
     function init() {{
+      // Safety: force-hide loading overlay after 30s even if errors occur
+      setTimeout(() => {{
+        const ov = document.getElementById('loading-overlay');
+        if (ov && !ov.classList.contains('hidden')) {{
+          console.error('[SAFETY] Loading timeout - force hiding overlay');
+          hideLoadingOverlay();
+          animate();
+        }}
+      }}, 30000);
+      // Catch any uncaught errors during loading
+      window.onerror = function(msg, url, line, col, err) {{
+        console.error('[UNCAUGHT]', msg, 'at line', line, col, err);
+        const ov = document.getElementById('loading-overlay');
+        if (ov && !ov.classList.contains('hidden')) {{
+          hideLoadingOverlay();
+          if (typeof animate === 'function') animate();
+        }}
+        return false;
+      }};
       updateLoadingProgress('Setting up renderer...', '', 5);
 
       scene = new THREE.Scene();
@@ -2923,9 +2977,17 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           loadSkeleton();
           updateLoadingProgress('Loading meshes...', data.length + ' meshes', 30);
           setTimeout(() => {{
+            try {{
             loadMeshes();
             // __SCENE_INJECT_AFTER_LOAD__
-            if (typeof SCENE_MODE === 'undefined' || !SCENE_MODE) populateMeshList();
+            if (typeof SCENE_MODE === 'undefined' || !SCENE_MODE) {{
+              populateMeshList();
+              _applyDefaultMeshHiding();
+            }}
+            }} catch(loadErr) {{
+              console.error('[LOAD ERROR]', loadErr);
+              document.title = 'ERROR: ' + loadErr.message;
+            }}
             const animCount = animationsData ? animationsData.length : 0;
             if (animCount > 0) {{
               updateLoadingProgress('Building animations...', '0 / ' + animCount, 35);
@@ -3078,21 +3140,26 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }}
         
         mesh.userData.meshName = meshData.name;
+        mesh.userData.blockName = meshData.blockName || '';
         mesh.userData.modelName = meshData.modelName || '';
         mesh.userData.materialName = meshData.material;
         mesh.userData.originalColor = colors[idx % colors.length];
         mesh.userData.hasTexture = !!meshData.material && !!materials[meshData.material];
         mesh.userData.hasSkinning = hasSkinning;
+        mesh.userData.diffuseTint = material.userData?.diffuseTint || 0xffffff;
+        
+        // Tag meshes based on shader parameters from MDL (no name heuristics)
+        const _mu = material.userData || {{}};
+        mesh.userData.isShadowMesh = !!_mu.isShadowOnly;
+        mesh.userData.isEffectMesh = !!_mu.isGlow || !!_mu.isBillboard;
+        mesh.userData.isHiddenByDefault = mesh.userData.isShadowMesh || mesh.userData.isEffectMesh;
+        
         // Store FXO material for toggle
         if (material.userData && material.userData.isToonMaterial) {{
           mesh.userData.fxoMaterial = material;
         }}
         
-        const hideKeywords = ['shadow', 'kage', 'box'];
-        if (CONFIG.AUTO_HIDE_SHADOW && 
-            hideKeywords.some(keyword => meshData.name.toLowerCase().includes(keyword))) {{
-          mesh.visible = false;
-        }}
+        // All meshes start visible — hiding applied later after UI is built
         
         scene.add(mesh);
         meshes.push(mesh);
@@ -4652,6 +4719,63 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
     function populateMeshList() {{
       const list = document.getElementById('mesh-list');
+      
+      // Count tagged meshes
+      const shadowCount = meshes.filter(m => m.userData.isShadowMesh).length;
+      const effectCount = meshes.filter(m => m.userData.isEffectMesh).length;
+      
+      // Add shadow toggle row if any shadow meshes exist
+      if (shadowCount > 0) {{
+        const shadowRow = document.createElement('div');
+        shadowRow.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 6px;margin-bottom:4px;background:rgba(100,50,50,0.15);border-radius:6px;border:1px solid rgba(200,100,100,0.2);';
+        const swShadow = document.createElement('input');
+        swShadow.type = 'checkbox'; swShadow.id = 'sw-shadow-all'; swShadow.checked = !CONFIG.AUTO_HIDE_SHADOW;
+        swShadow.addEventListener('change', () => {{
+          meshes.forEach((m, idx) => {{
+            if (m.userData.isShadowMesh) {{
+              m.visible = swShadow.checked;
+              if (wireframeOverlayMode && m.userData.wireframeOverlay) m.userData.wireframeOverlay.visible = swShadow.checked;
+              const cb = document.getElementById(`mesh-${{idx}}`);
+              if (cb) cb.checked = swShadow.checked;
+            }}
+          }});
+          updateStats();
+        }});
+        const swLbl = document.createElement('label');
+        swLbl.htmlFor = 'sw-shadow-all';
+        swLbl.style.cssText = 'font-size:11px;color:#e0a0a0;cursor:pointer;flex:1;';
+        swLbl.textContent = '👻 Shadow meshes (' + shadowCount + ')';
+        shadowRow.appendChild(swShadow);
+        shadowRow.appendChild(swLbl);
+        list.appendChild(shadowRow);
+      }}
+      
+      // Add effect toggle row if any effect meshes exist
+      if (effectCount > 0) {{
+        const effectRow = document.createElement('div');
+        effectRow.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 6px;margin-bottom:4px;background:rgba(50,50,100,0.15);border-radius:6px;border:1px solid rgba(100,100,200,0.2);';
+        const swEffect = document.createElement('input');
+        swEffect.type = 'checkbox'; swEffect.id = 'sw-effect-all'; swEffect.checked = !CONFIG.AUTO_HIDE_SHADOW;
+        swEffect.addEventListener('change', () => {{
+          meshes.forEach((m, idx) => {{
+            if (m.userData.isEffectMesh) {{
+              m.visible = swEffect.checked;
+              if (wireframeOverlayMode && m.userData.wireframeOverlay) m.userData.wireframeOverlay.visible = swEffect.checked;
+              const cb = document.getElementById(`mesh-${{idx}}`);
+              if (cb) cb.checked = swEffect.checked;
+            }}
+          }});
+          updateStats();
+        }});
+        const efLbl = document.createElement('label');
+        efLbl.htmlFor = 'sw-effect-all';
+        efLbl.style.cssText = 'font-size:11px;color:#a0a0e0;cursor:pointer;flex:1;';
+        efLbl.textContent = '✨ Effect meshes (' + effectCount + ')';
+        effectRow.appendChild(swEffect);
+        effectRow.appendChild(efLbl);
+        list.appendChild(effectRow);
+      }}
+      
       meshes.forEach((mesh, idx) => {{
         const div = document.createElement('div');
         div.className = 'mesh-toggle';
@@ -4670,10 +4794,27 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         
         const label = document.createElement('label');
         label.htmlFor = `mesh-${{idx}}`;
-        label.textContent = mesh.userData.meshName;
         label.style.flex = '1';
         label.style.overflow = 'hidden';
         label.style.textOverflow = 'ellipsis';
+        
+        // Tag icon prefix
+        if (mesh.userData.isShadowMesh) {{
+          const icon = document.createElement('span');
+          icon.textContent = '👻';
+          icon.title = 'Shadow mesh (Switch_ShadowOnly=1)';
+          icon.style.cssText = 'margin-right:3px;font-size:11px;';
+          label.appendChild(icon);
+        }} else if (mesh.userData.isEffectMesh) {{
+          const icon = document.createElement('span');
+          icon.textContent = '✨';
+          icon.title = 'Effect mesh (Glow/Billboard)';
+          icon.style.cssText = 'margin-right:3px;font-size:11px;';
+          label.appendChild(icon);
+        }}
+        
+        const nameText = document.createTextNode(mesh.userData.meshName);
+        label.appendChild(nameText);
         
         if (mesh.userData.hasTexture) {{
           const indicator = document.createElement('span');
@@ -4711,6 +4852,28 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         const checkbox = document.getElementById(`mesh-${{idx}}`);
         if (checkbox) checkbox.checked = visible;
       }});
+      // Sync shadow & effect toggles
+      const swSh = document.getElementById('sw-shadow-all');
+      if (swSh) swSh.checked = visible;
+      const swEf = document.getElementById('sw-effect-all');
+      if (swEf) swEf.checked = visible;
+      updateStats();
+    }}
+
+    // Apply default hiding of tagged meshes (shadow, effect) AFTER UI is built
+    function _applyDefaultMeshHiding() {{
+      if (!CONFIG.AUTO_HIDE_SHADOW) return;
+      meshes.forEach((m, idx) => {{
+        if (m.userData.isHiddenByDefault) {{
+          m.visible = false;
+          const cb = document.getElementById(`mesh-${{idx}}`);
+          if (cb) cb.checked = false;
+        }}
+      }});
+      const swSh = document.getElementById('sw-shadow-all');
+      if (swSh) swSh.checked = false;
+      const swEf = document.getElementById('sw-effect-all');
+      if (swEf) swEf.checked = false;
       updateStats();
     }}
 
@@ -4731,7 +4894,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           if (colorMode) {{
             fxo.color.setHex(m.userData.originalColor);
           }} else {{
-            fxo.color.setHex(tex ? 0xffffff : 0x808080);
+            const tint = m.userData.diffuseTint || 0xffffff;
+            fxo.color.setHex(tex ? tint : 0x808080);
           }}
           fxo.wireframe = wireframeMode;
           // Apply emissive state
@@ -4762,7 +4926,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           if (colorMode) {{
             def.color.setHex(m.userData.originalColor);
           }} else {{
-            def.color.setHex(tex ? 0xffffff : 0x808080);
+            const tint = m.userData.diffuseTint || 0xffffff;
+            def.color.setHex(tex ? tint : 0x808080);
           }}
           def.wireframe = wireframeMode;
           // Apply emissive state
@@ -4964,10 +5129,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       colorMode = !colorMode;
       const sw = document.getElementById('swColors'); if (sw) sw.checked = colorMode;
       meshes.forEach(m => {{
+        const tint = m.userData.diffuseTint || 0xffffff;
         if (colorMode) {{
           m.material.color.setHex(m.userData.originalColor);
         }} else if (m.material.map) {{
-          m.material.color.setHex(0xffffff);
+          m.material.color.setHex(tint);
         }} else {{
           m.material.color.setHex(0x808080);
         }}
@@ -4979,10 +5145,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       textureMode = !textureMode;
       const sw = document.getElementById('swTex'); if (sw) sw.checked = textureMode;
       meshes.forEach(m => {{
+        const tint = m.userData.diffuseTint || 0xffffff;
         if (textureMode) {{
           if (m.userData.originalMap) {{
             m.material.map = m.userData.originalMap;
-            m.material.color.setHex(colorMode ? m.userData.originalColor : 0xffffff);
+            m.material.color.setHex(colorMode ? m.userData.originalColor : tint);
           }}
           if (m.userData.originalNormalMap) {{
             m.material.normalMap = m.userData.originalNormalMap;
@@ -5127,17 +5294,20 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       document.getElementById('meshOpacity').value = 1;
       document.getElementById('meshOpVal').textContent = '1';
       setMeshOpacity(1);
-      // Show all meshes, then re-hide shadow meshes (matching initial state)
+      // Show all meshes, then re-hide tagged meshes (matching initial state)
       toggleAllMeshes(true);
       if (CONFIG.AUTO_HIDE_SHADOW) {{
-        const hideKeywords = ['shadow', 'kage', 'box'];
         meshes.forEach((m, idx) => {{
-          if (hideKeywords.some(kw => m.userData.meshName.toLowerCase().includes(kw))) {{
+          if (m.userData.isHiddenByDefault) {{
             m.visible = false;
             const cb = document.getElementById(`mesh-${{idx}}`);
             if (cb) cb.checked = false;
           }}
         }});
+        const swSh = document.getElementById('sw-shadow-all');
+        if (swSh) swSh.checked = false;
+        const swEf = document.getElementById('sw-effect-all');
+        if (swEf) swEf.checked = false;
       }}
 
       // Reset camera to frame model
@@ -7237,6 +7407,7 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
         actor_entries.append({
             'n': a.get('instance_name', a['name']), 't': a['type'], 'mk': a.get('model_key', ''),
             'c': cat, 'cl': color,
+            'src': a.get('source', ''),
             'p': [round(a['tx'], 3), round(a['ty'], 3), round(a['tz'], 3)],
             'r': [round(a['rx'], 3), round(a['ry'], 3), round(a['rz'], 3)],
             's': [round(a['sx'], 4), round(a['sy'], 4), round(a['sz'], 4)],
@@ -7247,9 +7418,20 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
     xs = [a['p'][0] for a in actor_entries]
     ys = [a['p'][1] for a in actor_entries]
     zs = [a['p'][2] for a in actor_entries]
-    cx = (min(xs) + max(xs)) / 2
+    
+    # Camera target: center of main scene only (exclude interior sub-scenes at edge)
+    _main_actor_entries = [a for a in actor_entries
+        if not (a['src'].startswith(scene_name + '_') and len(a['src']) == len(scene_name) + 3
+                and a['src'][-2:].isdigit())]
+    if _main_actor_entries:
+        _mxs = [a['p'][0] for a in _main_actor_entries]
+        _mzs = [a['p'][2] for a in _main_actor_entries]
+        cx = (min(_mxs) + max(_mxs)) / 2
+        cz = (min(_mzs) + max(_mzs)) / 2
+    else:
+        cx = (min(xs) + max(xs)) / 2
+        cz = (min(zs) + max(zs)) / 2
     cy = max(ys) + 40
-    cz = (min(zs) + max(zs)) / 2
     # Ground-level Y for orbit target (median Y is a good proxy for ground level)
     sorted_ys = sorted(ys)
     groundY = sorted_ys[len(sorted_ys) // 2]  # median Y
@@ -7380,6 +7562,7 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
         const sceneCats = {};
         const sceneCatMeshes = {};
         const sceneN2M = {};
+        const sceneSrcGroups = {};
         let sceneResolved = 0, scenePlaceholder = 0;
         
         SCENE_ACTORS.forEach((actor, i) => {
@@ -7404,9 +7587,8 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
             // Clone all meshes from this model
             modelRegistry[mk].forEach(templateMesh => {
               const clone = templateMesh.clone();
-              // Hide shadow/kage/box submeshes (non-visual collision/shadow geometry)
-              const _cmn = (clone.userData?.meshName || clone.name || '').toLowerCase();
-              clone.visible = !(_cmn.includes('box') || _cmn.includes('shadow') || _cmn.includes('kage'));
+              // All clones start visible — hiding applied after UI is built
+              clone.visible = true;
               clone.userData._isTemplate = false;
               clone.userData.sceneActor = actor;
               // IMPORTANT: Do NOT clone material — shared material receives async textures
@@ -7434,7 +7616,8 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
             scenePlaceholder++;
           }
           
-          group.userData = { name: actor.n, type: actor.t, cat: actor.c, sceneIdx: i, isSceneActor: true };
+          group.userData = { name: actor.n, type: actor.t, cat: actor.c, src: actor.src || '', sceneIdx: i, isSceneActor: true,
+            isEffectActor: ['light','special','probe','event','monster'].includes(actor.c) };
           scene.add(group);
           sceneInstances.push(group);
           
@@ -7445,24 +7628,60 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
           sceneCatMeshes[actor.c].push(group);
           if (!sceneN2M[actor.n]) sceneN2M[actor.n] = [];
           sceneN2M[actor.n].push(group);
+          
+          // Source scene tracking
+          const src = actor.src || 'main';
+          if (!sceneSrcGroups[src]) sceneSrcGroups[src] = [];
+          sceneSrcGroups[src].push(group);
         });
         
         console.log('[Scene] Placed', sceneInstances.length, 'actors:', sceneResolved, 'with models,', scenePlaceholder, 'placeholders');
+        console.log('[Scene] Sources:', Object.entries(sceneSrcGroups).map(([k,v]) => k + ':' + v.length).join(', '));
+        // Child scene diagnostic
+        Object.entries(sceneSrcGroups).forEach(([src, grps]) => {
+          const resolved = grps.filter(g => g.children.length > 0 && g.children[0].userData && !g.children[0].geometry?.type?.includes('Geometry'));
+          const placeholders = grps.length - resolved.length;
+          if (src !== SCENE_CFG.name && src !== 'terrain') {
+            console.log('[Scene]  ' + src + ': ' + grps.length + ' actors (' + resolved.length + ' with models, ' + placeholders + ' placeholders)');
+          }
+        });
+        
+        // ═══ TERRAIN DIAGNOSTIC ═══
+        const terrainActors = SCENE_ACTORS.filter(a => a.c === 'terrain');
+        console.log('[TERRAIN] Terrain actors in SCENE_ACTORS:', terrainActors.length);
+        terrainActors.forEach(a => {
+          const reg = modelRegistry[a.mk];
+          console.log('  [TERRAIN]', a.mk, '→ modelRegistry:', reg ? reg.length + ' meshes' : '*** NOT FOUND ***',
+            '| pos:', a.p, '| scale:', a.s);
+        });
+        const regKeys = Object.keys(modelRegistry);
+        const mpKeys = regKeys.filter(k => k.startsWith('mp'));
+        console.log('[TERRAIN] ModelRegistry mp* keys:', mpKeys.length, mpKeys);
+        // Check for terrain meshes with shadow/effect tags
+        let terrainTotal = 0, terrainHidden = 0;
+        terrainActors.forEach(a => {
+          const reg = modelRegistry[a.mk];
+          if (reg) reg.forEach(m => {
+            terrainTotal++;
+            if (m.userData.isShadowMesh || m.userData.isEffectMesh) {
+              terrainHidden++;
+              console.warn('  [TERRAIN] Hidden mesh in', a.mk, ':', m.userData.meshName,
+                m.userData.isShadowMesh ? '[shadow]' : '', m.userData.isEffectMesh ? '[effect]' : '');
+            }
+          });
+        });
+        console.log('[TERRAIN] Total terrain meshes:', terrainTotal, '| hidden by tags:', terrainHidden);
+        // ═══ END TERRAIN DIAGNOSTIC ═══
         
         // Store for minimap / search / filter access
         window._sceneInstances = sceneInstances;
         window._sceneCats = sceneCats;
         window._sceneCatMeshes = sceneCatMeshes;
         window._sceneN2M = sceneN2M;
+        window._sceneSrcGroups = sceneSrcGroups;
         
-        // ── Default-hide engine-only categories (shadow proxies, occluders) ──
+        // ── Default-hidden categories (applied after UI is built) ──
         const _defaultHidden = new Set(['shadow', 'special', 'probe', 'event', 'monster', 'cover', 'light']);
-        for (const cat of Object.keys(sceneCats)) {
-          if (_defaultHidden.has(cat)) {
-            sceneCats[cat].vis = false;
-            if (sceneCatMeshes[cat]) sceneCatMeshes[cat].forEach(g => g.visible = false);
-          }
-        }
         window._defaultHiddenCats = _defaultHidden;
         
         // ── CRITICAL: Override camera settings that loadMeshes() clobbered ──
@@ -7519,9 +7738,15 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
         if (titleEl) titleEl.textContent = '🗺️ ' + SCENE_CFG.name;
         
         // Build scene category filter UI
-        _buildSceneFilters();
-        _buildSceneMinimap();
-        _buildSceneSearch();
+        try {
+          _buildSceneFilters();
+        } catch(e) { console.error('[Scene] _buildSceneFilters failed:', e); }
+        try {
+          _buildSceneMinimap();
+        } catch(e) { console.error('[Scene] _buildSceneMinimap failed:', e); }
+        try {
+          _buildSceneSearch();
+        } catch(e) { console.error('[Scene] _buildSceneSearch failed:', e); }
         
         // Hide irrelevant MDL panels (skeleton, animation, mesh-specific toggles)
         const skelSection = document.querySelector('[data-section="skeleton"]');
@@ -7565,11 +7790,9 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
         meshList.innerHTML = '';
         meshList.style.cssText = 'max-height:calc(100vh - 420px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#333 transparent;padding-right:2px;';
         
-        // Hidden submesh keywords (shadow geometry, collision boxes)
-        const _hideSubKW = ['shadow', 'kage', 'box'];
+        // Hidden submesh detection — uses tags set during MDL parsing
         function _isHiddenSubmesh(m) {
-          const n = (m.userData?.meshName || m.name || '').toLowerCase();
-          return _hideSubKW.some(kw => n.includes(kw));
+          return !!(m.userData?.isShadowMesh || m.userData?.isEffectMesh);
         }
         
         // Scene toggle all function
@@ -7588,9 +7811,89 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
           // Sync submesh checkboxes: hidden submeshes stay unchecked
           document.querySelectorAll('.so-sub-cb').forEach(cb => {
             cb.checked = vis && !cb.dataset.hiddenSub;
+            if (cb._mesh) cb._mesh.visible = cb.checked;
           });
+          // Sync shadow & effect toggles
+          const swSh = document.getElementById('sw-scene-shadow');
+          if (swSh) swSh.checked = false;
+          const swEfSub = document.getElementById('sw-scene-effect-sub');
+          if (swEfSub) swEfSub.checked = false;
+          const swEf = document.getElementById('sw-scene-effect');
+          if (swEf) swEf.checked = false;
         };
         window.toggleAllMeshes = window._sceneToggleAll;
+        
+        // ═══ Universal tag sync system ═══
+        // After ANY tag toggle or submesh change, derive actor/category state from submeshes.
+        // This is the SINGLE source of truth for checkbox sync.
+        function _syncFromSubmeshes() {
+          // 1. For each actor: actor CB = any submesh CB checked; group.visible follows
+          document.querySelectorAll('.so-actor-row').forEach(row => {
+            const acb = row.querySelector('.scene-actor-cb');
+            if (!acb) return;
+            const actorDiv = row.parentElement;
+            if (!actorDiv) return;
+            const subCbs = actorDiv.querySelectorAll('.so-sub-cb');
+            if (subCbs.length === 0) {
+              // Placeholder actor (no loaded meshes) — sync CB from actual group visibility
+              if (acb._group) acb.checked = acb._group.visible;
+              return;
+            }
+            const anyChecked = Array.from(subCbs).some(scb => scb.checked);
+            acb.checked = anyChecked;
+            if (acb._group) {
+              acb._group.visible = anyChecked;
+              // Also sync each mesh visibility to match its CB
+              Array.from(subCbs).forEach(scb => {
+                if (scb._mesh) scb._mesh.visible = scb.checked;
+              });
+            }
+          });
+          // 2. For each source/category: CB = any child actor CB checked
+          document.querySelectorAll('.so-cat-hdr').forEach(hdr => {
+            const cb = hdr.querySelector('.scene-cat-cb');
+            const catDiv = hdr.parentElement;
+            if (!cb || !catDiv) return;
+            const actorCbs = catDiv.querySelectorAll('.scene-actor-cb');
+            if (actorCbs.length > 0) {
+              cb.checked = Array.from(actorCbs).some(acb => acb.checked);
+            }
+          });
+        }
+        
+        // Universal tag toggle: updates submesh CBs + mesh visibility for a given tag,
+        // then syncs all parent checkboxes.  Works for any tag type.
+        //   selector: CSS selector for affected submesh CBs (e.g. '.so-sub-cb[data-shadow-sub]')
+        //   checked:  new state (true = show, false = hide)
+        //   actorSelector: optional CSS selector for actor-level tags (e.g. '.scene-actor-cb[data-effect-actor]')
+        function _toggleTag(selector, checked, actorSelector) {
+          // 1. Update submesh CBs and their meshes (if submesh-level selector provided)
+          if (selector) {
+            document.querySelectorAll(selector).forEach(scb => {
+              scb.checked = checked;
+              if (scb._mesh) scb._mesh.visible = checked;
+            });
+          }
+          // 2. If actor-level tag, also toggle entire actor groups + all their submesh CBs
+          if (actorSelector) {
+            document.querySelectorAll(actorSelector).forEach(acb => {
+              acb.checked = checked;
+              if (acb._group) {
+                acb._group.visible = checked;
+                acb._group.traverse(ch => { if (ch.isMesh) ch.visible = checked; });
+              }
+              // All submesh CBs in this actor
+              const actorDiv = acb.closest('.so-actor-row')?.parentElement;
+              if (actorDiv) {
+                actorDiv.querySelectorAll('.so-sub-cb').forEach(scb => {
+                  scb.checked = checked;
+                });
+              }
+            });
+          }
+          // 3. Sync all parent checkboxes from submesh state
+          _syncFromSubmeshes();
+        }
         
         // Add Show All / Hide All buttons
         const btnRow = document.createElement('div');
@@ -7606,6 +7909,70 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
         btnRow.appendChild(btnAll);
         btnRow.appendChild(btnNone);
         meshList.appendChild(btnRow);
+        
+        // Shadow submeshes toggle — count across all scene instances
+        let sceneShadowCount = 0;
+        instances.forEach(g => {
+          g.traverse(ch => { if (ch.isMesh && ch.userData.isShadowMesh) sceneShadowCount++; });
+        });
+        if (sceneShadowCount > 0) {
+          const shadowRow = document.createElement('div');
+          shadowRow.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 6px;margin-bottom:4px;background:rgba(100,50,50,0.15);border-radius:6px;border:1px solid rgba(200,100,100,0.2);';
+          const swShadow = document.createElement('input');
+          swShadow.type = 'checkbox'; swShadow.id = 'sw-scene-shadow'; swShadow.checked = false;
+          swShadow.addEventListener('change', () => {
+            _toggleTag('.so-sub-cb[data-shadow-sub]', swShadow.checked);
+          });
+          const swLbl = document.createElement('label');
+          swLbl.htmlFor = 'sw-scene-shadow';
+          swLbl.style.cssText = 'font-size:11px;color:#e0a0a0;cursor:pointer;flex:1;';
+          swLbl.textContent = '👻 Shadow submeshes (' + sceneShadowCount + ')';
+          shadowRow.appendChild(swShadow);
+          shadowRow.appendChild(swLbl);
+          meshList.appendChild(shadowRow);
+        }
+        
+        // Effect submeshes toggle
+        let sceneEffectSubCount = 0;
+        instances.forEach(g => {
+          g.traverse(ch => { if (ch.isMesh && ch.userData.isEffectMesh) sceneEffectSubCount++; });
+        });
+        if (sceneEffectSubCount > 0) {
+          const effectRow = document.createElement('div');
+          effectRow.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 6px;margin-bottom:4px;background:rgba(50,50,100,0.15);border-radius:6px;border:1px solid rgba(100,100,200,0.2);';
+          const swEffect = document.createElement('input');
+          swEffect.type = 'checkbox'; swEffect.id = 'sw-scene-effect-sub'; swEffect.checked = false;
+          swEffect.addEventListener('change', () => {
+            _toggleTag('.so-sub-cb[data-effect-sub]', swEffect.checked);
+          });
+          const efLbl = document.createElement('label');
+          efLbl.htmlFor = 'sw-scene-effect-sub';
+          efLbl.style.cssText = 'font-size:11px;color:#a0a0e0;cursor:pointer;flex:1;';
+          efLbl.textContent = '✨ Effect submeshes (' + sceneEffectSubCount + ')';
+          effectRow.appendChild(swEffect);
+          effectRow.appendChild(efLbl);
+          meshList.appendChild(effectRow);
+        }
+        
+        // Effect actors toggle (VFX, fog, lights, probes — whole actor groups)
+        let sceneEffectActorCount = 0;
+        instances.forEach(g => { if (g.userData.isEffectActor) sceneEffectActorCount++; });
+        if (sceneEffectActorCount > 0) {
+          const eaRow = document.createElement('div');
+          eaRow.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 6px;margin-bottom:6px;background:rgba(80,60,20,0.15);border-radius:6px;border:1px solid rgba(200,180,80,0.2);';
+          const swEA = document.createElement('input');
+          swEA.type = 'checkbox'; swEA.id = 'sw-scene-effect'; swEA.checked = false;
+          swEA.addEventListener('change', () => {
+            _toggleTag(null, swEA.checked, '.scene-actor-cb[data-effect-actor]');
+          });
+          const eaLbl = document.createElement('label');
+          eaLbl.htmlFor = 'sw-scene-effect';
+          eaLbl.style.cssText = 'font-size:11px;color:#e0d0a0;cursor:pointer;flex:1;';
+          eaLbl.textContent = '💡 Effect actors (' + sceneEffectActorCount + ')';
+          eaRow.appendChild(swEA);
+          eaRow.appendChild(eaLbl);
+          meshList.appendChild(eaRow);
+        }
         
         // Highlight helper: blink all child meshes in a group using blinkMesh (green wireframe x-ray)
         function blinkGroup(group) {
@@ -7646,116 +8013,201 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
           showToast('🎯 ' + (group.userData.name || 'object'), 3000);
         }
         
-        // Build category entries sorted by count
-        const sortedCats = Object.entries(cats).sort((a,b) => b[1].count - a[1].count);
         
-        sortedCats.forEach(([cat, info]) => {
-          const catDiv = document.createElement('div');
-          catDiv.style.cssText = 'margin-bottom:1px;';
-          
-          // Category header row
-          const hdr = document.createElement('div');
-          hdr.className = 'so-cat-hdr';
-          
-          const cb = document.createElement('input');
-          cb.type = 'checkbox'; cb.checked = info.vis !== false;
-          cb.className = 'scene-cat-cb';
-          cb.addEventListener('change', (e) => {
-            e.stopPropagation();
-            cats[cat].vis = cb.checked;
-            catMeshes[cat].forEach(g => { g.visible = cb.checked; });
-            catDiv.querySelectorAll('.scene-actor-cb').forEach(acb => { acb.checked = cb.checked; });
-            catDiv.querySelectorAll('.so-sub-cb').forEach(scb => {
-              scb.checked = cb.checked && !scb.dataset.hiddenSub;
+        // ── Source-scene based hierarchy ──
+        const srcGroups = window._sceneSrcGroups || {};
+        const mainStem = SCENE_CFG.name || '';
+        // Sort: main stem first, sub-scenes (_01.._12), then child scenes alphabetically
+        const srcKeys = Object.keys(srcGroups).sort((a, b) => {
+          if (a === mainStem) return -1;
+          if (b === mainStem) return 1;
+          if (a === 'terrain') return 1;
+          if (b === 'terrain') return -1;
+          const aSub = a.startsWith(mainStem + '_');
+          const bSub = b.startsWith(mainStem + '_');
+          if (aSub && !bSub) return -1;
+          if (!aSub && bSub) return 1;
+          return a.localeCompare(b, undefined, {numeric: true});
+        });
+        
+        // Source diagnostic
+        console.log('[UI] Sources:', srcKeys.join(', '), '| total groups:', Object.values(srcGroups).reduce((s,v)=>s+v.length,0));
+        
+        // Helpers for source-level buttons
+        function highlightGroups(groups) {
+          groups.forEach(g => {
+            g.traverse(ch => {
+              if (ch.isMesh && ch.visible && ch.material && ch.material.color) {
+                const orig = ch.material.color.getHex();
+                if (!ch.material._origHL) ch.material._origHL = orig;
+                ch.material.color.setHex(0xffff00);
+                setTimeout(() => {
+                  if (ch.material._origHL !== undefined) ch.material.color.setHex(ch.material._origHL);
+                  delete ch.material._origHL;
+                }, 1200);
+              }
             });
           });
-          cb.addEventListener('click', e => e.stopPropagation());
+        }
+        function focusGroups(groups) {
+          const visGroups = groups.filter(g => g.visible);
+          if (visGroups.length === 0) return;
+          const box = new THREE.Box3();
+          visGroups.forEach(g => box.expandByObject(g));
+          if (box.isEmpty()) return;
+          const center = box.getCenter(new THREE.Vector3());
+          const size = box.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+          const fov = camera.fov * (Math.PI / 180);
+          const dist = Math.max(maxDim / (2 * Math.tan(fov / 2)), 0.5) * 1.5;
+          camera.position.copy(center).add(new THREE.Vector3(0.5, 0.5, 1).normalize().multiplyScalar(dist));
+          if (freeCamMode) {
+            tpCamTheta = Math.atan2(center.x - camera.position.x, center.z - camera.position.z) + Math.PI;
+            tpCamPhi = Math.PI * 0.6;
+          } else {
+            controls.target.copy(center);
+            const offset = camera.position.clone().sub(center);
+            controls.spherical.setFromVector3(offset);
+            controls.panOffset.set(0, 0, 0);
+            controls.update();
+          }
+          focusLockUntil = Date.now() + 500;
+          showToast('🎯 ' + visGroups.length + ' objects', 3000);
+        }
+        
+        srcKeys.forEach(src => {
+          const groups = srcGroups[src];
+          if (!groups || groups.length === 0) return;
           
-          const dot = document.createElement('span');
-          dot.className = 'so-dot';
-          dot.style.background = info.color;
+          const srcDiv = document.createElement('div');
+          srcDiv.style.cssText = 'margin-bottom:2px;';
           
-          const nameSpan = document.createElement('span');
-          nameSpan.className = 'so-name';
-          nameSpan.textContent = cat;
+          // ── Source scene header ──
+          const srcHdr = document.createElement('div');
+          srcHdr.className = 'so-cat-hdr';
           
-          const cnt = document.createElement('span');
-          cnt.className = 'so-cnt';
-          cnt.textContent = info.count;
+          const srcCb = document.createElement('input');
+          srcCb.type = 'checkbox';
+          srcCb.className = 'scene-cat-cb';
           
-          // Highlight all actors in this category
-          const catHlBtn = document.createElement('span');
-          catHlBtn.textContent = '💡';
-          catHlBtn.title = 'Highlight all ' + cat;
-          catHlBtn.className = 'so-ibtn';
-          catHlBtn.addEventListener('click', (e) => {
-            e.preventDefault(); e.stopPropagation();
-            catMeshes[cat].forEach(g => blinkGroup(g));
-            showToast('💡 ' + cat + ' (' + info.count + ')', 2000);
+          // Interior sub-scenes are now placed at edge of main scene.
+          // Only _sys sub-scenes hidden by default.
+          const _sfx = src.startsWith(mainStem + '_') ? src.slice(mainStem.length + 1) : '';
+          const isInterior = /^[0-9]{2}$/.test(_sfx);
+          const isSysSub = /^[0-9]{2}_sys$/.test(_sfx);
+          const defaultHidden = isSysSub;  // only sys hidden; interiors visible at edge
+          srcCb.checked = !defaultHidden;
+          
+          if (defaultHidden) {
+            groups.forEach(g => {
+              g.visible = false;
+              g.traverse(ch => { if (ch.isMesh) ch.visible = false; });
+            });
+          }
+          srcCb.addEventListener('change', (e) => {
+            e.stopPropagation();
+            groups.forEach(g => {
+              g.visible = srcCb.checked;
+              g.traverse(ch => { if (ch.isMesh) ch.visible = srcCb.checked; });
+            });
+            srcDiv.querySelectorAll('.scene-actor-cb').forEach(acb => { acb.checked = srcCb.checked; });
+            srcDiv.querySelectorAll('.so-sub-cb').forEach(scb => {
+              scb.checked = srcCb.checked && !scb.dataset.hiddenSub;
+              if (scb._mesh) scb._mesh.visible = scb.checked;
+            });
           });
+          srcCb.addEventListener('click', e => e.stopPropagation());
           
-          const arrow = document.createElement('span');
-          arrow.className = 'so-arrow';
-          arrow.textContent = '▶';
+          const srcIcon = document.createElement('span');
+          srcIcon.style.cssText = 'font-size:11px;margin-right:3px;';
+          if (src === mainStem) srcIcon.textContent = '🗺️';
+          else if (src === 'terrain') srcIcon.textContent = '🏔️';
+          else if (isInterior) srcIcon.textContent = '🏠';
+          else if (isSysSub) srcIcon.textContent = '⚙️';
+          else if (src.startsWith(mainStem + '_')) srcIcon.textContent = '📄';
+          else srcIcon.textContent = '🔗';
           
-          hdr.appendChild(cb);
-          hdr.appendChild(dot);
-          hdr.appendChild(nameSpan);
-          hdr.appendChild(cnt);
-          hdr.appendChild(catHlBtn);
-          hdr.appendChild(arrow);
+          const srcName = document.createElement('span');
+          srcName.className = 'so-name';
+          srcName.textContent = src;
+          srcName.style.fontWeight = 'bold';
           
-          // Actor list (collapsed by default)
+          const srcCnt = document.createElement('span');
+          srcCnt.className = 'so-cnt';
+          srcCnt.textContent = groups.length;
+          
+          const srcHl = document.createElement('span');
+          srcHl.textContent = '💡'; srcHl.className = 'so-ibtn';
+          srcHl.title = 'Highlight all in ' + src;
+          srcHl.addEventListener('click', (e) => { e.stopPropagation(); highlightGroups(groups.filter(g => g.visible)); });
+          
+          const srcFocus = document.createElement('span');
+          srcFocus.textContent = '🎯'; srcFocus.className = 'so-ibtn';
+          srcFocus.title = 'Focus camera on ' + src;
+          srcFocus.addEventListener('click', (e) => { e.stopPropagation(); focusGroups(groups); });
+          
+          const srcArrow = document.createElement('span');
+          srcArrow.className = 'so-arrow';
+          srcArrow.textContent = '▶';
+          
+          srcHdr.appendChild(srcCb);
+          srcHdr.appendChild(srcIcon);
+          srcHdr.appendChild(srcName);
+          srcHdr.appendChild(srcCnt);
+          srcHdr.appendChild(srcHl);
+          srcHdr.appendChild(srcFocus);
+          srcHdr.appendChild(srcArrow);
+          
           const actorList = document.createElement('div');
-          actorList.style.cssText = 'display:none;padding-left:12px;max-height:300px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#333 transparent;';
+          actorList.style.cssText = 'display:none;padding-left:6px;';
           
-          hdr.addEventListener('click', () => {
+          srcHdr.style.cursor = 'pointer';
+          srcHdr.addEventListener('click', () => {
             const open = actorList.style.display !== 'none';
             actorList.style.display = open ? 'none' : 'block';
-            arrow.textContent = open ? '▶' : '▼';
+            srcArrow.textContent = open ? '▶' : '▼';
           });
           
-          // Build actor entries with submesh expansion
-          const actorGroups = catMeshes[cat];
-          actorGroups.forEach((group, gi) => {
+          // ── Actor rows within this source ──
+          groups.forEach((group, gi) => {
             const actorDiv = document.createElement('div');
-            
-            // Actor row
             const row = document.createElement('div');
             row.className = 'so-actor-row';
             
             const acb = document.createElement('input');
-            acb.type = 'checkbox'; acb.checked = info.vis !== false;
+            acb.type = 'checkbox'; acb.checked = !defaultHidden;
             acb.className = 'scene-actor-cb';
+            acb._group = group;
+            if (group.userData.isEffectActor) acb.dataset.effectActor = '1';
             acb.addEventListener('change', () => {
               group.visible = acb.checked;
-              // Sync submesh checkboxes — keep hidden submeshes unchecked
               actorDiv.querySelectorAll('.so-sub-cb').forEach(scb => {
                 scb.checked = acb.checked && !scb.dataset.hiddenSub;
+                if (scb._mesh) scb._mesh.visible = scb.checked;
               });
+              _syncFromSubmeshes();
             });
             acb.addEventListener('click', e => e.stopPropagation());
             
+            const dot = document.createElement('span');
+            dot.className = 'so-dot';
+            const catColor = cats[group.userData.cat] ? cats[group.userData.cat].color : '#9ca3af';
+            dot.style.background = catColor;
+            dot.title = group.userData.cat || '';
+            
             const lbl = document.createElement('span');
-            lbl.className = 'so-albl';
+            lbl.className = 'so-name';
             lbl.textContent = group.userData.name || ('actor_' + gi);
-            lbl.title = lbl.textContent;
+            lbl.title = (group.userData.name||'') + ' [' + (group.userData.type||'') + '/' + (group.userData.cat||'') + ']';
             
-            // Highlight button
             const hlBtn = document.createElement('span');
-            hlBtn.textContent = '💡';
-            hlBtn.title = 'Highlight';
-            hlBtn.className = 'so-ibtn';
-            hlBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); blinkGroup(group); showToast(group.userData.name || 'object', 2000); });
+            hlBtn.textContent = '💡'; hlBtn.className = 'so-ibtn'; hlBtn.title = 'Highlight';
+            hlBtn.addEventListener('click', (e) => { e.stopPropagation(); blinkGroup(group); });
             
-            // Focus button
             const focusBtn = document.createElement('span');
-            focusBtn.textContent = '🎯';
-            focusBtn.title = 'Focus';
-            focusBtn.className = 'so-ibtn';
-            focusBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); focusGroup(group); });
+            focusBtn.textContent = '🎯'; focusBtn.className = 'so-ibtn'; focusBtn.title = 'Focus camera';
+            focusBtn.addEventListener('click', (e) => { e.stopPropagation(); focusGroup(group); });
             
-            // Submesh arrow (only if group has mesh children)
             const childMeshes = [];
             group.traverse(ch => { if (ch.isMesh && ch !== group) childMeshes.push(ch); });
             
@@ -7770,13 +8222,14 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
             }
             
             row.appendChild(acb);
+            row.appendChild(dot);
             row.appendChild(lbl);
             row.appendChild(hlBtn);
             row.appendChild(focusBtn);
             row.appendChild(subArrow);
             actorDiv.appendChild(row);
             
-            // Submesh list (collapsed)
+            // ── Submesh list (collapsed) ──
             if (childMeshes.length > 0) {
               const subList = document.createElement('div');
               subList.style.cssText = 'display:none;padding-left:18px;';
@@ -7787,8 +8240,6 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
                 subList.style.display = open ? 'none' : 'block';
                 subArrow.textContent = open ? '▶' : '▼';
               });
-              
-              // Click row label also expands submeshes
               lbl.style.cursor = 'pointer';
               lbl.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -7803,28 +8254,64 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
                 
                 const scb = document.createElement('input');
                 scb.className = 'so-sub-cb';
-                scb.addEventListener('change', () => { cm.visible = scb.checked; });
+                scb._mesh = cm;
+                scb.addEventListener('change', () => { cm.visible = scb.checked; _syncFromSubmeshes(); });
                 scb.addEventListener('click', e => e.stopPropagation());
                 
                 const slbl = document.createElement('span');
                 slbl.className = 'so-slbl';
                 const meshName = cm.userData?.meshName || cm.name || cm.material?.name || ('mesh_' + ci);
-                const _isHidden = _isHiddenSubmesh(cm);
-                if (_isHidden) { cm.visible = false; }
-                scb.type = 'checkbox'; scb.checked = !_isHidden;
+                const _isShadow = !!cm.userData?.isShadowMesh;
+                const _isEffect = !!cm.userData?.isEffectMesh;
+                const _isHidden = _isShadow || _isEffect;
+                scb.type = 'checkbox'; scb.checked = !defaultHidden && !_isHidden;
                 if (_isHidden) scb.dataset.hiddenSub = '1';
-                slbl.textContent = meshName;
+                if (_isShadow) scb.dataset.shadowSub = '1';
+                if (_isEffect) scb.dataset.effectSub = '1';
+                if (_isShadow) {
+                  const icon = document.createElement('span');
+                  icon.textContent = '👻'; icon.title = 'Shadow mesh';
+                  icon.style.cssText = 'margin-right:2px;font-size:10px;';
+                  slbl.appendChild(icon);
+                } else if (_isEffect) {
+                  const icon = document.createElement('span');
+                  icon.textContent = '✨'; icon.title = 'Effect mesh';
+                  icon.style.cssText = 'margin-right:2px;font-size:10px;';
+                  slbl.appendChild(icon);
+                }
+                slbl.appendChild(document.createTextNode(meshName));
                 slbl.title = meshName;
                 
                 const shl = document.createElement('span');
-                shl.textContent = '💡';
-                shl.className = 'so-ibtn';
-                shl.style.fontSize = '10px';
-                shl.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); if (cm.material) blinkMesh(cm); });
+                shl.textContent = '💡'; shl.className = 'so-ibtn'; shl.title = 'Highlight submesh';
+                shl.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  if (cm.material && cm.material.color) {
+                    const orig = cm.material.color.getHex();
+                    cm.material.color.setHex(0xffff00);
+                    setTimeout(() => cm.material.color.setHex(orig), 1200);
+                  }
+                });
+                
+                const sfocus = document.createElement('span');
+                sfocus.textContent = '🎯'; sfocus.className = 'so-ibtn'; sfocus.title = 'Focus submesh';
+                sfocus.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  const mbox = new THREE.Box3().expandByObject(cm);
+                  if (!mbox.isEmpty()) {
+                    const c = mbox.getCenter(new THREE.Vector3());
+                    const s = mbox.getSize(new THREE.Vector3());
+                    const d = Math.max(s.x,s.y,s.z) / (2*Math.tan(camera.fov*Math.PI/360)) * 1.5;
+                    camera.position.copy(c).add(new THREE.Vector3(0.5,0.5,1).normalize().multiplyScalar(Math.max(d,1)));
+                    if (!freeCamMode && controls) { controls.target.copy(c); controls.update(); }
+                    focusLockUntil = Date.now() + 500;
+                  }
+                });
                 
                 subRow.appendChild(scb);
                 subRow.appendChild(slbl);
                 subRow.appendChild(shl);
+                subRow.appendChild(sfocus);
                 subList.appendChild(subRow);
               });
               
@@ -7834,10 +8321,85 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
             actorList.appendChild(actorDiv);
           });
           
-          catDiv.appendChild(hdr);
-          catDiv.appendChild(actorList);
-          meshList.appendChild(catDiv);
+          srcDiv.appendChild(srcHdr);
+          srcDiv.appendChild(actorList);
+          meshList.appendChild(srcDiv);
         });
+        
+        // ── Apply default hiding AFTER UI is fully built ──
+        _applySceneDefaultHiding(cats, catMeshes, instances);
+        
+        // ── Hide _sys sub-scenes (after all sync, so nothing overrides) ──
+        document.querySelectorAll('.so-cat-hdr').forEach(hdr => {
+          const cb = hdr.querySelector('.scene-cat-cb');
+          const nameEl = hdr.querySelector('.so-name');
+          if (!cb || !nameEl) return;
+          const src = nameEl.textContent;
+          const sfx = src.startsWith(mainStem + '_') ? src.slice(mainStem.length + 1) : '';
+          const isSys = /^[0-9]{2}_sys$/.test(sfx);
+          if (!isSys) return;
+          cb.checked = false;
+          const catDiv = hdr.parentElement;
+          if (!catDiv) return;
+          catDiv.querySelectorAll('.scene-actor-cb').forEach(acb => {
+            acb.checked = false;
+            if (acb._group) {
+              acb._group.visible = false;
+              acb._group.traverse(ch => { if (ch.isMesh) ch.visible = false; });
+            }
+          });
+          catDiv.querySelectorAll('.so-sub-cb').forEach(scb => {
+            scb.checked = false;
+            if (scb._mesh) scb._mesh.visible = false;
+          });
+        });
+      }
+      
+      // Hide tagged submeshes + default-hidden categories after UI is ready
+      function _applySceneDefaultHiding(cats, catMeshes, instances) {
+        const _dh = window._defaultHiddenCats || new Set();
+        
+        // 1. Hide default-hidden categories and sync their groups + CBs
+        for (const cat of Object.keys(cats)) {
+          if (_dh.has(cat)) {
+            cats[cat].vis = false;
+            if (catMeshes[cat]) catMeshes[cat].forEach(g => {
+              g.visible = false;
+              g.traverse(ch => { if (ch.isMesh) ch.visible = false; });
+            });
+          }
+        }
+        // Uncheck actor CBs for hidden groups, and their submesh CBs
+        document.querySelectorAll('.scene-actor-cb').forEach(acb => {
+          if (acb._group && !acb._group.visible) {
+            acb.checked = false;
+            const actorDiv = acb.closest('.so-actor-row')?.parentElement;
+            if (actorDiv) {
+              actorDiv.querySelectorAll('.so-sub-cb').forEach(scb => {
+                scb.checked = false;
+              });
+            }
+          }
+        });
+        
+        // 2. Hide tagged submeshes (shadow, effect) inside visible actors
+        document.querySelectorAll('.so-sub-cb').forEach(cb => {
+          if (cb.dataset.hiddenSub) {
+            cb.checked = false;
+            if (cb._mesh) cb._mesh.visible = false;
+          }
+        });
+        
+        // 3. Sync all parent checkboxes from submesh state
+        _syncFromSubmeshes();
+        
+        // 4. Sync global toggle switches
+        const swSh = document.getElementById('sw-scene-shadow');
+        if (swSh) swSh.checked = false;
+        const swEfSub = document.getElementById('sw-scene-effect-sub');
+        if (swEfSub) swEfSub.checked = false;
+        const swEf = document.getElementById('sw-scene-effect');
+        if (swEf) swEf.checked = false;
       }
       
       function _buildSceneMinimap() {
@@ -8033,14 +8595,76 @@ def _inject_scene_mode(html: str, scene_data: dict) -> str:
 # SCENE MODE — Parse binary scene JSON and render 3D scene layout
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _make_trs_matrix(tx, ty, tz, rx_deg, ry_deg, rz_deg, sx, sy, sz):
+    """Build a 4x4 TRS matrix: Translation * RotationYXZ * Scale.
+    Rotation order is YXZ (common in Japanese game engines like Trails)."""
+    import math as _m
+    rx, ry, rz = _m.radians(rx_deg), _m.radians(ry_deg), _m.radians(rz_deg)
+    cx, s_x = _m.cos(rx), _m.sin(rx)
+    cy, s_y = _m.cos(ry), _m.sin(ry)
+    cz, s_z = _m.cos(rz), _m.sin(rz)
+    # Rotation: R = Ry * Rx * Rz (YXZ Euler order)
+    r00 = cy * cz + s_y * s_x * s_z;  r01 = -cy * s_z + s_y * s_x * cz;  r02 = s_y * cx
+    r10 = cx * s_z;                     r11 = cx * cz;                       r12 = -s_x
+    r20 = -s_y * cz + cy * s_x * s_z; r21 = s_y * s_z + cy * s_x * cz;    r22 = cy * cx
+    return (
+        (r00*sx, r01*sy, r02*sz, tx),
+        (r10*sx, r11*sy, r12*sz, ty),
+        (r20*sx, r21*sy, r22*sz, tz),
+        (0.0,    0.0,    0.0,    1.0),
+    )
+
+
+def _mat4_mul(A, B):
+    """Multiply two 4x4 matrices stored as tuples of tuples."""
+    return tuple(
+        tuple(sum(A[i][k] * B[k][j] for k in range(4)) for j in range(4))
+        for i in range(4)
+    )
+
+
+_MAT4_IDENTITY = ((1,0,0,0),(0,1,0,0),(0,0,1,0),(0,0,0,1))
+
+
 def _parse_single_scene_json(path: Path, source_tag: str = '') -> list:
-    """Parse a single Trails engine binary JSON scene file → list of actor entries."""
+    """Parse a single Trails engine binary JSON scene file → list of actor entries.
+
+    Applies SceneTree parent transforms: actors reference SceneTree nodes via node_hash,
+    and inherit the accumulated TRS matrix of their parent node chain.
+    SceneTree nodes may have translation, rotation (YXZ Euler), and scale — all
+    must be properly composed as 4x4 matrices to get correct world positions.
+    """
     data = path.read_bytes()
     if data[:4] != b'JSON':
         raise ValueError(f"Not a Trails scene JSON: bad magic {data[:4]}")
 
     parsed = decode_binary_mi(data)
     actor_list = parsed.get('Actor', [])
+
+    # ── Build SceneTree node_hash → accumulated 4x4 TRS matrix ──
+    scene_tree = parsed.get('SceneTree', {})
+    node_matrices = {}   # hash → 4x4 matrix (tuple of 4 tuples of 4 floats)
+
+    def _walk_st(nodes, parent_mat=_MAT4_IDENTITY):
+        for n in nodes:
+            t = n.get('translation', {})
+            r = n.get('rotation', {})
+            s = n.get('scale', {})
+            local_mat = _make_trs_matrix(
+                float(t.get('x', 0.0)), float(t.get('y', 0.0)), float(t.get('z', 0.0)),
+                float(r.get('x', 0.0)), float(r.get('y', 0.0)), float(r.get('z', 0.0)),
+                float(s.get('x', 1.0)), float(s.get('y', 1.0)), float(s.get('z', 1.0)),
+            )
+            world_mat = _mat4_mul(parent_mat, local_mat)
+            nh = n.get('hash')
+            if nh is not None:
+                node_matrices[nh] = world_mat
+            if 'Nodes' in n:
+                _walk_st(n['Nodes'], world_mat)
+    _walk_st(scene_tree.get('Nodes', []))
+
+    # Count how many actors get offset (for diagnostics)
+    offset_count = 0
 
     entries = []
     for actor in actor_list:
@@ -8056,6 +8680,26 @@ def _parse_single_scene_json(path: Path, source_tag: str = '') -> list:
         rx, ry, rz = float(r.get('x', 0.0)), float(r.get('y', 0.0)), float(r.get('z', 0.0))
         sx, sy, sz = float(s.get('x', 1.0)), float(s.get('y', 1.0)), float(s.get('z', 1.0))
 
+        # Apply SceneTree parent accumulated transform (full TRS matrix)
+        nh = actor.get('node_hash', 0)
+        if nh in node_matrices:
+            m = node_matrices[nh]
+            # Check if matrix is non-identity (any off-diagonal or non-1 diagonal)
+            is_identity = (
+                abs(m[0][3]) < 1e-6 and abs(m[1][3]) < 1e-6 and abs(m[2][3]) < 1e-6 and
+                abs(m[0][0] - 1) < 1e-6 and abs(m[1][1] - 1) < 1e-6 and abs(m[2][2] - 1) < 1e-6 and
+                abs(m[0][1]) < 1e-6 and abs(m[0][2]) < 1e-6 and
+                abs(m[1][0]) < 1e-6 and abs(m[1][2]) < 1e-6 and
+                abs(m[2][0]) < 1e-6 and abs(m[2][1]) < 1e-6
+            )
+            if not is_identity:
+                # Transform position: world_pos = M * local_pos
+                wx = m[0][0]*tx + m[0][1]*ty + m[0][2]*tz + m[0][3]
+                wy = m[1][0]*tx + m[1][1]*ty + m[1][2]*tz + m[1][3]
+                wz = m[2][0]*tx + m[2][1]*ty + m[2][2]*tz + m[2][3]
+                tx, ty, tz = wx, wy, wz
+                offset_count += 1
+
         entry_name = model_path or actor_name
 
         # FieldTerrain actors whose model_path is NOT a terrain chunk (mp*)
@@ -8063,6 +8707,24 @@ def _parse_single_scene_json(path: Path, source_tag: str = '') -> list:
         effective_type = actor_type
         if actor_type == 'FieldTerrain' and model_path and not model_path.startswith('mp'):
             effective_type = 'MapObject'
+
+        # PlantActor: procedural vegetation spawner.
+        # Engine scatters copies at runtime using terrain collision — we can't replicate that.
+        # Place a single representative instance at the center position with average scale.
+        if actor_type == 'PlantActor' and model_path:
+            smin = float(actor.get('scale_min', 0.3))
+            smax = float(actor.get('scale_max', 0.6))
+            avg_s = (smin + smax) / 2.0
+            entries.append({
+                'name': entry_name,
+                'type': 'MapObject',
+                'instance_name': actor_name,
+                'source': source_tag,
+                'tx': tx, 'ty': ty, 'tz': tz,
+                'rx': 0.0, 'ry': ry, 'rz': 0.0,
+                'sx': avg_s, 'sy': avg_s, 'sz': avg_s,
+            })
+            continue
 
         entries.append({
             'name': entry_name,
@@ -8077,49 +8739,419 @@ def _parse_single_scene_json(path: Path, source_tag: str = '') -> list:
     return entries
 
 
-def parse_scene_json(path: Path) -> list:
-    """Parse Trails engine scene — main file + all numbered sub-scene files.
+def _extract_scene_tree_refs(parsed: dict) -> list:
+    """Extract child scene references from SceneTree (type=3 nodes with filename)."""
+    def _walk(nodes):
+        refs = []
+        for n in nodes:
+            if n.get('type') == 3 and n.get('filename'):
+                t = n.get('translation', {})
+                refs.append({
+                    'filename': n['filename'],
+                    'offset': (float(t.get('x', 0)), float(t.get('y', 0)), float(t.get('z', 0))),
+                })
+            if 'Nodes' in n:
+                refs.extend(_walk(n['Nodes']))
+        return refs
+    st = parsed.get('SceneTree', {})
+    return _walk(st.get('Nodes', []))
 
-    The engine splits maps into sectors:
-      mp0010.json      — main scene (outdoor objects, building shells, terrain)
-      mp0010_01.json   — sub-scene sector 01 (interior details, lights, doors, ...)
-      mp0010_02.json   — sub-scene sector 02
-      ...
-      mp0010_12.json   — sub-scene sector 12
 
-    All sub-scene actors share the same world coordinate system as the main scene.
-    This function discovers and merges actors from all related files.
+def _load_scene_with_subs(path: Path, source_tag: str = '', offset=(0.0, 0.0, 0.0)) -> list:
+    """Load a single scene file + its numbered sub-scenes (mp0010_01..12).
+
+    Sub-scenes are building interiors with LOCAL coordinates.
+    This function transforms them to WORLD space using door-matching:
+      1. Find door_mapNN_XX in main scene → world position + rotation
+      2. Find door_mapNN_XX_00 in sub-scene → local position + rotation
+      3. Compute rotation = main_ry - sub_ry, pivot = sub_door, anchor = main_door
+      4. Apply rotate-around-pivot + translate to all sub-scene actors
+
+    Terrain chunks have LOCAL-space baked vertices → they need the same
+    door-matching transform applied via Three.js group position/rotation.
     """
     import re as _re
+    import math as _math
 
-    # Parse main scene
-    entries = _parse_single_scene_json(path, source_tag=path.stem)
-    print(f"[scene] {path.name}: {len(entries)} actors (main)")
+    entries = _parse_single_scene_json(path, source_tag=source_tag or path.stem)
+    ox, oy, oz = offset
 
-    # Discover sub-scene files: mp0010_01.json, mp0010_02.json, ...
+    # Apply SceneTree/child-scene offset to main scene actors
+    if ox != 0.0 or oy != 0.0 or oz != 0.0:
+        for e in entries:
+            if e['type'] != 'FieldTerrain':
+                e['tx'] += ox
+                e['ty'] += oy
+                e['tz'] += oz
+            else:
+                # Tag terrain entries with group offset for proper placement
+                e['_grp_tx'] = e.get('_grp_tx', 0.0) + ox
+                e['_grp_ty'] = e.get('_grp_ty', 0.0) + oy
+                e['_grp_tz'] = e.get('_grp_tz', 0.0) + oz
+
+    # Discover sub-scene files
     scene_dir = path.parent
-    stem = path.stem  # e.g. 'mp0010'
+    stem = path.stem
     pattern = _re.compile(_re.escape(stem) + r'_(\d{2})\.json$', _re.I)
-
     sub_files = sorted([
         f for f in scene_dir.iterdir()
         if pattern.match(f.name) and '_sys' not in f.name
     ])
 
+    if not sub_files:
+        return entries
+
+    # ── Collect door actors from MAIN scene ──
+    # door_mp0010_08 → idx=8, world position + rotation
+    door_pat = _re.compile(_re.escape('door_' + stem) + r'_(\d{2})$')
+    main_doors = {}  # idx → (tx, ty, tz, ry)
+    for e in entries:
+        dm = door_pat.match(e.get('instance_name', e['name']))
+        if dm:
+            idx = int(dm.group(1))
+            main_doors[idx] = (e['tx'], e['ty'], e['tz'], e.get('ry', 0.0))
+
+    if main_doors:
+        print(f"[scene] Main doors found: {sorted(main_doors.keys())}")
+        for didx in sorted(main_doors.keys()):
+            dtx, dty, dtz, dry = main_doors[didx]
+            print(f"[scene]   door_{stem}_{didx:02d}: pos=({dtx:.1f}, {dtz:.1f}) ry={dry:.0f}")
+
+    # Collect terrain names for duplicate detection
+    own_terrain_names = {e['name'] for e in entries if e['type'] == 'FieldTerrain' and e['name'].startswith('mp')}
+
+    # Dict to collect door transforms per sub-scene index
+    sub_xforms = {}  # sub_idx → (grp_tx, grp_ty, grp_tz, rot_deg)
+
+    # ── Compute main scene position span for world-space detection ──
+    main_actors = [e for e in entries if e['type'] not in ('FieldTerrain', 'LightProbe')]
+    if main_actors:
+        main_span_x = max(e['tx'] for e in main_actors) - min(e['tx'] for e in main_actors)
+        main_span_z = max(e['tz'] for e in main_actors) - min(e['tz'] for e in main_actors)
+    else:
+        main_span_x = main_span_z = 0
+
     for sf in sub_files:
         try:
             sub_entries = _parse_single_scene_json(sf, source_tag=sf.stem)
-            # Skip duplicate FieldTerrain terrain entries from sub-scenes
-            # (each sub-scene has its own terrain ref — we only need the main one)
+
+            # Apply parent offset to non-terrain actors
+            if ox != 0.0 or oy != 0.0 or oz != 0.0:
+                for e in sub_entries:
+                    if e['type'] != 'FieldTerrain':
+                        e['tx'] += ox
+                        e['ty'] += oy
+                        e['tz'] += oz
+                    else:
+                        e['_grp_tx'] = e.get('_grp_tx', 0.0) + ox
+                        e['_grp_ty'] = e.get('_grp_ty', 0.0) + oy
+                        e['_grp_tz'] = e.get('_grp_tz', 0.0) + oz
+
+            # ── Door-matching transform for LOCAL-space sub-scenes ──
+            sub_idx_match = _re.match(_re.escape(stem) + r'_(\d{2})$', sf.stem)
+            sub_idx = int(sub_idx_match.group(1)) if sub_idx_match else -1
+
+            # Non-terrain actors to check coordinate span
+            sub_actors = [e for e in sub_entries if e['type'] not in ('FieldTerrain', 'LightProbe')]
+
+            # Detect world-space sub-scenes (skip transform)
+            is_world = False
+            if sub_actors:
+                sub_xs = [e['tx'] for e in sub_actors]
+                sub_zs = [e['tz'] for e in sub_actors]
+                sub_span_x = max(sub_xs) - min(sub_xs) if sub_xs else 0
+                sub_span_z = max(sub_zs) - min(sub_zs) if sub_zs else 0
+                is_world = (
+                    (main_span_x > 0 and sub_span_x > main_span_x * 0.6) or
+                    (main_span_z > 0 and sub_span_z > main_span_z * 0.6) or
+                    sub_span_x > 200 or sub_span_z > 200
+                )
+
+            if not is_world and sub_idx >= 0 and sub_idx in main_doors and sub_actors:
+                main_tx, main_ty, main_tz, main_ry = main_doors[sub_idx]
+
+                # Log pre-transform range
+                pre_xs = [e['tx'] for e in sub_actors]
+                pre_zs = [e['tz'] for e in sub_actors]
+                print(f"[scene]   {sf.name}: before: X=[{min(pre_xs):.1f},{max(pre_xs):.1f}] Z=[{min(pre_zs):.1f},{max(pre_zs):.1f}]")
+
+                # Find matching sub-door (door_mp0010_08_00 etc)
+                sub_door_pat = _re.compile(
+                    _re.escape(f'door_{stem}_{sub_idx:02d}') + r'_\d+$')
+                sub_door_e = None
+                for e in sub_entries:
+                    if sub_door_pat.match(e.get('instance_name', e['name'])):
+                        sub_door_e = e
+                        break
+
+                if sub_door_e:
+                    sub_tx, sub_ty, sub_tz = sub_door_e['tx'], sub_door_e['ty'], sub_door_e['tz']
+                    sub_ry = sub_door_e.get('ry', 0.0)
+                else:
+                    sub_tx, sub_ty, sub_tz, sub_ry = 0.0, 0.0, 0.0, 0.0
+
+                rot_deg = main_ry - sub_ry
+                while rot_deg > 180: rot_deg -= 360
+                while rot_deg < -180: rot_deg += 360
+
+                rot_rad = _math.radians(rot_deg)
+                cos_r = _math.cos(rot_rad)
+                sin_r = _math.sin(rot_rad)
+                dy = main_ty - sub_ty
+
+                xformed = 0
+                for e in sub_entries:
+                    if e['type'] == 'FieldTerrain':
+                        continue  # terrain tagged with _grp_* above, not vertex-transformed
+                    # Rotate around sub-door pivot, then translate to main-door world pos
+                    dx = e['tx'] - sub_tx
+                    dz = e['tz'] - sub_tz
+                    rx = dx * cos_r - dz * sin_r
+                    rz = dx * sin_r + dz * cos_r
+                    e['tx'] = rx + main_tx
+                    e['ty'] = e['ty'] + dy
+                    e['tz'] = rz + main_tz
+                    e['ry'] = e.get('ry', 0.0) + rot_deg
+                    xformed += 1
+
+                print(f"[scene]   {sf.name}: +{len(sub_entries)} actors, door xform rot={rot_deg:.0f}deg -> ({main_tx:.1f},{main_tz:.1f}) [{xformed} transformed]")
+                print(f"[scene]     sub-door: ({sub_tx:.1f},{sub_tz:.1f}) ry={sub_ry:.0f}  main-door: ({main_tx:.1f},{main_tz:.1f}) ry={main_ry:.0f}")
+                # Show post-transform range
+                post_xs = [e['tx'] for e in sub_entries if e['type'] not in ('FieldTerrain',)]
+                post_zs = [e['tz'] for e in sub_entries if e['type'] not in ('FieldTerrain',)]
+                if post_xs:
+                    print(f"[scene]     after: X=[{min(post_xs):.1f},{max(post_xs):.1f}] Z=[{min(post_zs):.1f},{max(post_zs):.1f}]")
+
+                # ── Tag FieldTerrain entries with group transform ──
+                # Terrain mesh vertices are in LOCAL space; Three.js group will apply:
+                #   world = R * local_vertex + group_position
+                # We need: world = R * (local - pivot) + main_door
+                #        = R * local - R * pivot + main_door
+                # So: group_position = main_door - R * pivot
+                rpx = sub_tx * cos_r - sub_tz * sin_r
+                rpz = sub_tx * sin_r + sub_tz * cos_r
+                grp_tx = main_tx - rpx
+                grp_ty = main_ty - sub_ty
+                grp_tz = main_tz - rpz
+
+                # Store for tagging main-scene FieldTerrain entries after loop
+                # NOTE: negate rotation for Three.js (CW) vs manual actor transform (CCW)
+                sub_xforms[sub_idx] = (grp_tx, grp_ty, grp_tz, -rot_deg)
+
+                for e in sub_entries:
+                    if e['type'] == 'FieldTerrain':
+                        e['_grp_tx'] = grp_tx
+                        e['_grp_ty'] = grp_ty
+                        e['_grp_tz'] = grp_tz
+                        e['_grp_ry'] = -rot_deg
+
+            elif is_world:
+                print(f"[scene]   {sf.name}: +{len(sub_entries)} actors (world-space, no transform)")
+            else:
+                # No door match — tag entries for terrain-vertex fallback in main()
+                for e in sub_entries:
+                    if e['type'] != 'FieldTerrain':
+                        e['_needs_terrain_offset'] = True
+                print(f"[scene]   {sf.name}: +{len(sub_entries)} actors (no door match, tagged for terrain fallback)")
+
+            # Filter out terrain duplicates from parent scene
             filtered = [e for e in sub_entries if not (
-                e['type'] == 'FieldTerrain' and e['name'].startswith('mp')
+                e['type'] == 'FieldTerrain' and e['name'] in own_terrain_names
             )]
             entries.extend(filtered)
-            print(f"[scene] {sf.name}: +{len(filtered)} actors (sub-scene, {len(sub_entries) - len(filtered)} terrain refs skipped)")
-        except Exception as exc:
-            print(f"[scene] {sf.name}: SKIP — {exc}")
 
-    print(f"[scene] Total: {len(entries)} actors from {1 + len(sub_files)} files")
+        except Exception as exc:
+            print(f"[scene]   {sf.name}: SKIP - {exc}")
+
+    # ── Tag main-scene FieldTerrain entries with sub-scene door transforms ──
+    # The main scene lists FieldTerrain for ALL sub-scenes (mp0010_01..12).
+    # Sub-scene terrain entries were filtered as duplicates, so we need to tag
+    # the main scene's entries instead.
+    if sub_xforms:
+        sub_pat = _re.compile(_re.escape(stem) + r'_(\d{2})$')
+        tagged = 0
+        for e in entries:
+            if e['type'] == 'FieldTerrain' and '_grp_tx' not in e:
+                m = sub_pat.match(e['name'])
+                if m:
+                    tidx = int(m.group(1))
+                    if tidx in sub_xforms:
+                        grp_tx, grp_ty, grp_tz, grp_ry = sub_xforms[tidx]
+                        e['_grp_tx'] = grp_tx
+                        e['_grp_ty'] = grp_ty
+                        e['_grp_tz'] = grp_tz
+                        e['_grp_ry'] = grp_ry
+                        tagged += 1
+        if tagged:
+            print(f"[scene] Tagged {tagged} main-scene terrain entries with door transforms")
+
+    return entries
+
+
+def parse_scene_json(path: Path) -> list:
+    """Parse Trails engine scene — main file + sub-scenes + SceneTree child scenes (recursive).
+
+    Scene hierarchy:
+      1. Main scene (mp0010.json) — actors + terrain at world origin
+      2. Sub-scene sectors (mp0010_01.json ... _12.json) — same coordinate space
+      3. SceneTree child scenes (mp0011, mp0013, etc.) — offset by SceneTree translation
+         These are separate scenes embedded at specific positions (clock towers, plazas, etc.)
+         Child scenes may themselves have sub-scenes and further children (recursive).
+    """
+    import re as _re
+
+    scene_dir = path.parent
+
+    # ── Phase 1: Load main scene + its sub-scenes ──
+    entries = _load_scene_with_subs(path, source_tag=path.stem)
+    print(f"[scene] {path.name}: {len(entries)} actors (main + sub-scenes)")
+
+    # ── Phase 2: Walk SceneTree to find child scene references ──
+    try:
+        parsed_main = decode_binary_mi(path.read_bytes())
+    except Exception:
+        parsed_main = {}
+
+    visited = {path.stem}  # prevent cycles
+
+    def _load_child_scenes(parsed, parent_offset=(0.0, 0.0, 0.0)):
+        refs = _extract_scene_tree_refs(parsed)
+        if not refs:
+            return []
+
+        child_entries = []
+        for ref in refs:
+            fn = ref['filename']
+            if fn in visited:
+                continue
+            visited.add(fn)
+
+            # Accumulated offset
+            acc_offset = (
+                parent_offset[0] + ref['offset'][0],
+                parent_offset[1] + ref['offset'][1],
+                parent_offset[2] + ref['offset'][2],
+            )
+
+            child_path = scene_dir / f"{fn}.json"
+            if not child_path.exists():
+                print(f"[scene] SceneTree child {fn}: file not found")
+                continue
+
+            print(f"[scene] SceneTree child: {fn} at offset ({acc_offset[0]:.1f}, {acc_offset[1]:.1f}, {acc_offset[2]:.1f})")
+
+            # Load this child scene + its sub-scenes with accumulated offset
+            ce = _load_scene_with_subs(child_path, source_tag=fn, offset=acc_offset)
+            child_entries.extend(ce)
+            print(f"[scene]   -> {len(ce)} actors loaded from {fn}")
+
+            # Recursively check this child's own SceneTree
+            try:
+                child_parsed = decode_binary_mi(child_path.read_bytes())
+                grandchild = _load_child_scenes(child_parsed, acc_offset)
+                child_entries.extend(grandchild)
+            except Exception:
+                pass
+
+        return child_entries
+
+    child_entries = _load_child_scenes(parsed_main)
+    if child_entries:
+        entries.extend(child_entries)
+        print(f"[scene] SceneTree: +{len(child_entries)} actors from child scenes")
+
+    # ── Phase 3: Self-transform when a sub-scene is opened directly ──
+    # If user opened mp0010_08.json, all entries (including _sys children) are in
+    # LOCAL coordinates. Load parent scene mp0010 to get the door-based transform,
+    # then apply rotation+translation to ALL non-terrain entries.
+    import math as _math
+    self_sub_match = _re.match(r'(mp\d{4})_(\d{2})$', path.stem)
+    if self_sub_match:
+        parent_stem = self_sub_match.group(1)
+        self_idx = int(self_sub_match.group(2))
+        parent_path = scene_dir / f"{parent_stem}.json"
+
+        if parent_path.exists():
+            print(f"[scene] Sub-scene opened directly: {path.stem} -> parent {parent_stem}")
+            try:
+                parent_entries = _parse_single_scene_json(parent_path, source_tag=parent_stem)
+
+                # Find door in parent: door_{parent}_{self_idx}
+                parent_door_pat = _re.compile(
+                    _re.escape(f'door_{parent_stem}_{self_idx:02d}') + r'$')
+                parent_door = None
+                for pe in parent_entries:
+                    if parent_door_pat.match(pe.get('instance_name', pe['name'])):
+                        parent_door = pe
+                        break
+
+                if parent_door:
+                    main_tx = parent_door['tx']
+                    main_ty = parent_door['ty']
+                    main_tz = parent_door['tz']
+                    main_ry = parent_door.get('ry', 0.0)
+
+                    # Find our own door in our entries
+                    sub_door_pat = _re.compile(
+                        _re.escape(f'door_{parent_stem}_{self_idx:02d}') + r'_\d+$')
+                    sub_door = None
+                    for e in entries:
+                        if sub_door_pat.match(e.get('instance_name', e['name'])):
+                            sub_door = e
+                            break
+
+                    if sub_door:
+                        sub_tx, sub_ty, sub_tz = sub_door['tx'], sub_door['ty'], sub_door['tz']
+                        sub_ry = sub_door.get('ry', 0.0)
+                    else:
+                        sub_tx, sub_ty, sub_tz, sub_ry = 0.0, 0.0, 0.0, 0.0
+
+                    rot_deg = main_ry - sub_ry
+                    while rot_deg > 180: rot_deg -= 360
+                    while rot_deg < -180: rot_deg += 360
+
+                    rot_rad = _math.radians(rot_deg)
+                    cos_r = _math.cos(rot_rad)
+                    sin_r = _math.sin(rot_rad)
+                    dy = main_ty - sub_ty
+
+                    xformed = 0
+                    for e in entries:
+                        if e['type'] == 'FieldTerrain':
+                            # Tag terrain with group transform instead of transforming vertices
+                            rpx = sub_tx * cos_r - sub_tz * sin_r
+                            rpz = sub_tx * sin_r + sub_tz * cos_r
+                            e['_grp_tx'] = main_tx - rpx
+                            e['_grp_ty'] = dy
+                            e['_grp_tz'] = main_tz - rpz
+                            e['_grp_ry'] = -rot_deg  # negate for Three.js CW convention
+                            continue
+                        dx = e['tx'] - sub_tx
+                        dz = e['tz'] - sub_tz
+                        e['tx'] = dx * cos_r - dz * sin_r + main_tx
+                        e['ty'] = e['ty'] + dy
+                        e['tz'] = dx * sin_r + dz * cos_r + main_tz
+                        e['ry'] = e.get('ry', 0.0) + rot_deg
+                        xformed += 1
+
+                    print(f"[scene]   Self-transform: rot={rot_deg:.0f}deg "
+                          f"pivot=({sub_tx:.1f},{sub_tz:.1f}) -> world ({main_tx:.1f},{main_tz:.1f}) "
+                          f"[{xformed} actors across all sources]")
+                else:
+                    print(f"[scene]   No parent door 'door_{parent_stem}_{self_idx:02d}' found — "
+                          f"entries remain in local coordinates")
+            except Exception as exc:
+                print(f"[scene]   Failed to load parent for self-transform: {exc}")
+
+    # ── Summary ──
+    ft_final = [e for e in entries if e['type'] == 'FieldTerrain']
+    ft_names = [e['name'] for e in ft_final]
+    print(f"[scene] Total: {len(entries)} actors ({len(ft_final)} FieldTerrain: {ft_names})")
+    # Per-source breakdown
+    from collections import Counter as _Ctr
+    src_counts = _Ctr(e.get('source', '?') for e in entries)
+    for src, cnt in sorted(src_counts.items(), key=lambda x: -x[1]):
+        print(f"[scene]   {src}: {cnt} actors")
     return entries
 
 
@@ -9031,7 +10063,7 @@ def main():
             for k, v in shown:
                 try: rel = v.relative_to(asset_dir)
                 except ValueError: rel = v
-                print(f"    {k} → {rel}")
+                print(f"    {k} -> {rel}")
             if len(mdl_index) > 5:
                 print(f"    ... and {len(mdl_index) - 5} more")
         
@@ -9152,20 +10184,46 @@ def main():
         unresolved = {k for k, v in model_paths.items() if v is None}
         
         print(f"\n[+] Model resolution: {len(resolved)}/{len(unique_names)} models found")
+        # Show terrain chunk resolution status
+        terrain_resolved = {k: v for k, v in resolved.items() if k.startswith('mp')}
+        if terrain_resolved:
+            print(f"[+] Terrain chunks in resolved: {sorted(terrain_resolved.keys())}")
+        else:
+            print(f"[!] NO terrain chunks (mp*) in resolved models!")
+            mp_names = [n for n in unique_names if n.startswith('mp')]
+            if mp_names:
+                print(f"    mp* in unique_names: {mp_names}")
+            else:
+                print(f"    NO mp* names in unique_names at all!")
         if resolved:
             for name, path in sorted(resolved.items())[:20]:
                 count = names[name]
                 try: rel = path.relative_to(asset_dir)
                 except ValueError: rel = path
-                print(f"    [OK] {name} ({count}x) → {rel}")
+                print(f"    [OK] {name} ({count}x) -> {rel}")
             if len(resolved) > 20:
                 print(f"    ... and {len(resolved) - 20} more")
         if unresolved:
             shown = sorted(unresolved)[:20]
             for name in shown:
-                print(f"    [--] {name} ({names[name]}x) → placeholder")
+                print(f"    [--] {name} ({names[name]}x) -> placeholder")
             if len(unresolved) > 20:
                 print(f"    ... and {len(unresolved) - 20} more unresolved")
+        
+        # Per-source resolution stats
+        from collections import Counter as _Ctr2
+        src_names = {}  # source -> set of model names used
+        for e in entries:
+            src = e.get('source', '?')
+            if src not in src_names: src_names[src] = set()
+            src_names[src].add(e['name'])
+        for src in sorted(src_names.keys()):
+            names_in_src = src_names[src]
+            res_cnt = sum(1 for n in names_in_src if n in resolved)
+            unres_cnt = sum(1 for n in names_in_src if n in unresolved)
+            skip_cnt = len(names_in_src) - res_cnt - unres_cnt
+            if src != scene_path.stem:  # only show non-main sources
+                print(f"    [{src}] {len(names_in_src)} unique names: {res_cnt} resolved, {unres_cnt} unresolved, {skip_cnt} skipped")
 
         # ── Load unique MDL models ──
         all_meshes = []
@@ -9198,7 +10256,7 @@ def main():
                         
                         all_meshes.extend(meshes_result)
                         loaded_count += 1
-                        print(f"    → {len(meshes_result)} meshes loaded")
+                        print(f"    -> {len(meshes_result)} meshes loaded")
                 except Exception as e:
                     print(f"    [!] Failed to load {name}: {e}")
                     import traceback
@@ -9210,16 +10268,24 @@ def main():
         terrain_models = {}  # key → True (for model_key annotation)
         ft_entries = [e for e in entries if e['type'] == 'FieldTerrain']
         if ft_entries and map_id:
-            terrain_prefix = f'mp{map_id}'
-            terrain_candidates = sorted([
-                (k, v) for k, v in mdl_index.items() 
-                if k.startswith(terrain_prefix) and '_mi' not in k
-            ])
-            print(f"\n[+] Loading {len(terrain_candidates)} terrain chunks for {terrain_prefix}...")
+            # Only load terrain models actually referenced in FieldTerrain entries
+            ft_model_names = {e['name'] for e in ft_entries if e['name'].startswith('mp')}
+            terrain_candidates = []
+            for ft_name in sorted(ft_model_names):
+                lname = ft_name.lower()
+                if lname in mdl_index:
+                    terrain_candidates.append((lname, mdl_index[lname]))
+                else:
+                    print(f"[!] Terrain '{ft_name}' not found in mdl_index")
+
+            print(f"\n[+] Loading {len(terrain_candidates)} terrain chunks...")
             for i, (tname, tpath) in enumerate(terrain_candidates):
                 if tname in resolved:
                     terrain_models[tname] = True
-                    continue  # Already loaded
+                    # Count meshes for this model
+                    mesh_count = sum(1 for m in all_meshes if m.get('model_name') == tname)
+                    print(f"  [terrain {i+1}/{len(terrain_candidates)}] {tname} - already loaded ({mesh_count} meshes)")
+                    continue
                 try:
                     print(f"  [terrain {i+1}/{len(terrain_candidates)}] Loading {tname}...")
                     meshes_result, mat_map, skel, mi, bm = load_mdl_with_textures(
@@ -9236,29 +10302,255 @@ def main():
                         all_materials.update(prefixed_mat)
                         terrain_models[tname] = True
                         loaded_count += 1
-                        print(f"    → {len(meshes_result)} meshes loaded")
+                        print(f"    -> {len(meshes_result)} meshes loaded")
                 except Exception as e:
                     print(f"    [!] Failed to load terrain {tname}: {e}")
             print(f"[+] Terrain: {len(terrain_models)} chunks loaded")
+            print(f"[+] === TERRAIN SUMMARY ===")
+            for tkey in sorted(terrain_models.keys()):
+                mc = sum(1 for m in all_meshes if m.get('model_name') == tkey)
+                print(f"  + {tkey}: {mc} meshes")
+            print(f"[+] =======================")
+
+        # ── Terrain vertex fallback for sub-scenes without door matching ──
+        # _load_scene_with_subs handles door-based transforms (with rotation).
+        # Sub-scenes that had no matching doors are tagged with _needs_terrain_offset.
+        # For those, use terrain mesh world-space vertices to compute translation offset.
+        fallback_sources = sorted({
+            e.get('source', '') for e in entries
+            if e.get('_needs_terrain_offset') and e['type'] != 'FieldTerrain'
+        })
+
+        if fallback_sources:
+            print(f"\n[+] === TERRAIN VERTEX FALLBACK for {len(fallback_sources)} sub-scenes ===")
+            for src in fallback_sources:
+                # Terrain key = sub-scene source name (e.g. mp1010_01)
+                tkey = src
+                if tkey not in terrain_models:
+                    print(f"  {src}: no terrain model '{tkey}', skip")
+                    continue
+                chunk_verts_x, chunk_verts_z = [], []
+                for mesh in all_meshes:
+                    if mesh.get('model_name') == tkey and mesh.get('vertices') is not None:
+                        verts = mesh['vertices']
+                        if hasattr(verts, 'shape') and len(verts.shape) == 2:
+                            chunk_verts_x.extend(verts[:, 0].tolist())
+                            chunk_verts_z.extend(verts[:, 2].tolist())
+                        else:
+                            for vi in range(0, len(verts), 3):
+                                chunk_verts_x.append(float(verts[vi]))
+                                chunk_verts_z.append(float(verts[vi + 2]))
+                if not chunk_verts_x:
+                    print(f"  {src}: terrain '{tkey}' has no vertices, skip")
+                    continue
+                tw_cx = (min(chunk_verts_x) + max(chunk_verts_x)) / 2
+                tw_cz = (min(chunk_verts_z) + max(chunk_verts_z)) / 2
+                # Actor center in local space
+                sub_actors = [e for e in entries if e.get('source', '') == src
+                              and e['type'] not in ('FieldTerrain', 'LightProbe')]
+                if not sub_actors:
+                    continue
+                sub_xs = [e['tx'] for e in sub_actors]
+                sub_zs = [e['tz'] for e in sub_actors]
+                al_cx = (min(sub_xs) + max(sub_xs)) / 2
+                al_cz = (min(sub_zs) + max(sub_zs)) / 2
+                ox = tw_cx - al_cx
+                oz = tw_cz - al_cz
+                applied = 0
+                for entry in entries:
+                    if entry.get('source', '') == src and entry.get('_needs_terrain_offset'):
+                        entry['tx'] += ox
+                        entry['tz'] += oz
+                        del entry['_needs_terrain_offset']
+                        applied += 1
+                print(f"  {src}: terrain offset ({ox:.1f}, 0, {oz:.1f}) applied to {applied} actors"
+                      f"  [terrain center ({tw_cx:.0f},{tw_cz:.0f})]")
+            print(f"[+] =======================================\n")
+
+        # ── Diagnostic: per-source position ranges after all transforms ──
+        from collections import defaultdict as _ddict
+        src_ranges = _ddict(lambda: {'xs': [], 'zs': [], 'n': 0})
+        for e in entries:
+            if e['type'] in ('FieldTerrain',):
+                continue
+            src = e.get('source', '?')
+            src_ranges[src]['xs'].append(e['tx'])
+            src_ranges[src]['zs'].append(e['tz'])
+            src_ranges[src]['n'] += 1
+        if len(src_ranges) > 1:
+            print(f"[+] === POSITION RANGES PER SOURCE (final) ===")
+            for src in sorted(src_ranges.keys()):
+                r = src_ranges[src]
+                if r['xs']:
+                    print(f"  {src:20s}: {r['n']:4d} actors  X=[{min(r['xs']):8.1f},{max(r['xs']):8.1f}]  Z=[{min(r['zs']):8.1f},{max(r['zs']):8.1f}]")
+            print()
+
+        # Clean up temporary flags (only _needs_terrain_offset here; _grp_* used below)
+        for e in entries:
+            e.pop('_needs_terrain_offset', None)
 
         # ── Replace FieldTerrain entries with per-chunk synthetic entries ──
-        # Terrain chunks have world-space vertices baked in, so all placed at origin.
-        # Remove old FieldTerrain entries and add one entry per loaded terrain chunk.
+        # Terrain chunks have LOCAL-space vertices; they need group transform
+        # (position + rotation) to appear at the correct world location.
+        # Collect transforms from original FieldTerrain entries before removing them.
         terrain_keys = sorted(terrain_models.keys())
         if terrain_keys:
+            # Collect _grp_* transforms from original FieldTerrain entries
+            terrain_xforms = {}  # tkey → (tx, ty, tz, ry)
+            for e in entries:
+                if e['type'] == 'FieldTerrain' and e['name'].startswith('mp'):
+                    tname = e['name'].lower()
+                    if '_grp_tx' in e:
+                        terrain_xforms[tname] = (
+                            e['_grp_tx'], e['_grp_ty'], e['_grp_tz'], e.get('_grp_ry', 0.0))
+
             entries = [e for e in entries if e['type'] != 'FieldTerrain']
+            scene_stem = scene_path.stem
+            import re as _re_t
+            sub_pat = _re_t.compile(_re_t.escape(scene_stem) + r'_\d{2}$')
             for tkey in terrain_keys:
+                grp_tx, grp_ty, grp_tz, grp_ry = terrain_xforms.get(tkey, (0.0, 0.0, 0.0, 0.0))
+                # Interior sub-scene terrain → group with its sub-scene source
+                # Main/child terrain → group as 'terrain'
+                t_source = tkey if sub_pat.match(tkey) else 'terrain'
                 entries.append({
                     'name': tkey,
                     'type': 'FieldTerrain',
                     'instance_name': tkey,
-                    'source': 'terrain',
+                    'source': t_source,
                     'model_key': tkey,
-                    'tx': 0.0, 'ty': 0.0, 'tz': 0.0,
-                    'rx': 0.0, 'ry': 0.0, 'rz': 0.0,
+                    'tx': grp_tx, 'ty': grp_ty, 'tz': grp_tz,
+                    'rx': 0.0, 'ry': grp_ry, 'rz': 0.0,
                     'sx': 1.0, 'sy': 1.0, 'sz': 1.0,
                 })
-            print(f"[+] Created {len(terrain_keys)} terrain chunk entries (at origin)")
+                if grp_tx != 0 or grp_tz != 0 or grp_ry != 0:
+                    print(f"[+] Terrain {tkey}: group pos=({grp_tx:.1f}, {grp_ty:.1f}, {grp_tz:.1f}) rot={grp_ry:.0f}deg")
+            placed_at_origin = sum(1 for t in terrain_keys if terrain_xforms.get(t, (0,0,0,0)) == (0.0, 0.0, 0.0, 0.0))
+            placed_xformed = len(terrain_keys) - placed_at_origin
+            print(f"[+] Created {len(terrain_keys)} terrain entries ({placed_at_origin} at origin, {placed_xformed} with door transform)")
+
+            # ── Edge layout: move interior sub-scenes outside main scene ──
+            import re as _re_edge
+            _scene_stem = scene_path.stem
+            _int_pat = _re_edge.compile(_re_edge.escape(_scene_stem) + r'_\d{2}$')
+            _int_sources = sorted(set(
+                e['source'] for e in entries
+                if _int_pat.match(e.get('source', ''))
+            ))
+
+            if _int_sources:
+                # Compute main scene AABB (non-interior actors only)
+                _main_xs, _main_zs = [], []
+                for e in entries:
+                    src = e.get('source', '')
+                    if e['type'] == 'FieldTerrain':
+                        continue
+                    if _int_pat.match(src) or src.endswith('_sys'):
+                        continue
+                    _main_xs.append(e['tx'])
+                    _main_zs.append(e['tz'])
+
+                _main_x0 = min(_main_xs) if _main_xs else 0
+                _main_x1 = max(_main_xs) if _main_xs else 0
+                _main_z0 = min(_main_zs) if _main_zs else 0
+                _main_z1 = max(_main_zs) if _main_zs else 0
+                print(f"[+] Main scene AABB: X=[{_main_x0:.0f},{_main_x1:.0f}] Z=[{_main_z0:.0f},{_main_z1:.0f}]")
+
+                # Compute each interior's current AABB (actors + terrain world AABB)
+                import math as _edge_math
+                _int_bboxes = {}
+                for isrc in _int_sources:
+                    ixs, izs = [], []
+                    for e in entries:
+                        if e.get('source', '') in (isrc, isrc + '_sys'):
+                            if e['type'] == 'FieldTerrain':
+                                # Simulate terrain world AABB from local verts + group transform
+                                tmeshes = [m for m in all_meshes if m.get('model_name') == isrc]
+                                gt_x, gt_y, gt_z, gt_ry = e['tx'], e['ty'], e['tz'], e.get('ry', 0.0)
+                                rad = _edge_math.radians(gt_ry)
+                                cr, sr = _edge_math.cos(rad), _edge_math.sin(rad)
+                                for cm in tmeshes:
+                                    for v in cm.get('vertices', []):
+                                        if len(v) >= 3:
+                                            wx = v[0]*cr + v[2]*sr + gt_x
+                                            wz = -v[0]*sr + v[2]*cr + gt_z
+                                            ixs.append(wx); izs.append(wz)
+                            else:
+                                ixs.append(e['tx']); izs.append(e['tz'])
+                    if ixs:
+                        _int_bboxes[isrc] = {
+                            'cx': float((min(ixs) + max(ixs)) / 2),
+                            'cz': float((min(izs) + max(izs)) / 2),
+                            'sx': float(max(ixs) - min(ixs)),
+                            'sz': float(max(izs) - min(izs)),
+                        }
+
+                # Layout grid below main scene
+                _cell_pad = 10  # padding between cells
+                _grid_cols = 4
+                # Sort by index for predictable layout
+                _grid_start_z = _main_z1 + 40  # below main scene
+
+                print(f"[+] === INTERIOR EDGE LAYOUT ({len(_int_sources)} interiors) ===")
+                for idx, isrc in enumerate(_int_sources):
+                    if isrc not in _int_bboxes:
+                        continue
+                    bbox = _int_bboxes[isrc]
+                    cell_w = max(bbox['sx'] + _cell_pad, 40)
+                    cell_h = max(bbox['sz'] + _cell_pad, 40)
+                    col = idx % _grid_cols
+                    row = idx // _grid_cols
+                    edge_cx = _main_x0 + col * 60 + 30  # 60-unit wide columns
+                    edge_cz = _grid_start_z + row * 60 + 30  # 60-unit tall rows
+                    offset_x = float(edge_cx - bbox['cx'])
+                    offset_z = float(edge_cz - bbox['cz'])
+
+                    # Shift actors of this interior (+ its _sys variant)
+                    shifted = 0
+                    for e in entries:
+                        esrc = e.get('source', '')
+                        if esrc != isrc and esrc != isrc + '_sys':
+                            continue
+                        e['tx'] = float(e['tx'] + offset_x)
+                        e['tz'] = float(e['tz'] + offset_z)
+                        shifted += 1
+
+                    print(f"  {isrc}: offset=({offset_x:+.1f}, {offset_z:+.1f}) → center=({edge_cx:.0f}, {edge_cz:.0f})  [{shifted} entries shifted]")
+                print()
+
+            # ── Diagnostic: compare terrain chunk positions with actor positions ──
+            import math as _diag_math
+            print(f"[+] === TERRAIN vs ACTOR POSITIONS (after group transform) ===")
+            for tkey in sorted(terrain_models.keys()):
+                chunk_meshes = [m for m in all_meshes if m.get('model_name') == tkey]
+                all_vx, all_vz = [], []
+                for cm in chunk_meshes:
+                    for v in cm.get('vertices', []):
+                        if len(v) >= 3:
+                            all_vx.append(v[0]); all_vz.append(v[2])
+
+                gt_x, gt_y, gt_z, gt_ry = terrain_xforms.get(tkey, (0.0, 0.0, 0.0, 0.0))
+                if all_vx:
+                    rad = _diag_math.radians(gt_ry)
+                    cr, s_r = _diag_math.cos(rad), _diag_math.sin(rad)
+                    world_xs = [lx*cr + lz*s_r + gt_x for lx, lz in zip(all_vx, all_vz)]
+                    world_zs = [-lx*s_r + lz*cr + gt_z for lx, lz in zip(all_vx, all_vz)]
+                    t_x0, t_x1 = min(world_xs), max(world_xs)
+                    t_z0, t_z1 = min(world_zs), max(world_zs)
+                else:
+                    t_x0 = t_x1 = t_z0 = t_z1 = 0.0
+                sr = src_ranges.get(tkey)
+                if sr and sr['xs']:
+                    a_x0, a_x1 = min(sr['xs']), max(sr['xs'])
+                    a_z0, a_z1 = min(sr['zs']), max(sr['zs'])
+                    ovlp_x = max(0, min(t_x1, a_x1) - max(t_x0, a_x0))
+                    ovlp_z = max(0, min(t_z1, a_z1) - max(t_z0, a_z0))
+                    tag = "OK" if (ovlp_x > 0 and ovlp_z > 0) else "MISMATCH!"
+                    print(f"  {tkey:15s}  T=[{t_x0:7.1f},{t_x1:7.1f}]x[{t_z0:7.1f},{t_z1:7.1f}]"
+                          f"  A=[{a_x0:7.1f},{a_x1:7.1f}]x[{a_z0:7.1f},{a_z1:7.1f}]  {tag}")
+                else:
+                    print(f"  {tkey:15s}  T=[{t_x0:7.1f},{t_x1:7.1f}]x[{t_z0:7.1f},{t_z1:7.1f}]  (no actors)")
+            print()
 
         # ── Annotate actors with model_key for JS instancing ──
         for entry in entries:
