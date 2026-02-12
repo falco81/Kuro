@@ -43,7 +43,8 @@ for proper function it needs to have all necessary data extracted in the game da
 - **facial animations**
 ---
 
-**Beta9 - added facial animations**<br>
+**Beta9 - viewer_mdl_textured_anim.py/exe**<br>
+added facial animations<br>
 <img src="doc/viewer_anim9.gif" width="100%">
 <img src="doc/viewer_anim9.png" width="100%">
 
