@@ -1310,6 +1310,7 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
 
             mesh_data = {
                 "name": f"{i}_{base_name}_{j:02d}",
+                "mesh_group": base_name,
                 "vertices": vertices,
                 "normals": normals,
                 "uvs": uvs,
@@ -1338,6 +1339,18 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
     if uv_no_tangent > 0:
         summary += f", {uv_no_tangent} will be computed in JS"
     print(summary)
+    
+    # Mesh group summary
+    group_counts = {}
+    shadow_keywords = ['shadow', 'kage', 'box']
+    for m in meshes:
+        g = m.get("mesh_group", "unknown")
+        group_counts[g] = group_counts.get(g, 0) + 1
+    group_parts = []
+    for g, c in sorted(group_counts.items()):
+        is_shadow = any(kw in g.lower() for kw in shadow_keywords)
+        group_parts.append(f"{g}({c}){'👤' if is_shadow else ''}")
+    print(f"[+] Mesh groups: {', '.join(group_parts)}")
     print(f"{'='*60}\n")
 
     return meshes, material_texture_map, skeleton_data, model_info, global_bind_matrices
@@ -1367,6 +1380,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         
         mesh_info = {
             "name": m["name"],
+            "mesh_group": m.get("mesh_group", ""),
             "vertices": verts.astype(np.float32).flatten().tolist(),
             "normals": norms.astype(np.float32).flatten().tolist(),
             "indices": idxs.astype(np.uint32).tolist(),
@@ -1504,6 +1518,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     .texture-indicator {{
       display: inline-block; width: 12px; height: 12px; border-radius: 3px;
       margin-left: 6px; background: linear-gradient(135deg, #10b981, #34d399);
+    }}
+    .shadow-indicator {{
+      display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+      margin-left: 4px; background: linear-gradient(135deg, #6b7280, #9ca3af);
     }}
 
     /* === Select / dropdown === */
@@ -1899,6 +1917,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     <div id="meshSection" style="display:none;">
       <button class="btn-action" onclick="toggleAllMeshes(true)">✅ Show All</button>
       <button class="btn-action" onclick="toggleAllMeshes(false)">❌ Hide All</button>
+      <div class="toggle-row" onclick="toggleHideShadow(); document.getElementById('swShadow').checked = hideShadowMeshes;">
+        <span class="label">👤 Hide Shadow</span>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="swShadow" checked onchange="toggleHideShadow()">
+          <span class="slider"></span>
+        </label>
+      </div>
       <div class="toggle-row" onclick="xrayHighlight = !xrayHighlight; document.getElementById('swXray').checked = xrayHighlight;">
         <span class="label">👁 X-Ray Highlight</span>
         <label class="toggle-switch" onclick="event.stopPropagation()">
@@ -2969,9 +2994,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           mesh.userData.fxoMaterial = material;
         }}
         
-        const hideKeywords = ['shadow', 'kage', 'box'];
-        if (CONFIG.AUTO_HIDE_SHADOW && 
-            hideKeywords.some(keyword => meshData.name.toLowerCase().includes(keyword))) {{
+        mesh.userData.isShadowMesh = !!meshData.mesh_group && /shadow|kage|box/i.test(meshData.mesh_group);
+        mesh.userData.meshGroup = meshData.mesh_group || '';
+        if (CONFIG.AUTO_HIDE_SHADOW && mesh.userData.isShadowMesh) {{
           mesh.visible = false;
         }}
         
@@ -3121,6 +3146,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     // Focus camera on a specific mesh by index
     let focusLockUntil = 0;  // timestamp to temporarily disable TP camera override
     let xrayHighlight = true;  // whether blink shows through other meshes
+    let hideShadowMeshes = true;  // hide shadow meshes (default ON)
     let fxoShadersEnabled = true;  // FXO toon shaders active
     let recomputeNormalsEnabled = RECOMPUTE_NORMALS;  // recomputed normals active
     
@@ -4562,6 +4588,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           label.appendChild(indicator);
         }}
         
+        if (mesh.userData.isShadowMesh) {{
+          const shadowIcon = document.createElement('span');
+          shadowIcon.className = 'shadow-indicator';
+          shadowIcon.title = 'Shadow mesh (group: ' + mesh.userData.meshGroup + ')';
+          label.appendChild(shadowIcon);
+        }}
+        
         const spotBtn = document.createElement('span');
         spotBtn.textContent = '💡';
         spotBtn.title = 'Highlight this mesh (no zoom)';
@@ -4599,6 +4632,25 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }}
         const checkbox = document.getElementById(`mesh-${{idx}}`);
         if (checkbox) checkbox.checked = visible;
+      }});
+      if (visible) {{
+        hideShadowMeshes = false;
+        const sw = document.getElementById('swShadow'); if (sw) sw.checked = false;
+      }}
+      updateStats();
+    }}
+
+    function toggleHideShadow() {{
+      hideShadowMeshes = !hideShadowMeshes;
+      const sw = document.getElementById('swShadow'); if (sw) sw.checked = hideShadowMeshes;
+      meshes.forEach((m, idx) => {{
+        if (!m.userData.isShadowMesh) return;
+        m.visible = !hideShadowMeshes;
+        if (wireframeOverlayMode && m.userData.wireframeOverlay) {{
+          m.userData.wireframeOverlay.visible = !hideShadowMeshes;
+        }}
+        const cb = document.getElementById(`mesh-${{idx}}`);
+        if (cb) cb.checked = !hideShadowMeshes;
       }});
       updateStats();
     }}
@@ -5026,14 +5078,16 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // Show all meshes, then re-hide shadow meshes (matching initial state)
       toggleAllMeshes(true);
       if (CONFIG.AUTO_HIDE_SHADOW) {{
-        const hideKeywords = ['shadow', 'kage', 'box'];
         meshes.forEach((m, idx) => {{
-          if (hideKeywords.some(kw => m.userData.meshName.toLowerCase().includes(kw))) {{
+          if (m.userData.isShadowMesh) {{
             m.visible = false;
             const cb = document.getElementById(`mesh-${{idx}}`);
             if (cb) cb.checked = false;
           }}
         }});
+        hideShadowMeshes = true;
+        const swShadow = document.getElementById('swShadow');
+        if (swShadow) swShadow.checked = true;
       }}
 
       // Reset camera to frame model
