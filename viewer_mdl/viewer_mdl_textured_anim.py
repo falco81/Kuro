@@ -1789,7 +1789,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
                style="flex:1;" oninput="if(dirLight2)dirLight2.intensity=parseFloat(this.value); document.getElementById('lightFillVal').textContent=parseFloat(this.value).toFixed(2)">
         <span id="lightFillVal" class="info-text" style="min-width:28px;text-align:right;color:#fbbf24;">0.40</span>
       </div>
-      <button class="btn-action" onclick="document.getElementById('lightAmbient').value=0.6; document.getElementById('lightKey').value=0.8; document.getElementById('lightFill').value=0.4; if(ambientLight)ambientLight.intensity=0.6; if(dirLight1)dirLight1.intensity=0.8; if(dirLight2)dirLight2.intensity=0.4; document.getElementById('lightAmbVal').textContent='0.60'; document.getElementById('lightKeyVal').textContent='0.80'; document.getElementById('lightFillVal').textContent='0.40';">🔄 Reset Lights</button>
+      <div id="fxoToggleRow" class="toggle-row" style="display:none;" onclick="document.getElementById('swFxo').checked = !document.getElementById('swFxo').checked; setFxoShaders(document.getElementById('swFxo').checked);">
+        <span class="label">✨ FXO Shaders</span>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="swFxo" checked onchange="setFxoShaders(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
       <div class="toggle-row" onclick="toggleEmissive(); document.getElementById('swEmissive').checked = emissiveEnabled;">
         <span class="label">✨ Emissive Glow</span>
         <label class="toggle-switch" onclick="event.stopPropagation()">
@@ -1797,6 +1803,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           <span class="slider"></span>
         </label>
       </div>
+      <div id="emissiveSliderRow" class="slider-row" style="display:none;">
+        <span class="info-text" style="min-width:52px;">Glow:</span>
+        <input type="range" id="emissiveGlowSlider" min="-1" max="2" step="0.05" value="0"
+               style="flex:1;" oninput="emissiveGlowOffset=parseFloat(this.value); applyEmissiveGlow(); document.getElementById('emissiveGlowVal').textContent=(emissiveGlowOffset>=0?'+':'')+emissiveGlowOffset.toFixed(2)">
+        <span id="emissiveGlowVal" class="info-text" style="min-width:36px;text-align:right;color:#fbbf24;">+0.00</span>
+      </div>
+      <button class="btn-action" onclick="document.getElementById('lightAmbient').value=0.6; document.getElementById('lightKey').value=0.8; document.getElementById('lightFill').value=0.4; if(ambientLight)ambientLight.intensity=0.6; if(dirLight1)dirLight1.intensity=0.8; if(dirLight2)dirLight2.intensity=0.4; document.getElementById('lightAmbVal').textContent='0.60'; document.getElementById('lightKeyVal').textContent='0.80'; document.getElementById('lightFillVal').textContent='0.40'; if(emissiveEnabled){{toggleEmissive();}} emissiveGlowOffset=0; document.getElementById('emissiveGlowSlider').value=0; document.getElementById('emissiveGlowVal').textContent='+0.00'; if(!fxoShadersEnabled){{setFxoShaders(true);}} document.getElementById('swFxo').checked=true;">🔄 Reset Lights</button>
     </div>
 
     
@@ -1886,24 +1899,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     <div id="meshSection" style="display:none;">
       <button class="btn-action" onclick="toggleAllMeshes(true)">✅ Show All</button>
       <button class="btn-action" onclick="toggleAllMeshes(false)">❌ Hide All</button>
-      <div class="toggle-row" onclick="focusZoomEnabled = !focusZoomEnabled; document.getElementById('swFocusZoom').checked = focusZoomEnabled;">
-        <span class="label">🔍 Focus Zoom</span>
-        <label class="toggle-switch" onclick="event.stopPropagation()">
-          <input type="checkbox" id="swFocusZoom" onchange="focusZoomEnabled = this.checked">
-          <span class="slider"></span>
-        </label>
-      </div>
       <div class="toggle-row" onclick="xrayHighlight = !xrayHighlight; document.getElementById('swXray').checked = xrayHighlight;">
         <span class="label">👁 X-Ray Highlight</span>
         <label class="toggle-switch" onclick="event.stopPropagation()">
           <input type="checkbox" id="swXray" checked onchange="xrayHighlight = this.checked">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div id="fxoToggleRow" class="toggle-row" style="display:none;" onclick="document.getElementById('swFxo').checked = !document.getElementById('swFxo').checked; setFxoShaders(document.getElementById('swFxo').checked);">
-        <span class="label">✨ FXO Shaders</span>
-        <label class="toggle-switch" onclick="event.stopPropagation()">
-          <input type="checkbox" id="swFxo" checked onchange="setFxoShaders(this.checked)">
           <span class="slider"></span>
         </label>
       </div>
@@ -2031,6 +2030,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let textureMode = true;
     let wireframeMode = false;
     let emissiveEnabled = false;  // Emissive glow (default OFF — emissive_g is engine-specific, not PBR)
+    let emissiveGlowOffset = 0;   // Emissive glow intensity offset (-1..+2, 0=default)
     let wireframeOverlayMode = false;
     let showSkeleton = false, showJoints = false, showBoneNames = false;
     let currentFps = 0;
@@ -3120,12 +3120,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
 
     // Focus camera on a specific mesh by index
     let focusLockUntil = 0;  // timestamp to temporarily disable TP camera override
-    let focusZoomEnabled = false;  // whether 🎯 also zooms camera
     let xrayHighlight = true;  // whether blink shows through other meshes
     let fxoShadersEnabled = true;  // FXO toon shaders active
     let recomputeNormalsEnabled = RECOMPUTE_NORMALS;  // recomputed normals active
     
-    function focusMesh(idx) {{
+    function focusMesh(idx, withZoom) {{
       try {{
       if (idx < 0 || idx >= meshes.length) return;
       const mesh = meshes[idx];
@@ -3148,8 +3147,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const size = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
       
-      // In controller mode (third-person) or Focus Zoom off — only blink, no camera move
-      const skipZoom = !focusZoomEnabled || (gamepadEnabled && !freeCamMode);
+      // In controller mode (third-person) or no-zoom mode — only blink, no camera move
+      const skipZoom = !withZoom || (gamepadEnabled && !freeCamMode);
       
       if (!skipZoom) {{
         // Calculate framing distance
@@ -4563,16 +4562,25 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           label.appendChild(indicator);
         }}
         
+        const spotBtn = document.createElement('span');
+        spotBtn.textContent = '💡';
+        spotBtn.title = 'Highlight this mesh (no zoom)';
+        spotBtn.style.cssText = 'cursor:pointer;font-size:12px;padding:1px 3px;border-radius:3px;opacity:0.4;flex-shrink:0;transition:opacity 0.15s';
+        spotBtn.addEventListener('mouseenter', () => {{ spotBtn.style.opacity = '1'; }});
+        spotBtn.addEventListener('mouseleave', () => {{ spotBtn.style.opacity = '0.4'; }});
+        spotBtn.addEventListener('click', (e) => {{ e.preventDefault(); e.stopPropagation(); focusMesh(idx, false); }});
+        
         const focusBtn = document.createElement('span');
         focusBtn.textContent = '🎯';
         focusBtn.title = 'Focus on this mesh';
         focusBtn.style.cssText = 'cursor:pointer;font-size:12px;padding:1px 3px;border-radius:3px;opacity:0.4;flex-shrink:0;transition:opacity 0.15s';
         focusBtn.addEventListener('mouseenter', () => {{ focusBtn.style.opacity = '1'; }});
         focusBtn.addEventListener('mouseleave', () => {{ focusBtn.style.opacity = '0.4'; }});
-        focusBtn.addEventListener('click', (e) => {{ e.preventDefault(); e.stopPropagation(); focusMesh(idx); }});
+        focusBtn.addEventListener('click', (e) => {{ e.preventDefault(); e.stopPropagation(); focusMesh(idx, true); }});
         
         div.appendChild(checkbox);
         div.appendChild(label);
+        div.appendChild(spotBtn);
         div.appendChild(focusBtn);
         list.appendChild(div);
       }});
@@ -4618,7 +4626,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           // Apply emissive state
           if (emissiveEnabled && m.userData.fxoMaterial.userData.emissiveGlow > 0) {{
             fxo.emissive = new THREE.Color(0xffffff);
-            fxo.emissiveIntensity = Math.min(m.userData.fxoMaterial.userData.emissiveGlow, 0.5);
+            fxo.emissiveIntensity = Math.max(0, Math.min(m.userData.fxoMaterial.userData.emissiveGlow + emissiveGlowOffset, 3.0));
           }} else {{
             fxo.emissive = new THREE.Color(0x000000);
             fxo.emissiveIntensity = 0;
@@ -4649,7 +4657,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           // Apply emissive state
           if (emissiveEnabled && def.userData.emissiveGlow > 0) {{
             def.emissive = new THREE.Color(0xffffff);
-            def.emissiveIntensity = Math.min(def.userData.emissiveGlow, 0.5);
+            def.emissiveIntensity = Math.max(0, Math.min(def.userData.emissiveGlow + emissiveGlowOffset, 3.0));
           }} else {{
             def.emissive = new THREE.Color(0x000000);
             def.emissiveIntensity = 0;
@@ -4939,13 +4947,20 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     function toggleEmissive() {{
       emissiveEnabled = !emissiveEnabled;
       const sw = document.getElementById('swEmissive'); if (sw) sw.checked = emissiveEnabled;
+      const sliderRow = document.getElementById('emissiveSliderRow');
+      if (sliderRow) sliderRow.style.display = emissiveEnabled ? '' : 'none';
+      applyEmissiveGlow();
+    }}
+
+    function applyEmissiveGlow() {{
       meshes.forEach(m => {{
         const mat = m.material;
         const glow = mat.userData.emissiveGlow;
         if (glow && glow > 0) {{
           if (emissiveEnabled) {{
+            const intensity = Math.max(0, Math.min(glow + emissiveGlowOffset, 3.0));
             mat.emissive = new THREE.Color(0xffffff);
-            mat.emissiveIntensity = Math.min(glow, 0.5);
+            mat.emissiveIntensity = intensity;
           }} else {{
             mat.emissive = new THREE.Color(0x000000);
             mat.emissiveIntensity = 0;
@@ -6077,12 +6092,20 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (opacity < 1.0) {{
         html += '<div style="color:#9ca3af">Opacity: ' + opacity.toFixed(2) + '</div>';
       }}
-      // Lighting info (show when non-default)
+      // Lighting info (show when non-default or emissive active)
       const la = ambientLight ? ambientLight.intensity : 0.6;
       const lk = dirLight1 ? dirLight1.intensity : 0.8;
       const lf = dirLight2 ? dirLight2.intensity : 0.4;
-      if (Math.abs(la-0.6)>0.01 || Math.abs(lk-0.8)>0.01 || Math.abs(lf-0.4)>0.01) {{
-        html += '<div style="color:#fbbf24">💡 Ambient: ' + la.toFixed(2) + '  Key: ' + lk.toFixed(2) + '  Fill: ' + lf.toFixed(2) + '</div>';
+      const lightsNonDefault = Math.abs(la-0.6)>0.01 || Math.abs(lk-0.8)>0.01 || Math.abs(lf-0.4)>0.01;
+      if (lightsNonDefault || emissiveEnabled) {{
+        let lightStr = '💡';
+        if (lightsNonDefault) {{
+          lightStr += ' Ambient: ' + la.toFixed(2) + '  Key: ' + lk.toFixed(2) + '  Fill: ' + lf.toFixed(2);
+        }}
+        if (emissiveEnabled) {{
+          lightStr += (lightsNonDefault ? '  · ' : ' ') + 'Glow: ' + (emissiveGlowOffset >= 0 ? '+' : '') + emissiveGlowOffset.toFixed(2);
+        }}
+        html += '<div style="color:#fbbf24">' + lightStr + '</div>';
       }}
       if (gamepadEnabled) {{
         const hasGamepad = gamepadButtonStates.length > 0;
@@ -6649,12 +6672,20 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         lines.push(['Opacity: ' + opacity.toFixed(2), 'value']);
       }}
 
-      // Lighting info (show when non-default)
+      // Lighting info (show when non-default or emissive active)
       const laO = ambientLight ? ambientLight.intensity : 0.6;
       const lkO = dirLight1 ? dirLight1.intensity : 0.8;
       const lfO = dirLight2 ? dirLight2.intensity : 0.4;
-      if (Math.abs(laO-0.6)>0.01 || Math.abs(lkO-0.8)>0.01 || Math.abs(lfO-0.4)>0.01) {{
-        lines.push(['💡 A:' + laO.toFixed(2) + '  K:' + lkO.toFixed(2) + '  F:' + lfO.toFixed(2), 'value']);
+      const lightsNonDefaultO = Math.abs(laO-0.6)>0.01 || Math.abs(lkO-0.8)>0.01 || Math.abs(lfO-0.4)>0.01;
+      if (lightsNonDefaultO || emissiveEnabled) {{
+        let lightStrO = '💡';
+        if (lightsNonDefaultO) {{
+          lightStrO += ' A:' + laO.toFixed(2) + '  K:' + lkO.toFixed(2) + '  F:' + lfO.toFixed(2);
+        }}
+        if (emissiveEnabled) {{
+          lightStrO += (lightsNonDefaultO ? '  · ' : ' ') + 'Glow:' + (emissiveGlowOffset >= 0 ? '+' : '') + emissiveGlowOffset.toFixed(2);
+        }}
+        lines.push([lightStrO, 'value']);
       }}
 
       if (freeCamMode) {{
