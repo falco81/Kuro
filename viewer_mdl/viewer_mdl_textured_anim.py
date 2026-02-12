@@ -1308,9 +1308,15 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
             if j < len(primitives):
                 material_name = primitives[j].get("material")
 
+            # Shadow mesh detection: match mesh group name from MDL structure
+            shadow_keywords = ['shadow', 'kage', 'box']
+            gname = base_name.lower()
+            is_shadow_mesh = any(kw in gname for kw in shadow_keywords)
+
             mesh_data = {
                 "name": f"{i}_{base_name}_{j:02d}",
                 "mesh_group": base_name,
+                "is_shadow": is_shadow_mesh,
                 "vertices": vertices,
                 "normals": normals,
                 "uvs": uvs,
@@ -1331,7 +1337,8 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
             has_uv = "yes" if uvs is not None else "no"
             has_t = f"vec{len(tangent_buffer[0]) if tangent_buffer else 0}" if tangent_buffer else "no"
             has_skin = "yes" if (skin_weights is not None) else "no"
-            print(f"    {mesh_name}: {vert_count} verts, {tri_count} tris | normals: {has_n} | UV: {has_uv} | tangents: {has_t} | skinning: {has_skin}")
+            shadow_tag = " [SHADOW]" if is_shadow_mesh else ""
+            print(f"    {mesh_name}: {vert_count} verts, {tri_count} tris | normals: {has_n} | UV: {has_uv} | tangents: {has_t} | skinning: {has_skin}{shadow_tag}")
 
     tangent_count = sum(1 for m in meshes if m.get("tangents") is not None)
     uv_no_tangent = sum(1 for m in meshes if m.get("tangents") is None and m.get("uvs") is not None)
@@ -1342,15 +1349,14 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
     
     # Mesh group summary
     group_counts = {}
-    shadow_keywords = ['shadow', 'kage', 'box']
+    shadow_count = sum(1 for m in meshes if m.get("is_shadow", False))
     for m in meshes:
         g = m.get("mesh_group", "unknown")
         group_counts[g] = group_counts.get(g, 0) + 1
-    group_parts = []
-    for g, c in sorted(group_counts.items()):
-        is_shadow = any(kw in g.lower() for kw in shadow_keywords)
-        group_parts.append(f"{g}({c}){'👤' if is_shadow else ''}")
+    group_parts = [f"{g}({c})" for g, c in sorted(group_counts.items())]
     print(f"[+] Mesh groups: {', '.join(group_parts)}")
+    if shadow_count > 0:
+        print(f"[+] Shadow meshes detected: {shadow_count} (mesh group name matches: shadow/kage/box)")
     print(f"{'='*60}\n")
 
     return meshes, material_texture_map, skeleton_data, model_info, global_bind_matrices
@@ -1381,6 +1387,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         mesh_info = {
             "name": m["name"],
             "mesh_group": m.get("mesh_group", ""),
+            "is_shadow": m.get("is_shadow", False),
             "vertices": verts.astype(np.float32).flatten().tolist(),
             "normals": norms.astype(np.float32).flatten().tolist(),
             "indices": idxs.astype(np.uint32).tolist(),
@@ -2712,6 +2719,101 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         return mat;
       }}
       
+      // Water shader — semi-transparent with color, fresnel, animated waves
+      if (shaderType === 'water') {{
+        const waterCol = sp.waterColor_g || [0.1, 0.3, 0.5];
+        const waterIntensity = sp.waterColorIntensity_g != null ? sp.waterColorIntensity_g : 0.8;
+        const fresnelVal = sp.fresnel_g != null ? sp.fresnel_g : 1.5;
+        const specCol = sp.specularColor_g || [1, 1, 1];
+        const specGloss = sp.specularGlossiness_g || 100;
+        const waveFreq = sp.waveFreq_g || 10.0;
+        const waveScale = sp.waveScale_g || 0.05;
+        const waveVel = sp.waveVelocity_g || [0, -0.005];
+
+        const waterMat = new THREE.MeshPhongMaterial({{
+          color: new THREE.Color(waterCol[0] * waterIntensity, waterCol[1] * waterIntensity, waterCol[2] * waterIntensity),
+          specular: new THREE.Color(specCol[0], specCol[1], specCol[2]),
+          shininess: specGloss,
+          transparent: true,
+          opacity: 0.7,
+          side: THREE.DoubleSide,
+          skinning: true,
+        }});
+        waterMat.userData.shaderType = 'water';
+        waterMat.userData.isWaterMaterial = true;
+
+        // Inject fresnel transparency + wave vertex animation via onBeforeCompile
+        waterMat.onBeforeCompile = function(shader) {{
+          shader.uniforms.uTime = {{ value: 0 }};
+          shader.uniforms.uFresnelPower = {{ value: fresnelVal }};
+          shader.uniforms.uWaveFreq = {{ value: waveFreq }};
+          shader.uniforms.uWaveScale = {{ value: waveScale }};
+          shader.uniforms.uWaveVelocity = {{ value: new THREE.Vector2(waveVel[0], waveVel[1]) }};
+
+          // Vertex shader: wave displacement
+          shader.vertexShader = shader.vertexShader.replace(
+            'void main() {{',
+            `uniform float uTime;
+            uniform float uWaveFreq;
+            uniform float uWaveScale;
+            uniform vec2 uWaveVelocity;
+            void main() {{`
+          );
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <begin_vertex>',
+            `#include <begin_vertex>
+            float wt = uTime * 0.5;
+            float wave1 = sin(position.x * uWaveFreq + wt + uWaveVelocity.x * uTime * 100.0) * uWaveScale;
+            float wave2 = sin(position.z * uWaveFreq * 0.7 + wt * 1.3 + uWaveVelocity.y * uTime * 100.0) * uWaveScale * 0.7;
+            transformed.y += wave1 + wave2;`
+          );
+
+          // Fragment shader: fresnel-based alpha
+          shader.fragmentShader = shader.fragmentShader.replace(
+            'uniform float opacity;',
+            `uniform float opacity;
+            uniform float uFresnelPower;`
+          );
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <output_fragment>',
+            `#include <output_fragment>
+            vec3 waterViewDir = normalize(vViewPosition);
+            float fresnelDot = max(dot(normal, waterViewDir), 0.0);
+            float fresnelFactor = pow(1.0 - fresnelDot, uFresnelPower);
+            gl_FragColor.a = mix(0.3, 0.85, fresnelFactor);
+            // Specular highlight boost at grazing angles
+            gl_FragColor.rgb += vec3(fresnelFactor * 0.15);`
+          );
+
+          waterMat.userData._shader = shader;
+        }};
+
+        // Load detail texture (slot 1) as normal map for wave ripples
+        if (matData.detail) {{
+          totalTexturesCount++;
+          const texInfo = matData.detail;
+          const texPath = typeof texInfo === 'string' ? texInfo : texInfo.path;
+          const wrapS = typeof texInfo === 'object' ? (texInfo.wrapS || 0) : 0;
+          const wrapT = typeof texInfo === 'object' ? (texInfo.wrapT || 0) : 0;
+          loadTexture(texPath, wrapS, wrapT, texture => {{
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            const mesh = meshes.find(m => m.userData.meshName === meshName);
+            if (mesh) {{
+              mesh.material.normalMap = texture;
+              mesh.material.normalScale = new THREE.Vector2(0.5, 0.5);
+              mesh.userData.originalNormalMap = texture;
+              mesh.material.needsUpdate = true;
+            }}
+          }});
+        }}
+
+        shaderStats.standard++;
+        if (shaderType) shaderStats.types[shaderType] = (shaderStats.types[shaderType] || 0) + 1;
+        debug('Water material:', materialName, 'color:', waterCol, 'fresnel:', fresnelVal, 'waveFreq:', waveFreq);
+        return waterMat;
+      }}
+
       // Fallback: standard material for non-character shaders
       const matParams = {{ roughness: 0.7, metalness: 0.2, side: THREE.DoubleSide, skinning: true }};
 
@@ -2994,7 +3096,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           mesh.userData.fxoMaterial = material;
         }}
         
-        mesh.userData.isShadowMesh = !!meshData.mesh_group && /shadow|kage|box/i.test(meshData.mesh_group);
+        mesh.userData.isShadowMesh = !!meshData.is_shadow;
         mesh.userData.meshGroup = meshData.mesh_group || '';
         if (CONFIG.AUTO_HIDE_SHADOW && mesh.userData.isShadowMesh) {{
           mesh.visible = false;
@@ -7086,6 +7188,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }} else {{
         controls.update();
       }}
+      // Update water shader time uniforms
+      meshes.forEach(m => {{
+        if (m.material && m.material.userData.isWaterMaterial && m.material.userData._shader) {{
+          m.material.userData._shader.uniforms.uTime.value = clock.elapsedTime;
+        }}
+      }});
+
       renderer.render(scene, camera);
       
       // Composite frame for video recording (WebGL + bone names overlay)
