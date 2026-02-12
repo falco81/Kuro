@@ -40,7 +40,10 @@ for proper function it needs to have all necessary data extracted in the game da
 - **mesh highlighting, meshes with box, shadow, kage in the name are hidden by default**
 - **support for lighting settings, enabling and disabling FXO shaders on the fly**
 - **emissive_g fix**
+- **facial animations**
 ---
+
+**Beta9 - added facial animations**<br>
 
 **Beta8 - viewer_mdl_textured_anim.py/exe**<br>
 mesh highlighting, meshes with box, shadow, kage in the name are hidden by default<br>
