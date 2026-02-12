@@ -45,6 +45,7 @@ for proper function it needs to have all necessary data extracted in the game da
 
 **Beta9 - added facial animations**<br>
 <img src="doc/viewer_anim9.gif" width="100%">
+<img src="doc/viewer_anim9.png" width="100%">
 
 **Beta8 - viewer_mdl_textured_anim.py/exe**<br>
 mesh highlighting, meshes with box, shadow, kage in the name are hidden by default<br>
