@@ -906,6 +906,247 @@ def load_animations_from_directory(mdl_path: Path, skeleton_data: list) -> list:
     return animations
 
 
+def load_face_animations_from_directory(mdl_path: Path, main_skeleton_data: list) -> list:
+    """
+    Scan directory for character-specific face animation MDL files (e.g. chr5001_face.mdl) and extract keyframe data.
+    Face MDLs contain their own skeleton (for bind pose) and animation channels.
+    
+    Args:
+        mdl_path: Path to the main model .mdl file
+        main_skeleton_data: Main model skeleton (to verify face bones exist)
+        
+    Returns:
+        List of animation dicts with channels containing absolute keyframe data
+    """
+    import struct, io, glob as _glob
+    
+    mdl_dir = mdl_path.parent
+    model_stem = mdl_path.stem
+    
+    # Extract base character name (chrXXXX) from any position in filename
+    # e.g. "q_chr5121" -> "chr5121", "chr5001_c11" -> "chr5001"
+    import re as _re
+    chr_match = _re.search(r'(chr\d+)', model_stem)
+    base_name = chr_match.group(1) if chr_match else model_stem.split('_')[0]
+    
+    # Find face animation MDL files: *chr5001*_face.mdl
+    pattern = str(mdl_dir / f"*{base_name}*_face.mdl")
+    face_files = sorted(_glob.glob(pattern))
+    
+    if not face_files:
+        return []
+    
+    # Check which face bones exist in main skeleton
+    main_bone_names = set()
+    if main_skeleton_data:
+        main_bone_names = {b['name'] for b in main_skeleton_data}
+    
+    print(f"\n[+] Found {len(face_files)} face animation files (pattern: *{base_name}*_face.mdl)")
+    
+    def qmul(a, b):
+        w1,x1,y1,z1 = a; w2,x2,y2,z2 = b
+        return [w1*w2-x1*x2-y1*y2-z1*z2, w1*x2+x1*w2+y1*z2-z1*y2,
+                w1*y2-x1*z2+y1*w2+z1*x2, w1*z2+x1*y2-y1*x2+z1*w2]
+    
+    key_stride = {9: 12, 10: 16, 11: 12, 12: 4, 13: 8}
+    animations = []
+    
+    for face_path in face_files:
+        face_file = Path(face_path)
+        # Skip the main model file itself
+        if face_file == mdl_path:
+            continue
+        
+        # Extract animation name from filename
+        anim_name = "face:" + face_file.stem
+        
+        try:
+            with open(face_path, 'rb') as f:
+                data = f.read()
+            
+            # Check for CLE encryption
+            if data[0:4] in [b"F9BA", b"C9BA", b"D9BA"]:
+                try:
+                    data = decryptCLE(data)
+                except:
+                    print(f"    [!] Failed to decrypt {face_file.name}, skipping")
+                    continue
+            
+            with io.BytesIO(data) as f:
+                magic = struct.unpack("<I", f.read(4))[0]
+                if magic != 0x204c444d:
+                    print(f"    [!] {face_file.name}: Invalid MDL magic, skipping")
+                    continue
+                mdl_ver = struct.unpack("<I", f.read(4))[0]
+                f.read(4)  # unknown
+                
+                def read_string(fh):
+                    if mdl_ver >= 1:
+                        length, = struct.unpack("<B", fh.read(1))
+                    else:
+                        length, = struct.unpack("<I", fh.read(4))
+                    raw = fh.read(length)
+                    try:
+                        return raw.decode("utf-8")
+                    except UnicodeDecodeError:
+                        return raw.decode("latin-1")
+                
+                # Scan sections
+                skel_offset = None
+                skel_size = None
+                ani_offset = None
+                ani_size = None
+                while True:
+                    hdr = f.read(8)
+                    if len(hdr) < 8: break
+                    stype, ssize = struct.unpack("<II", hdr)
+                    if ssize == 0 and stype == 0: break
+                    if stype == 2:
+                        skel_offset = f.tell()
+                        skel_size = ssize
+                    if stype == 3:
+                        ani_offset = f.tell()
+                        ani_size = ssize
+                    f.seek(ssize, 1)
+                
+                if ani_offset is None:
+                    print(f"    [!] {face_file.name}: No animation section, skipping")
+                    continue
+                
+                # Parse face skeleton for bind pose quaternions
+                face_skel_map = {}
+                face_bone_count = 0
+                matched_bones = 0
+                if skel_offset is not None:
+                    f.seek(skel_offset)
+                    blocks, = struct.unpack("<I", f.read(4))
+                    face_bone_count = blocks
+                    for i in range(blocks):
+                        name = read_string(f)
+                        btype, mesh_idx = struct.unpack("<Ii", f.read(8))
+                        pos_xyz = struct.unpack("<3f", f.read(12))
+                        unk_quat = struct.unpack("<4f", f.read(16))
+                        skin_mesh, = struct.unpack("<I", f.read(4))
+                        rot_rpy = list(struct.unpack("<3f", f.read(12)))
+                        scale = struct.unpack("<3f", f.read(12))
+                        unknown = struct.unpack("<3f", f.read(12))
+                        child_count, = struct.unpack("<I", f.read(4))
+                        for j in range(child_count):
+                            f.read(4)
+                        
+                        face_skel_map[name] = rpy2quat(rot_rpy)
+                        if name in main_bone_names:
+                            matched_bones += 1
+                
+                # Parse animation channels
+                f.seek(ani_offset)
+                blocks, = struct.unpack("<I", f.read(4))
+                channels = []
+                
+                for _ in range(blocks):
+                    name = read_string(f)
+                    bone = read_string(f)
+                    atype, unk0, unk1, nkf = struct.unpack("<4I", f.read(16))
+                    if atype not in key_stride:
+                        stride = key_stride.get(atype, 0) + 24
+                        if stride > 24:
+                            f.seek(nkf * stride, 1)
+                        continue
+                    
+                    stride = key_stride[atype] + 24
+                    buf = f.read(nkf * stride)
+                    
+                    # Skip channels for bones not in main skeleton
+                    if bone not in main_bone_names:
+                        continue
+                    
+                    times = []
+                    values = []
+                    for j in range(nkf):
+                        t = struct.unpack_from("<f", buf, j * stride)[0]
+                        times.append(round(t, 6))
+                        
+                        val_offset = j * stride + 4
+                        val_size = key_stride[atype]
+                        raw = list(struct.unpack_from(f"<{val_size//4}f", buf, val_offset))
+                        
+                        if atype == 10:  # Rotation: differential xyzw -> absolute xyzw
+                            bind_q = face_skel_map.get(bone, [1,0,0,0])
+                            diff_wxyz = [raw[3], raw[0], raw[1], raw[2]]
+                            abs_wxyz = qmul(bind_q, diff_wxyz)
+                            raw = [abs_wxyz[1], abs_wxyz[2], abs_wxyz[3], abs_wxyz[0]]
+                        
+                        values.extend(raw)
+                    
+                    channels.append({
+                        'bone': bone,
+                        'type': atype,
+                        'times': times,
+                        'values': values
+                    })
+                
+                # Read time range footer
+                try:
+                    tmin, tmax = struct.unpack("<2f", f.read(8))
+                    duration = tmax - tmin
+                except:
+                    tmin = min((min(c['times']) for c in channels if c['times']), default=0.0)
+                    tmax = max((max(c['times']) for c in channels if c['times']), default=1.0)
+                    duration = tmax - tmin
+                
+                # Normalize times to start at 0
+                if tmin != 0:
+                    for c in channels:
+                        c['times'] = [round(t - tmin, 6) for t in c['times']]
+                
+                channels = [c for c in channels if c['type'] in (9, 10, 11)]
+                
+                # Detect face subsections by grouping bones by facial region
+                face_region_bones = {
+                    'eye': {b for b in main_bone_names if b in ('Left_eye', 'Right_eye') or 'highlight' in b},
+                    'eyelids': {b for b in main_bone_names if 'mabu' in b or 'matuge' in b},
+                    'eyebrows': {b for b in main_bone_names if 'mayu' in b},
+                    'mouth': {b for b in main_bone_names if any(k in b for k in
+                              ('kuchi', 'ha_up', 'ha_down', 'ago', 'tongue', 'hoho'))},
+                }
+                face_subsections = []
+                for region_name, region_bones in face_region_bones.items():
+                    region_times = []
+                    for ch in channels:
+                        if ch['bone'] in region_bones and ch['type'] == 9:  # translate channels
+                            region_times.extend(ch['times'])
+                    if region_times:
+                        rt = sorted(set(region_times))
+                        face_subsections.append({
+                            'label': region_name,
+                            'start': round(rt[0], 4),
+                            'end': round(rt[-1], 4)
+                        })
+                face_subsections.sort(key=lambda s: s['start'])
+                
+                animations.append({
+                    'name': anim_name,
+                    'duration': round(duration, 6),
+                    'channels': channels,
+                    'is_face': True,
+                    'subsections': face_subsections
+                })
+                
+                types = {}
+                for c in channels:
+                    types[c['type']] = types.get(c['type'], 0) + 1
+                print(f"    {anim_name}: {len(channels)} ch, {duration:.1f}s, {face_bone_count} face bones ({matched_bones} matched) ({types})")
+                
+        except Exception as e:
+            print(f"    [!] Error loading {face_file.name}: {e}")
+            import traceback; traceback.print_exc()
+            continue
+    
+    if animations:
+        print(f"[+] Loaded {len(animations)} face animations")
+    return animations
+
+
 # -----------------------------
 # Load MDL with all data
 # -----------------------------
@@ -1874,6 +2115,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         <div id="animations-available" style="display: none;">
           <select id="animation-select" class="styled-select" onchange="if(this.value) playAnimation(this.value)">
             <option value="">— Select animation —</option>
+          </select>
+          <select id="face-subsection-select" class="styled-select" style="display:none;margin-top:4px;font-size:11px;" onchange="setFaceSubsection(this.value)">
           </select>
           <button class="btn-action" id="btnAnimToggle" onclick="toggleAnimPlayback()">⏹️ Stop</button>
           <div class="slider-row">
@@ -3640,6 +3883,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     // =========================================================
     let animationClips = {{}};
     let currentAnimName = null;
+    let faceSubRange = null; // {{start, end}} or null for full loop
 
     function buildAnimationClipsAsync(onProgress) {{
       return new Promise((resolve) => {{
@@ -3746,12 +3990,41 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const names = Object.keys(animationClips);
       if (names.length === 0) return;
       
-      names.forEach(name => {{
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        select.appendChild(opt);
-      }});
+      // Separate body and face animations
+      const faceAnims = animationsData ? animationsData.filter(a => a.is_face).map(a => a.name) : [];
+      const faceSet = new Set(faceAnims);
+      const bodyNames = names.filter(n => !faceSet.has(n));
+      const faceNames = names.filter(n => faceSet.has(n));
+      
+      // Add body animations
+      if (bodyNames.length > 0 && faceNames.length > 0) {{
+        const bodyGroup = document.createElement('optgroup');
+        bodyGroup.label = '🏃 Body';
+        bodyNames.forEach(name => {{
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          bodyGroup.appendChild(opt);
+        }});
+        select.appendChild(bodyGroup);
+        
+        const faceGroup = document.createElement('optgroup');
+        faceGroup.label = '😀 Face';
+        faceNames.forEach(name => {{
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name.replace('face:', '');
+          faceGroup.appendChild(opt);
+        }});
+        select.appendChild(faceGroup);
+      }} else {{
+        names.forEach(name => {{
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          select.appendChild(opt);
+        }});
+      }}
     }}
 
     function playAnimation(animName) {{
@@ -3770,7 +4043,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // Apply current speed slider
       const speedSlider = document.getElementById('animSpeedSlider');
       if (speedSlider) animationMixer.timeScale = Math.pow(2, parseInt(speedSlider.value) / 50);
+      // Face animations run at half speed (baked at 2x in source data)
+      const isFaceAnim = animName.startsWith('face:');
+      if (isFaceAnim) animationMixer.timeScale *= 0.2;
       currentAnimName = animName;
+      faceSubRange = null;
 
       currentAnimation = animationMixer.clipAction(clip);
       currentAnimation.play();
@@ -3779,12 +4056,54 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const btn = document.getElementById('btnAnimToggle');
       if (btn) {{ btn.textContent = '⏸️ Pause'; btn.className = 'btn-action active'; }}
       
+      // Face subsection dropdown
+      const subSel = document.getElementById('face-subsection-select');
+      if (subSel) {{
+        const animInfo = animationsData ? animationsData.find(a => a.name === animName) : null;
+        if (animInfo && animInfo.is_face && animInfo.subsections && animInfo.subsections.length > 0) {{
+          subSel.innerHTML = '';
+          const regionEmoji = {{'eye': '👁', 'eyelids': '👁', 'eyebrows': '🤨', 'mouth': '👄'}};
+          const optFull = document.createElement('option');
+          optFull.value = '';
+          optFull.textContent = '🔄 Full loop';
+          subSel.appendChild(optFull);
+          animInfo.subsections.forEach(sub => {{
+            const opt = document.createElement('option');
+            opt.value = JSON.stringify(sub);
+            const em = regionEmoji[sub.label] || '🎭';
+            opt.textContent = em + ' ' + sub.label + ' (' + sub.start.toFixed(2) + '-' + sub.end.toFixed(2) + 's)';
+            subSel.appendChild(opt);
+          }});
+          subSel.style.display = 'block';
+        }} else {{
+          subSel.style.display = 'none';
+        }}
+      }}
+      
       // Reset dynamic bone particles to new animated pose after one frame
       if (dynamicBonesEnabled) {{
         setTimeout(() => {{ resetDynamicBones(); }}, 50);
       }}
       
       debug('Playing:', animName, 'duration:', clip.duration.toFixed(2) + 's');
+    }}
+
+    function setFaceSubsection(val) {{
+      if (!val) {{
+        faceSubRange = null;
+        debug('Face subsection: full loop');
+      }} else {{
+        const sub = JSON.parse(val);
+        faceSubRange = {{ start: sub.start, end: sub.end, label: sub.label }};
+        // Jump to subsection start
+        if (currentAnimation && animationMixer) {{
+          currentAnimation.time = faceSubRange.start;
+          if (currentAnimation.paused) {{
+            animationMixer.update(0);
+          }}
+        }}
+        debug('Face subsection:', sub.label, sub.start.toFixed(2), '-', sub.end.toFixed(2));
+      }}
     }}
 
     // Smooth crossfade for third-person auto-animations (reuses same mixer)
@@ -3816,6 +4135,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       
       currentAnimation = newAction;
       currentAnimName = animName;
+      faceSubRange = null;
+      const subSel = document.getElementById('face-subsection-select');
+      if (subSel) subSel.style.display = 'none';
       
       const btn = document.getElementById('btnAnimToggle');
       if (btn) {{ btn.textContent = '⏸️ Pause'; btn.className = 'btn-action active'; }}
@@ -3824,7 +4146,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     function updateAnimSpeed(val) {{
       const v = parseInt(val);
       // -100→0.25x, 0→1.0x, +100→4.0x (exponential for natural feel)
-      const speed = Math.pow(2, v / 50);
+      let speed = Math.pow(2, v / 50);
+      // Face animations run at half speed
+      if (currentAnimName && currentAnimName.startsWith('face:')) speed *= 0.2;
       if (animationMixer) {{
         animationMixer.timeScale = speed;
       }}
@@ -3857,10 +4181,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       currentAnimation = null;
       currentAnimName = null;
+      faceSubRange = null;
 
       // Reset dropdown and button
       const sel = document.getElementById('animation-select');
       if (sel) sel.value = '';
+      const subSel = document.getElementById('face-subsection-select');
+      if (subSel) subSel.style.display = 'none';
       const btn = document.getElementById('btnAnimToggle');
       if (btn) {{ btn.textContent = '⏹️ Stop'; btn.className = 'btn-action'; }}
       const slider = document.getElementById('animTimeline');
@@ -3904,7 +4231,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     function scrubAnimation(val) {{
       if (!currentAnimation || !animationMixer) return;
       const clip = currentAnimation.getClip();
-      const t = parseFloat(val) * clip.duration;
+      let t;
+      if (faceSubRange) {{
+        const range = faceSubRange.end - faceSubRange.start;
+        t = faceSubRange.start + parseFloat(val) * range;
+      }} else {{
+        t = parseFloat(val) * clip.duration;
+      }}
       // Pause while scrubbing
       if (!currentAnimation.paused) {{
         currentAnimation.paused = true;
@@ -3914,7 +4247,11 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       currentAnimation.time = t;
       animationMixer.update(0);  // Force pose update at new time
       const label = document.getElementById('animTimeLabel');
-      if (label) label.textContent = t.toFixed(2) + ' / ' + clip.duration.toFixed(2);
+      if (faceSubRange) {{
+        if (label) label.textContent = t.toFixed(2) + ' / ' + faceSubRange.start.toFixed(2) + '-' + faceSubRange.end.toFixed(2);
+      }} else {{
+        if (label) label.textContent = t.toFixed(2) + ' / ' + clip.duration.toFixed(2);
+      }}
     }}
 
     function updateTimeline() {{
@@ -3923,11 +4260,14 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const t = currentAnimation.time % clip.duration;
       const slider = document.getElementById('animTimeline');
       const label = document.getElementById('animTimeLabel');
-      if (slider && !currentAnimation.paused) {{
-        slider.value = t / clip.duration;
-      }}
-      if (label) {{
-        label.textContent = t.toFixed(2) + ' / ' + clip.duration.toFixed(2);
+      if (faceSubRange) {{
+        const range = faceSubRange.end - faceSubRange.start;
+        const rel = (t - faceSubRange.start) / (range || 1);
+        if (slider && !currentAnimation.paused) slider.value = Math.max(0, Math.min(1, rel));
+        if (label) label.textContent = t.toFixed(2) + ' / ' + faceSubRange.start.toFixed(2) + '-' + faceSubRange.end.toFixed(2);
+      }} else {{
+        if (slider && !currentAnimation.paused) slider.value = t / clip.duration;
+        if (label) label.textContent = t.toFixed(2) + ' / ' + clip.duration.toFixed(2);
       }}
     }}
 
@@ -3938,6 +4278,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let dynChains = [];
     let dynAccum = 0;
     let dynLastAnimTime = -1;
+    let dynLoopBlendFrames = 0;
     const DYN_FIXED_DT = 1/60;
     let dynProcessedBones = new Set();
     let dynIntensityMult = 1.0;
@@ -4172,6 +4513,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }});
       }});
       dynLastAnimTime = -1;
+      dynLoopBlendFrames = 0;
       dynPrevCamPos = null;
       
       // Compute collision exemptions: particles that START inside a collider
@@ -4281,19 +4623,10 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }});
       }});
       
-      // Detect animation loop — reset particles only
-      if (currentAnimation) {{
+      // Animation loop: no reset — let physics continue smoothly
+      if (currentAnimation && !(currentAnimName && currentAnimName.startsWith('face:'))) {{
         const clip = currentAnimation.getClip();
-        const curTime = currentAnimation.time % clip.duration;
-        if (dynLastAnimTime >= 0 && curTime < dynLastAnimTime - 0.1) {{
-          dynChains.forEach(chain => {{
-            chain.bones.forEach((b, i) => {{
-              chain.particles[i].pos.copy(chain.animPos[i]);
-              chain.particles[i].prevPos.copy(chain.animPos[i]);
-            }});
-          }});
-        }}
-        dynLastAnimTime = curTime;
+        dynLastAnimTime = currentAnimation.time % clip.duration;
       }}
       
       // Phase 2: Physics
@@ -6296,6 +6629,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       }}
       html += '<div style="border-top:1px solid rgba(124,58,237,0.3);margin:3px 0"></div>';
       html += '<div style="color:#60a5fa">Anim: ' + animName + '</div>';
+      if (faceSubRange) {{
+        html += '<div style="color:#60a5fa;padding-left:6ch">subsection: ' + faceSubRange.label + ' (' + faceSubRange.start.toFixed(2) + '-' + faceSubRange.end.toFixed(2) + 's)</div>';
+      }}
       if (animState) {{
         html += '<div style="color:#60a5fa;padding-left:6ch">' + animState + '</div>';
       }}
@@ -6888,6 +7224,9 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // Animation info (always show)
       lines.push([div, 'divider']);
       lines.push(['Anim: ' + animName, 'anim']);
+      if (faceSubRange) {{
+        lines.push(['      sub: ' + faceSubRange.label + ' (' + faceSubRange.start.toFixed(2) + '-' + faceSubRange.end.toFixed(2) + 's)', 'anim']);
+      }}
       if (animState) {{
         lines.push(['      ' + animState, 'anim']);
       }}
@@ -7157,6 +7496,14 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       // Update animation mixer
       if (animationMixer) {{
         animationMixer.update(delta);
+        // Face subsection looping: clamp time within range
+        if (faceSubRange && currentAnimation && !currentAnimation.paused) {{
+          const t = currentAnimation.time;
+          if (t > faceSubRange.end || t < faceSubRange.start) {{
+            currentAnimation.time = faceSubRange.start;
+            animationMixer.update(0);
+          }}
+        }}
         updateTimeline();
       }}
       
@@ -7605,6 +7952,10 @@ def main():
     animations_data = []
     if skeleton_data:
         animations_data = load_animations_from_directory(mdl_path, skeleton_data)
+        # Load face animations from *_face.mdl files
+        face_anims = load_face_animations_from_directory(mdl_path, skeleton_data)
+        if face_anims:
+            animations_data.extend(face_anims)
 
     # Generate HTML
     html_content = generate_html_with_skeleton(
