@@ -3327,25 +3327,28 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     
     let blinkTimers = new Map();  // mesh -> timer id
     function blinkMesh(mesh) {{
-      // Cancel previous blink on this mesh
-      if (blinkTimers.has(mesh)) {{
-        clearInterval(blinkTimers.get(mesh).interval);
-        clearTimeout(blinkTimers.get(mesh).timeout);
-        // Restore original materials
-        const prev = blinkTimers.get(mesh);
-        mesh.material = prev.origMaterial;
-        mesh.renderOrder = 0;
-        blinkTimers.delete(mesh);
+      // Cancel ALL active blinks first (only one highlight at a time)
+      for (const [m, timer] of blinkTimers) {{
+        clearInterval(timer.interval);
+        clearTimeout(timer.timeout);
+        m.material = timer.origMaterial;
+        m.renderOrder = 0;
+        if (timer.wireMat) timer.wireMat.dispose();
       }}
+      blinkTimers.clear();
       
       // Store original material
       const origMaterial = mesh.material;
       
-      // Create highlight wireframe material (bright green, always visible)
+      // Create highlight wireframe material (bright green, visible through other meshes when X-Ray on)
       const wireMat = new THREE.MeshBasicMaterial({{
         color: 0x00ff88,
         wireframe: true,
-        depthTest: !xrayHighlight
+        skinning: true,
+        depthTest: !xrayHighlight,
+        depthWrite: false,
+        transparent: true,
+        opacity: 1.0
       }});
       
       let blinkOn = true;
@@ -3354,7 +3357,8 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         if (blinkOn) {{
           mesh.material = wireMat;
           wireMat.depthTest = !xrayHighlight;
-          if (xrayHighlight) mesh.renderOrder = 9999;
+          wireMat.depthWrite = false;
+          mesh.renderOrder = xrayHighlight ? 9999 : 0;
         }} else {{
           mesh.material = origMaterial;
           mesh.renderOrder = 0;
@@ -3370,7 +3374,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         blinkTimers.delete(mesh);
       }}, 5000);
       
-      blinkTimers.set(mesh, {{ interval, timeout, origMaterial }});
+      blinkTimers.set(mesh, {{ interval, timeout, origMaterial, wireMat }});
     }}
 
     function loadSkeleton() {{
