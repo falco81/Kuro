@@ -41,12 +41,12 @@ for proper function it needs to have all necessary data extracted in the game da
 - **support for lighting settings, enabling and disabling FXO shaders on the fly**
 - **emissive_g fix**
 - **facial animations**
-- **change exe file icon**
+- **change exe file icon <img src="viewer_mdl/app.ico" width="20">**
 ---
 
 **Beta9 - viewer_mdl_textured_anim.py/exe**<br>
 added facial animations<br>
-change exe file icon (-m PyInstaller --onefile --icon=app.ico)<br>
+change exe file icon <img src="viewer_mdl/app.ico" width="20"> (-m PyInstaller --onefile --icon=app.ico)<br>
 <img src="doc/viewer_anim9.gif" width="100%">
 <img src="doc/viewer_anim9.png" width="100%">
 
