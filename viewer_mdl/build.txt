@@ -11,3 +11,7 @@ Python 3.11 required - pywebview issue
 
 Alternative
 "c:\Program Files\Python311\python.exe" -m PyInstaller --onefile --add-data "three.min.js;." --add-data "lib_fmtibvb.py;." --add-data "lib_texture_loader.py;." --add-data "kuro_mdl_export_meshes.py;." --hidden-import=PIL --hidden-import=numpy viewer_mdl_textured.py
+
+With ICO
+"c:\Program Files\Python311\python.exe" -m PyInstaller --onefile --icon=app.ico --add-data "three.min.js;." viewer_mdl_textured_anim.py
+set /p DUMMY=Hit ENTER to continue...
