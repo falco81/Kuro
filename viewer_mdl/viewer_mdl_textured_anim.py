@@ -3892,6 +3892,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let currentAnimName = null;
     let faceSubRange = null; // {{start, end}} or null for full loop
     let bodyIdleAction = null; // body idle playing alongside face anim
+    let savedFaceState = null; // saved state for mode transitions
 
     function buildAnimationClipsAsync(onProgress) {{
       return new Promise((resolve) => {{
@@ -4032,6 +4033,36 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           opt.textContent = name;
           select.appendChild(opt);
         }});
+      }}
+    }}
+
+    function saveFaceState() {{
+      // Check if face anim is actually playing right now
+      if (currentAnimName && currentAnimName.startsWith('face:')) {{
+        const subSel = document.getElementById('face-subsection-select');
+        savedFaceState = {{
+          subValue: subSel ? subSel.value : '',
+          bodyIdle: !!bodyIdleAction
+        }};
+      }}
+      // Otherwise keep existing savedFaceState (from earlier save)
+    }}
+
+    function restoreFaceState() {{
+      if (!savedFaceState) return;
+      const state = savedFaceState;
+      savedFaceState = null;
+      // Restore subsection
+      if (state.subValue) {{
+        const subSel = document.getElementById('face-subsection-select');
+        if (subSel) {{
+          subSel.value = state.subValue;
+          setFaceSubsection(state.subValue);
+        }}
+      }}
+      // Restore body idle
+      if (state.bodyIdle && !bodyIdleAction) {{
+        toggleFaceBodyIdle();
       }}
     }}
 
@@ -5547,6 +5578,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         freeCamMode = false;
         const fcSw = document.getElementById('swFreeCam'); if (fcSw) fcSw.checked = false;
         const fcSub = document.getElementById('freeCamSubmenu'); if (fcSub) fcSub.style.display = 'none';
+        saveFaceState();
         disableThirdPerson();
         gamepadType = 'generic';
         gamepadPrevButtons = [];
@@ -5633,12 +5665,28 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         // Wider vertical look range for freecam
         tpCamPhi = 1.4;
         
+        // Re-play selected animation (freecam doesn't need TP idle/walk)
+        const sel = document.getElementById('animation-select');
+        if (sel && sel.value) {{
+          playAnimation(sel.value);
+          restoreFaceState();
+        }}
+        
         debug('FreeCam ON. BaseSpeed:', freeCamBaseSpeed.toFixed(4));
       }} else {{
         if (submenu) submenu.style.display = 'none';
+        // Save face state before returning to TP mode
+        saveFaceState();
         // Return camera to third-person orbit
         tpCamPhi = Math.max(0.3, Math.min(Math.PI * 0.45, tpCamPhi));
-        if (characterGroup) updateThirdPersonCamera();
+        if (characterGroup) {{
+          updateThirdPersonCamera();
+          // Restore TP idle for walking
+          if (tpAutoAnimIdle) {{
+            playAnimationCrossfade(tpAutoAnimIdle, 0.2);
+            tpCurrentAutoAnim = tpAutoAnimIdle;
+          }}
+        }}
         debug('FreeCam OFF');
       }}
     }}
@@ -5674,6 +5722,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
           const fcSw = document.getElementById('swFreeCam'); if (fcSw) fcSw.checked = false;
           const fcSub = document.getElementById('freeCamSubmenu'); if (fcSub) fcSub.style.display = 'none';
         }}
+        saveFaceState();
         disableThirdPerson();
         gamepadType = 'generic';
         gamepadPrevButtons = [];
@@ -5743,6 +5792,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     }}
 
     function enableThirdPerson() {{
+      saveFaceState();
       // Create character group and reparent model objects
       characterGroup = new THREE.Group();
       scene.add(characterGroup);
@@ -5864,6 +5914,15 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       
       tpCurrentAutoAnim = null;
       tpIsMoving = false;
+      
+      // Re-play whatever animation is selected in the dropdown (restores face UI if needed)
+      const sel = document.getElementById('animation-select');
+      if (sel && sel.value) {{
+        playAnimation(sel.value);
+        restoreFaceState();
+      }} else {{
+        stopAnimation();
+      }}
       
       // Reset camera to orbit view
       fitToView();
