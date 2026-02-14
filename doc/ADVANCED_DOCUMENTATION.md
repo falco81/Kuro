@@ -8,18 +8,33 @@ This section provides comprehensive, in-depth documentation for advanced users, 
   - [resolve_id_conflicts_in_kurodlc.py](#resolve_id_conflicts_in_kurodlcpy)
   - [shops_find_unique_item_id_from_kurodlc.py](#shops_find_unique_item_id_from_kurodlcpy)
   - [shops_create.py](#shops_createpy)
-  - [visualize_id_allocation.py](#visualize_id_allocationpy) ⭐ NEW
+  - [kurodlc_add_mdl.py](#kurodlc_add_mdlpy) ⭐ NEW
+  - [visualize_id_allocation.py](#visualize_id_allocationpy)
   - [convert_kurotools_schemas.py](#convert_kurotools_schemaspy)
-  - [3D Model Viewer Scripts](NEW_FEATURES_DOCUMENTATION.md) ⭐ NEW
   - [find_all_items.py](#find_all_itemspy)
+  - [find_all_names.py](#find_all_namespy)
   - [find_all_shops.py](#find_all_shopspy)
-  - [Other Utility Scripts](#other-utility-scripts)
+  - [find_unique_item_id_for_t_costumes.py](#find_unique_item_id_for_t_costumespy)
+  - [find_unique_item_id_for_t_item_category.py](#find_unique_item_id_for_t_item_categorypy)
+  - [find_unique_item_id_from_kurodlc.py](#find_unique_item_id_from_kurodlcpy)
+- [3D Model Viewer Scripts](#3d-model-viewer-scripts)
+  - [viewer.py](#viewerpy)
+  - [viewer_mdl.py](#viewer_mdlpy)
+  - [viewer_mdl_optimized.py](#viewer_mdl_optimizedpy)
+  - [viewer_mdl_window.py](#viewer_mdl_windowpy)
+  - [viewer_mdl_textured.py](#viewer_mdl_texturedpy)
+  - [viewer_mdl_textured_anim.py](#viewer_mdl_textured_animpy) ⭐ MAIN VIEWER
+  - [viewer_mdl_textured_scene.py](#viewer_mdl_textured_scenepy) ⭐ SCENE VIEWER
+- [Library Files](#library-files)
+  - [kurodlc_lib.py](#kurodlc_libpy)
+  - [p3a_lib.py](#p3a_libpy)
+  - [kuro_mdl_export_meshes.py](#kuro_mdl_export_meshespy)
+  - [lib_texture_loader.py](#lib_texture_loaderpy)
+  - [lib_fmtibvb.py](#lib_fmtibvbpy)
 - [Data Structure Specifications](#data-structure-specifications)
 - [Real Data Examples](#real-data-examples)
 - [Export/Import Formats](#exportimport-formats)
 - [Log Files](#log-files)
-- [Advanced Workflows](#advanced-workflows)
-- [3D Model Viewing](NEW_FEATURES_DOCUMENTATION.md) ⭐ NEW
 
 ---
 
@@ -29,6 +44,16 @@ This section provides comprehensive, in-depth documentation for advanced users, 
 
 **Version:** v2.7.1  
 **Purpose:** Detect and resolve ID conflicts between DLC mods and game data
+
+#### How It Works
+
+The script operates in two phases. In the **detection phase**, it loads a game item database (from any supported source) and builds a dictionary mapping every used item ID to its name. It then scans all `.kurodlc.json` files in the current directory, extracting item IDs from four sections: `CostumeParam` (field `item_id`), `ItemTableData` (field `id`), `DLCTableData` (nested `items` arrays), and `ShopItem` (field `item_id`). Each extracted DLC ID is checked against the game database — if the ID exists in game data, it is flagged as `[BAD]` (conflict), otherwise `[OK]` (safe).
+
+In the **repair phase** (mode `repair`), the script uses a **smart ID assignment algorithm** (v2.7) to find replacement IDs for every conflict. The algorithm works within range 1–5000 (safe game limit). It first attempts to find a **continuous block** of free IDs starting from the midpoint (2500) and searching outward in both directions. If fragmentation prevents a continuous block, it falls back to **scattered search**, collecting individual free IDs using the same middle-out strategy. Once replacement IDs are determined, the script can either preview the mapping, export it to a JSON file for manual editing, or apply it directly with `--apply`.
+
+When applying changes, the script performs ID replacement across **all four sections simultaneously** — it updates `item_id` in CostumeParam, `id` in ItemTableData, values in `DLCTableData.items` arrays, and `item_id` in ShopItem. This ensures internal consistency within each `.kurodlc.json` file. Timestamped backups are always created before modification.
+
+**Source detection** works by scanning the current directory for data files in priority order: `t_item.json` (direct JSON), `t_item.tbl.original` (original binary table), `t_item.tbl` (binary table), then P3A archives (`script_en.p3a`, `script_eng.p3a`, `zzz_combined_tables.p3a`). For P3A sources, the script extracts `t_item.tbl.original` to a temporary `.tmp` file using `p3a_lib` and `kurodlc_lib`, then loads item data from it. Multiple sources trigger interactive selection (or auto-select with `--no-interactive`).
 
 #### All Parameters
 
@@ -69,7 +94,7 @@ OPTIONS:
   
   --no-interactive    Auto-select first source if multiple found
                       Auto-select newest mapping file when using --import
-  
+
 SOURCES (automatically detected):
 
 Game Database Sources (for conflict detection):
@@ -101,7 +126,6 @@ ALGORITHM (v2.7):
 **Example 1: Check for Conflicts**
 
 ```bash
-# Check DLC against game database
 python resolve_id_conflicts_in_kurodlc.py checkbydlc
 ```
 
@@ -126,38 +150,9 @@ Summary:
   Safe IDs: 3
 ```
 
-**Example 2: Repair Mode (Preview)**
+**Example 2: Repair with Apply**
 
 ```bash
-# Preview what would be changed
-python resolve_id_conflicts_in_kurodlc.py repair
-```
-
-**Sample Output:**
-```
-=== ID CONFLICT REPAIR ===
-
-Source: t_item.json (2116 items, range 1-4921)
-DLC file: my_costume_mod.kurodlc.json
-
-Conflicts detected:
-  310 (Earth Sepith) → Will reassign
-  311 (Water Sepith) → Will reassign
-
-Smart algorithm will assign from range 1-5000
-Starting point: 2500 (middle-out distribution)
-
-Proposed mapping:
-  310 → 2500
-  311 → 2501
-
-Press Enter to continue, or Ctrl+C to abort...
-```
-
-**Example 3: Apply Fixes Automatically**
-
-```bash
-# Apply changes without prompts
 python resolve_id_conflicts_in_kurodlc.py repair --apply
 ```
 
@@ -176,26 +171,27 @@ Updating IDs:
   ✓ 311 → 2501 (DLCTableData.items)
 
 Changes applied successfully!
-Modified file: my_costume_mod.kurodlc.json
-
 Log saved to: id_conflict_repair_20260131_143022.log
 ```
 
-**Example 4: Export ID Mapping**
+**Example 3: Export → Edit → Import**
 
 ```bash
-# Export mapping for manual editing
-python resolve_id_conflicts_in_kurodlc.py repair --export
+# Step 1: Export mapping
+python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=myfix
+
+# Step 2: Edit id_mapping_myfix.json manually
+
+# Step 3: Import and apply
+python resolve_id_conflicts_in_kurodlc.py repair --import --mapping-file=id_mapping_myfix.json --apply
 ```
 
-**Generated File:** `id_mapping_20260131_143022.json`
+**Generated Mapping File:**
 ```json
 {
   "source_file": "my_costume_mod.kurodlc.json",
   "timestamp": "2026-01-31 14:30:22",
   "game_database": "t_item.json",
-  "game_id_count": 2116,
-  "game_id_range": [1, 4921],
   "mappings": {
     "310": 2500,
     "311": 2501
@@ -205,50 +201,16 @@ python resolve_id_conflicts_in_kurodlc.py repair --export
       "old_id": 310,
       "new_id": 2500,
       "reason": "Conflict with game item: Earth Sepith"
-    },
-    {
-      "old_id": 311,
-      "new_id": 2501,
-      "reason": "Conflict with game item: Water Sepith"
     }
   ]
 }
-```
-
-**Example 5: Import Custom Mapping**
-
-```bash
-# Edit id_mapping.json manually, then import
-python resolve_id_conflicts_in_kurodlc.py repair --import id_mapping_20260131_143022.json --apply
-```
-
-**Sample Manual Edit:**
-```json
-{
-  "mappings": {
-    "310": 3000,
-    "311": 3001
-  }
-}
-```
-
-**Output:**
-```
-Importing ID mapping from: id_mapping_20260131_143022.json
-
-Custom mappings loaded:
-  310 → 3000 (manually specified)
-  311 → 3001 (manually specified)
-
-Applying changes...
-  ✓ All mappings applied successfully
 ```
 
 #### Real Data Scenarios
 
 **Scenario 1: Sepith ID Conflicts**
 
-Your DLC uses IDs 310-317 for custom items, but these are used by the game for Sepith:
+Your DLC uses IDs 310-317, but these are used by the game for Sepith items:
 
 ```
 Game Database (t_item.json):
@@ -256,10 +218,6 @@ Game Database (t_item.json):
   311: Water Sepith
   312: Fire Sepith
   313: Wind Sepith
-  314: Time Sepith
-  315: Space Sepith
-  316: Mirage Sepith
-  317: Sepith Mass
 ```
 
 **Solution:**
@@ -267,26 +225,32 @@ Game Database (t_item.json):
 python resolve_id_conflicts_in_kurodlc.py repair --apply
 ```
 
-Result: Your IDs reassigned to 2500-2507 (safe range)
+Result: IDs reassigned to 2500-2503 (safe range, middle-out).
 
 **Scenario 2: Large DLC with Multiple Conflicts**
 
-```
-Your DLC: 50 costume items (IDs 100-149)
-Conflicts: IDs 100-120 overlap with game items
-Safe range: IDs 121-149 are OK
+50 costume items with IDs 100-149. IDs 100-120 overlap with game items, 121-149 are safe.
 
-Smart algorithm will:
-- Reassign 100-120 → 2500-2520
+The smart algorithm will:
+- Reassign only 100-120 → 2500-2520
 - Keep 121-149 unchanged (no conflicts)
-```
 
 ---
 
 ### shops_find_unique_item_id_from_kurodlc.py
 
-**Version:** v2.1  
+**Version:** v2.2  
 **Purpose:** Extract item IDs from DLC files and generate template configurations
+
+#### How It Works
+
+The script reads a `.kurodlc.json` file and extracts item IDs from one or more sections based on the specified extraction mode. It understands the internal structure of kurodlc files, where IDs appear in different fields depending on the section: `item_id` in CostumeParam, `id` in ItemTableData, nested values in `DLCTableData.items` arrays, and `item_id` in ShopItem.
+
+**Extraction logic** works by parsing JSON and iterating through requested sections. When mode is `all` (default), it collects IDs from every section and deduplicates them. Combined modes like `costume+item` merge results from multiple sections. The final output to stdout is a Python-style list of sorted unique IDs, while stderr receives a summary showing per-section counts.
+
+**Validation** (v2.2) recognizes two file types: full DLC files (containing CostumeParam/ItemTableData/DLCTableData) and shop-only files (containing only ShopItem). The `is_valid_kurodlc_structure()` function checks for the presence of at least one recognized section. This allows files like `Daybreak2CostumeShop.kurodlc.json` that only define shop assignments to be processed.
+
+**Template generation** (v2.0+) is an advanced feature that creates a ready-to-use config file for `shops_create.py`. When invoked with `--generate-template`, the script first extracts item IDs from the specified source section (costume, item, dlc, or all), then determines shop IDs either from the existing ShopItem section (auto-detect), from `--shop-ids`, or from `--default-shop-ids`. It also extracts the existing template structure from the first ShopItem entry if available, falling back to a hardcoded default. The generated JSON file contains `item_ids`, `shop_ids`, `template`, and a `_comment` section with usage instructions.
 
 #### All Parameters
 
@@ -318,106 +282,43 @@ TEMPLATE OPTIONS:
                       Overrides auto-detection from ShopItem section
                       
   --default-shop-ids  Use [1] as default when ShopItem section not found
-                      Useful for DLCs without existing shop assignments
                       
-  --no-interactive    Do not prompt for user input (required for CI/CD)
+  --no-interactive    Do not prompt for user input
                       Must be used with --shop-ids or --default-shop-ids
                       
   --output=<file>     Custom output filename for generated template
                       Default: template_<input_filename>.json
 ```
 
-#### Examples with Real Data
+#### Examples
 
-**Example 1: Basic ID Extraction**
-
+**Basic ID Extraction:**
 ```bash
 python shops_find_unique_item_id_from_kurodlc.py my_costume_mod.kurodlc.json
+# stdout: [3596, 3597, 3598]
 ```
 
-**Sample DLC Structure:**
-```json
-{
-  "CostumeParam": [
-    {"item_id": 3596, "char_restrict": 1, "mdl_name": "c_van01b"},
-    {"item_id": 3597, "char_restrict": 2, "mdl_name": "c_agnes01b"},
-    {"item_id": 3598, "char_restrict": 3, "mdl_name": "c_feri01b"}
-  ],
-  "ItemTableData": [
-    {"id": 3596, "name": "Van Costume 01", "category": 17},
-    {"id": 3597, "name": "Agnes Costume 01", "category": 17},
-    {"id": 3598, "name": "Feri Costume 01", "category": 17}
-  ],
-  "DLCTableData": [
-    {"id": 1, "items": [3596, 3597, 3598], "name": "Costume Pack Vol.1"}
-  ]
-}
-```
-
-**Output (stdout):**
-```
-[3596, 3597, 3598]
-```
-
-**Output (stderr):**
-```
-# Extraction summary:
-#   CostumeParam: 3 IDs
-#   ItemTableData: 3 IDs
-#   DLCTableData.items: 3 IDs
-# Total unique IDs: 3
-```
-
-**Example 2: Extract Only Costume IDs**
-
+**Shop-only File (v2.2):**
 ```bash
-python shops_find_unique_item_id_from_kurodlc.py my_costume_mod.kurodlc.json costume
+python shops_find_unique_item_id_from_kurodlc.py Daybreak2CostumeShop.kurodlc.json shop
+# Extracts item_ids from ShopItem section only — no CostumeParam required
 ```
 
-**Output:**
-```
-[3596, 3597, 3598]
-```
-
-Only extracts from CostumeParam section.
-
-**Example 3: Generate Template (Auto-Detect Shop IDs)**
-
-**DLC with ShopItem section:**
-```json
-{
-  "CostumeParam": [...],
-  "ItemTableData": [...],
-  "ShopItem": [
-    {"shop_id": 21, "item_id": 3596, "unknown": 1},
-    {"shop_id": 22, "item_id": 3596, "unknown": 1},
-    {"shop_id": 23, "item_id": 3596, "unknown": 1}
-  ]
-}
-```
-
-**Command:**
+**Generate Template with Auto-Detect:**
 ```bash
-python shops_find_unique_item_id_from_kurodlc.py my_costume_mod.kurodlc.json --generate-template costume
+python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-template costume
+# Creates: template_my_mod.kurodlc.json
 ```
 
-**Generated Template:** `template_my_costume_mod.kurodlc.json`
+**Generated Template:**
 ```json
 {
   "_comment": [
-    "Template config file generated by shops_find_unique_item_id_from_kurodlc.py v2.1",
-    "Source file: my_costume_mod.kurodlc.json",
-    "Generated: 2026-01-31 14:45:00",
-    "",
+    "Template config file generated by shops_find_unique_item_id_from_kurodlc.py v2.2",
+    "Source file: my_mod.kurodlc.json",
     "INSTRUCTIONS:",
     "1. Review and modify shop_ids as needed",
-    "2. Review item_ids (automatically extracted)",
-    "3. Customize template structure if needed",
-    "4. Run: python shops_create.py <this_file>",
-    "",
-    "Extraction summary:",
-    "  - CostumeParam: 3 IDs",
-    "  - Shop IDs: extracted from ShopItem"
+    "2. Run: python shops_create.py <this_file>"
   ],
   "item_ids": [3596, 3597, 3598],
   "shop_ids": [21, 22, 23],
@@ -433,108 +334,27 @@ python shops_find_unique_item_id_from_kurodlc.py my_costume_mod.kurodlc.json --g
 }
 ```
 
-**Example 4: Generate Template with Manual Shop IDs**
-
-**For real shops from t_shop.json:**
-```
-Shop ID 5:  Item Shop
-Shop ID 6:  Weapon/Armor Shop
-Shop ID 10: Orbments
-```
-
-**Command:**
-```bash
-python shops_find_unique_item_id_from_kurodlc.py my_costume_mod.kurodlc.json --generate-template costume --shop-ids=5,6,10
-```
-
-**Generated Template:**
-```json
-{
-  "item_ids": [3596, 3597, 3598],
-  "shop_ids": [5, 6, 10],
-  "template": { ... }
-}
-```
-
-Result: 3 items × 3 shops = 9 shop assignments will be generated
-
-**Example 5: DLC Without ShopItem Section**
-
-```bash
-# Using default shop ID [1]
-python shops_find_unique_item_id_from_kurodlc.py my_costume_mod.kurodlc.json --generate-template costume --default-shop-ids
-
-# Or specify shops manually
-python shops_find_unique_item_id_from_kurodlc.py my_costume_mod.kurodlc.json --generate-template costume --shop-ids=21,22,23
-```
-
-**Example 6: CI/CD Pipeline (Non-Interactive)**
-
-```bash
-# For automated workflows
-python shops_find_unique_item_id_from_kurodlc.py my_costume_mod.kurodlc.json --generate-template costume --default-shop-ids --no-interactive
-```
-
-**Error Handling (No ShopItem + No Flags):**
-```
-============================================================
-ERROR: Cannot generate template
-============================================================
-
-Reason: No shop IDs found in ShopItem section.
-
-The DLC file does not contain a ShopItem section,
-and no shop IDs were specified.
-
-Possible solutions:
-
-  1. Specify shop IDs manually:
-     python shops_find_unique_item_id_from_kurodlc.py my_costume_mod.kurodlc.json --generate-template --shop-ids=5,6,10
-
-  2. Use default shop IDs [1]:
-     python shops_find_unique_item_id_from_kurodlc.py my_costume_mod.kurodlc.json --generate-template --default-shop-ids --no-interactive
-
-  3. Run interactively (without --no-interactive):
-     python shops_find_unique_item_id_from_kurodlc.py my_costume_mod.kurodlc.json --generate-template
-============================================================
-```
-
-#### Real Data Integration
-
-**Game Shops (from t_shop.json - ShopInfo section):**
-```
-ID  5: Item Shop
-ID  6: Weapon/Armor Shop
-ID  8: Modification/Trade Shop
-ID 10: Orbments
-ID 21: Melrose Newspapers & Tobacco
-ID 22: Melrose Newspapers & Tobacco
-ID 23: Melrose Newspapers & Tobacco
-```
-
-**Common Shop Assignment Strategies:**
-
-1. **All General Shops:**
-```bash
---shop-ids=5,6,8,10
-```
-
-2. **Specific Vendor:**
-```bash
---shop-ids=21,22,23  # All Melrose locations
-```
-
-3. **Costume-Specific:**
-```bash
---shop-ids=6  # Only Weapon/Armor Shop
-```
-
 ---
 
 ### shops_create.py
 
 **Version:** v2.0  
 **Purpose:** Generate bulk shop assignments from template configurations
+
+#### How It Works
+
+The script reads a JSON config file containing three key fields: `item_ids` (array of item IDs), `shop_ids` (array of shop IDs), and optionally `template` (structure for each generated entry). It then generates the **Cartesian product** of all items × all shops — for each combination, it creates a new entry by substituting variables in the template.
+
+**Variable substitution** is performed recursively across the entire template structure (including nested objects). The function `substitute_variables()` walks through every value in the template dict: string values like `"${shop_id}"` are replaced with the current integer value; nested dicts and lists are processed recursively. Four variables are available:
+
+- `${shop_id}` → current shop ID
+- `${item_id}` → current item ID  
+- `${index}` → 0-based index of the current entry
+- `${count}` → total number of entries being generated
+
+**Template validation** checks that the template contains at least `${shop_id}` and `${item_id}` placeholders. If no template is provided, a hardcoded default matching the standard ShopItem structure is used (backward compatible with v1.0 configs).
+
+The output section name defaults to `"ShopItem"` but can be overridden with the `output_section` config key. Output is written to `output_<input_filename>`.
 
 #### All Parameters
 
@@ -543,26 +363,29 @@ shops_create.py <template_file>
 
 ARGUMENTS:
   <template_file>     Template config file (JSON)
-                      Generated by shops_find or created manually
                       
 TEMPLATE FORMAT:
   {
     "item_ids": [<list of item IDs>],
     "shop_ids": [<list of shop IDs>],
-    "template": {<shop item structure>},
-    "output_section": "<section_name>" (optional, default: "ShopItem")
+    "template": {<shop item structure>},             // optional
+    "output_section": "<section_name>"               // optional, default: "ShopItem"
   }
+  
+TEMPLATE VARIABLES:
+  ${shop_id}          Current shop ID (integer)
+  ${item_id}          Current item ID (integer)
+  ${index}            Entry index, 0-based (integer)
+  ${count}            Total number of entries (integer)
   
 OUTPUT:
   Creates: output_<template_file>
   Contains: Complete shop assignments ready to copy into .kurodlc.json
 ```
 
-#### Examples with Real Data
+#### Example
 
-**Example 1: Basic Shop Assignment Generation**
-
-**Input Template:** `template_my_costume_mod.kurodlc.json`
+**Input:** `template_my_mod.kurodlc.json`
 ```json
 {
   "item_ids": [3596, 3597, 3598],
@@ -579,1275 +402,372 @@ OUTPUT:
 }
 ```
 
-**Command:**
 ```bash
-python shops_create.py template_my_costume_mod.kurodlc.json
+python shops_create.py template_my_mod.kurodlc.json
 ```
 
-**Output File:** `output_template_my_costume_mod.kurodlc.json`
-```json
-{
-  "ShopItem": [
-    {
-      "shop_id": 5,
-      "item_id": 3596,
-      "unknown": 1,
-      "start_scena_flags": [],
-      "empty1": 0,
-      "end_scena_flags": [],
-      "int2": 0
-    },
-    {
-      "shop_id": 5,
-      "item_id": 3597,
-      "unknown": 1,
-      "start_scena_flags": [],
-      "empty1": 0,
-      "end_scena_flags": [],
-      "int2": 0
-    },
-    {
-      "shop_id": 5,
-      "item_id": 3598,
-      "unknown": 1,
-      "start_scena_flags": [],
-      "empty1": 0,
-      "end_scena_flags": [],
-      "int2": 0
-    },
-    {
-      "shop_id": 6,
-      "item_id": 3596,
-      "unknown": 1,
-      "start_scena_flags": [],
-      "empty1": 0,
-      "end_scena_flags": [],
-      "int2": 0
-    },
-    {
-      "shop_id": 6,
-      "item_id": 3597,
-      "unknown": 1,
-      "start_scena_flags": [],
-      "empty1": 0,
-      "end_scena_flags": [],
-      "int2": 0
-    },
-    {
-      "shop_id": 6,
-      "item_id": 3598,
-      "unknown": 1,
-      "start_scena_flags": [],
-      "empty1": 0,
-      "end_scena_flags": [],
-      "int2": 0
-    },
-    {
-      "shop_id": 10,
-      "item_id": 3596,
-      "unknown": 1,
-      "start_scena_flags": [],
-      "empty1": 0,
-      "end_scena_flags": [],
-      "int2": 0
-    },
-    {
-      "shop_id": 10,
-      "item_id": 3597,
-      "unknown": 1,
-      "start_scena_flags": [],
-      "empty1": 0,
-      "end_scena_flags": [],
-      "int2": 0
-    },
-    {
-      "shop_id": 10,
-      "item_id": 3598,
-      "unknown": 1,
-      "start_scena_flags": [],
-      "empty1": 0,
-      "end_scena_flags": [],
-      "int2": 0
-    }
-  ]
-}
-```
-
-**Result:** 3 items × 3 shops = 9 shop assignments generated!
-
-**Example 2: Advanced Template with Variables**
-
-**Template with all variables:**
-```json
-{
-  "item_ids": [3596, 3597],
-  "shop_ids": [5, 6],
-  "template": {
-    "shop_id": "${shop_id}",
-    "item_id": "${item_id}",
-    "entry_index": "${index}",
-    "total_entries": "${count}",
-    "unknown": 1,
-    "metadata": {
-      "created_by": "shops_create.py v2.0",
-      "position": "${index}"
-    }
-  }
-}
-```
-
-**Output:**
-```json
-{
-  "ShopItem": [
-    {
-      "shop_id": 5,
-      "item_id": 3596,
-      "entry_index": 0,
-      "total_entries": 4,
-      "unknown": 1,
-      "metadata": {
-        "created_by": "shops_create.py v2.0",
-        "position": 0
-      }
-    },
-    {
-      "shop_id": 5,
-      "item_id": 3597,
-      "entry_index": 1,
-      "total_entries": 4,
-      "unknown": 1,
-      "metadata": {
-        "created_by": "shops_create.py v2.0",
-        "position": 1
-      }
-    },
-    {
-      "shop_id": 6,
-      "item_id": 3596,
-      "entry_index": 2,
-      "total_entries": 4,
-      "unknown": 1,
-      "metadata": {
-        "created_by": "shops_create.py v2.0",
-        "position": 2
-      }
-    },
-    {
-      "shop_id": 6,
-      "item_id": 3597,
-      "entry_index": 3,
-      "total_entries": 4,
-      "unknown": 1,
-      "metadata": {
-        "created_by": "shops_create.py v2.0",
-        "position": 3
-      }
-    }
-  ]
-}
-```
-
-**Variable Substitution:**
-- `${shop_id}` → Current shop ID
-- `${item_id}` → Current item ID
-- `${index}` → Entry index (0-based)
-- `${count}` → Total number of entries
-
-**Example 3: Custom Output Section**
-
-```json
-{
-  "item_ids": [3596, 3597],
-  "shop_ids": [5, 6],
-  "output_section": "CustomShopAssignments",
-  "template": {
-    "shop_id": "${shop_id}",
-    "item_id": "${item_id}"
-  }
-}
-```
-
-**Output:**
-```json
-{
-  "CustomShopAssignments": [
-    {"shop_id": 5, "item_id": 3596},
-    {"shop_id": 5, "item_id": 3597},
-    {"shop_id": 6, "item_id": 3596},
-    {"shop_id": 6, "item_id": 3597}
-  ]
-}
-```
-
-**Example 4: Real-World Scenario - 50 Costumes to 10 Shops**
-
-**Template:**
-```json
-{
-  "item_ids": [3596, 3597, 3598, ..., 3645],  // 50 IDs
-  "shop_ids": [5, 6, 8, 10, 21, 22, 23, 24, 26, 27],  // 10 shops
-  "template": {
-    "shop_id": "${shop_id}",
-    "item_id": "${item_id}",
-    "unknown": 1,
-    "start_scena_flags": [],
-    "empty1": 0,
-    "end_scena_flags": [],
-    "int2": 0
-  }
-}
-```
-
-**Result:**
-- 50 items × 10 shops = **500 shop assignments**
-- Generated in < 1 second
-- All assignments automatically created with proper structure
+**Result:** 3 items × 3 shops = 9 shop assignments in `output_template_my_mod.kurodlc.json`.
 
 ---
 
-## convert_kurotools_schemas.py
+### kurodlc_add_mdl.py
 
-**Version:** v1.0  
+**Version:** v2.1  
+**Purpose:** Automatically generate complete DLC entries for new MDL model files
+
+#### How It Works
+
+This script automates the process of adding new costume models to a `.kurodlc.json` file. It solves the problem of manually creating four interconnected data entries for each MDL file — a tedious and error-prone process.
+
+**Step 1: MDL Scanning.** The script calls `scan_mdl_files()` which uses `glob` to find all `*.mdl` files in the same directory as the target `.kurodlc.json`. It extracts just the filename stems (without `.mdl` extension). It then compares these against `get_existing_mdl_names()`, which reads the `CostumeParam` section and collects all `mdl_name` values. Only MDLs not already present in the config are flagged as "new".
+
+**Step 2: Data Source Selection.** The script needs two game data tables: `t_name` (for character identification) and `t_item` (for used ID detection). The `detect_all_sources()` function scans for files matching both prefixes simultaneously. For JSON sources, it requires both `t_name.json` and `t_item.json` to exist. For P3A archives, a single archive contains all tables. Sources where files are missing are marked as invalid. If multiple valid sources exist, interactive selection is shown (unless `--no-interactive`).
+
+**Step 3: Character Resolution.** For each new MDL, the script calls `extract_chr_prefix()` which uses regex `(chr\d+)` to extract the character prefix from filenames like `chr5001_c02aa` → `chr5001`, or `q_chr5001_c56q` → `chr5001`. This prefix is looked up in the character map built by `build_char_map()`, which loads t_name data and maps each `model` field's chr prefix to its `char_id` and `name`. If a character can't be resolved automatically, interactive mode prompts the user to enter `char_restrict` and character name manually. With `--no-interactive`, unresolved MDLs are skipped.
+
+**Step 4: Smart ID Assignment.** The script builds a complete set of used IDs by calling `collect_all_used_ids()`, which merges IDs from three sources: the game item database (t_item), all `.kurodlc.json` files in the directory (scanning CostumeParam, ItemTableData, DLCTableData, and ShopItem sections), and internal DLC IDs. It then calls `find_available_ids_in_range()` (the same algorithm as `resolve_id_conflicts_in_kurodlc.py`) to find free IDs. The algorithm tries a continuous block from the middle first, then falls back to scattered search.
+
+**Step 5: Entry Generation.** For each resolved MDL, the script generates four types of entries:
+
+- **CostumeParam** — Created by `make_costume_entry()`, which uses the first existing CostumeParam entry as a template (or a hardcoded default). It sets `item_id` to the new ID, `mdl_name` to the MDL filename, and `char_restrict` to the resolved character ID.
+- **ItemTableData** — Created by `make_item_entry()`, using the first existing ItemTableData entry as template. Sets `id` to the new ID, `name` to `"<CharName> generated <mdl_name>"` (a placeholder for manual editing), `category` to 17 (costume category), and matches `char_restrict`.
+- **ShopItem** — Created by `make_shop_entries()` for each shop ID. Shop IDs are auto-detected from existing ShopItem entries or fall back to `[21, 22, 248, 258]` (common Kuro 2 costume shops). Can be overridden with `--shop-ids`.
+- **DLCTableData** — New item IDs are appended to the `items` array of the first existing DLC record. If no record exists, a minimal one is created.
+
+**Step 6: Write.** By default the script runs in **dry-run mode** — it shows exactly what would change but writes nothing. Only with `--apply` are changes actually written. Before writing, a timestamped backup (`_YYYYMMDD_HHMMSS.bak`) is created (unless `--no-backup`). The `--no-ascii-escape` flag writes UTF-8 directly (e.g., `Agnès` instead of `Agn\u00e8s`).
+
+#### All Parameters
+
+```
+kurodlc_add_mdl.py <file.kurodlc.json> [options]
+
+ARGUMENTS:
+  <file>              Target .kurodlc.json file (required)
+
+OPTIONS:
+  --apply             Apply changes (without this, runs in dry-run mode)
+  --dry-run           Explicit dry-run (default behavior, no changes written)
+  --shop-ids=1,2,3    Override shop IDs (default: auto-detect from file)
+  --min-id=N          Minimum ID for search range (default: 1)
+  --max-id=N          Maximum ID for search range (default: 5000)
+  --no-interactive    Auto-select sources without prompting
+  --no-backup         Skip backup creation when applying
+  --no-ascii-escape   Write UTF-8 directly (e.g. Agnès instead of Agn\u00e8s)
+  --help              Show help message
+
+REQUIRED FILES (in same directory as kurodlc.json):
+  *.mdl               MDL model files to add
+  t_name source       One of: t_name.json, t_name.tbl, script_en.p3a,
+                      script_eng.p3a, zzz_combined_tables.p3a
+  t_item source       One of: t_item.json, t_item.tbl, script_en.p3a,
+                      script_eng.p3a, zzz_combined_tables.p3a
+```
+
+#### Examples
+
+**Preview Changes (dry-run):**
+```bash
+python kurodlc_add_mdl.py FalcoDLC.kurodlc.json
+```
+
+**Sample Output:**
+```
+Loaded: FalcoDLC.kurodlc.json
+  CostumeParam:  12 entries
+  ItemTableData: 12 entries
+  DLCTableData:  1 entries
+  ShopItem:      48 entries
+
+Found 15 .mdl file(s) in directory
+New .mdl files to add: 3
+  + chr5001_c02aa
+  + chr5302_c210
+  + chr5100_c03bb
+
+Loading character data (t_name)...
+Character map: 156 characters loaded
+
+Loading game item data (t_item)...
+Game items loaded: 2116 IDs
+Total used IDs (game + all DLCs): 2180
+
+Searching for 3 available ID(s) in range [1, 5000]...
+Found 3 IDs: 2501-2503 (continuous block)
+
+============================================================
+Generating entries
+Shop IDs: [21, 22, 248, 258]
+============================================================
+
+  item_id=2501  char=  1  Van                   mdl=chr5001_c02aa
+  item_id=2502  char= 32  Elaine                mdl=chr5302_c210
+  item_id=2503  char= 10  Agnes                 mdl=chr5100_c03bb
+
+============================================================
+Summary of changes:
+============================================================
+  CostumeParam:  +3 entries
+  ItemTableData: +3 entries
+  DLCTableData:  +3 item(s) added to existing record
+  ShopItem:      +12 entries (3 items x 4 shops)
+============================================================
+
+[DRY RUN] No files modified. Use --apply to write changes.
+```
+
+**Apply with Custom Range:**
+```bash
+python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --apply --min-id=3000 --max-id=4000
+```
+
+**Unresolved Character Handling:**
+```
+Warning: Could not resolve character for 1 MDL(s):
+  ? custom_model_xyz  (prefix: none)
+
+You can manually assign char_restrict for unresolved MDLs.
+Enter char_restrict value, or press Enter to skip, 'q' to abort:
+
+  custom_model_xyz char_restrict = 1
+  custom_model_xyz character name = Van
+```
+
+---
+
+### visualize_id_allocation.py
+
+**Purpose:** Visualize ID allocation patterns, analyze gaps, and find safe ID ranges for modding
+
+#### How It Works
+
+The script loads item data from any supported source (same detection system as other scripts), builds a set of all used IDs, then produces both console and HTML visualizations.
+
+**Console visualization** divides the ID range into configurable blocks (default 50 IDs per block). Each block is represented as a character: `█` for fully occupied, `▓`/`▒`/`░` for partially occupied (75%/50%/25%+), and `·` for empty. Color coding via `colorama` marks game IDs in red and free blocks in green.
+
+**HTML report** generates a standalone HTML file with an interactive ID allocation map. Each ID is represented as a pixel-sized cell in a grid, color-coded by occupancy. The report includes a statistics dashboard (total IDs, used, free, fragmentation index), a visual heat map, a searchable free blocks table, and gap analysis.
+
+**Fragmentation index** is calculated as 1 minus the ratio of the largest free block to total free space. Values 0.0–0.3 indicate low fragmentation (ideal), 0.4–0.6 medium, and 0.7–1.0 high (many scattered small gaps).
+
+**Free block identification** scans the full range and identifies continuous sequences of unused IDs, reporting their start position, length, and percentage of total free space. This helps modders quickly find the best location for new ID allocations.
+
+#### All Parameters
+
+```
+visualize_id_allocation.py [options]
+
+OPTIONS:
+  --source=TYPE       Force specific source: json, tbl, original, p3a, zzz
+  --no-interactive    Auto-select first source if multiple found
+  --keep-extracted    Keep temporary extracted files from P3A
+  --format=FORMAT     Output format: console, html, both (default: both)
+  --block-size=N      Block size for visualization (default: 50)
+  --output=FILE       HTML output filename (default: id_allocation_map.html)
+  --help              Show help message
+```
+
+#### Example
+
+```bash
+python visualize_id_allocation.py --format=both
+```
+
+**Console Output (example):**
+```
+ID Allocation Map (block size: 50)
+══════════════════════════════════
+
+   0: ████████████████████ ████████████████████ 1000
+1000: ████████░░░░░░░░░░░░ ···················· 2000
+2000: ···················· ···················· 3000
+3000: ··░░████████████████ ████████████████████ 4000
+4000: ████████████████████ ████·····░░░░░░···· 5000
+
+Statistics:
+  Total range: 0-5000
+  Used IDs:    2116
+  Free IDs:    2884
+  Fragmentation: 0.42 (Medium)
+  Largest free block: 1680 IDs at position 1050
+```
+
+---
+
+### convert_kurotools_schemas.py
+
 **Purpose:** Convert KuroTools schema definitions to kurodlc_schema.json format
 
-### All Parameters
+#### How It Works
+
+This is a one-time conversion utility. It reads KuroTools schema definition files (JSON) from a `schemas/headers/` directory, converts each field type to Python struct format equivalents, calculates total byte sizes, and merges the results with the existing `kurodlc_schema.json`.
+
+**Type conversion** is handled by `TYPE_MAPPING`, a dictionary mapping KuroTools type names to `(struct_char, value_type, byte_size)` tuples. For example, `uint` maps to `('I', 'n', 4)` — unsigned 32-bit int, numeric value, 4 bytes. Text offsets (`toffset`) map to `('Q', 't', 8)` — 64-bit pointer. Arrays (`u32array`, `u16array`) are 12 bytes each (8-byte offset + 4-byte count).
+
+**Nested structures** (KuroTools schemas with `size` and `schema` fields) are flattened by repeating inner fields `size` times with numbered prefixes (e.g., `eff1_id`, `eff2_id`).
+
+**Multi-variant handling**: many schemas have variants for different platforms/games (e.g., `FALCOM_PS4`, `FALCOM_SWITCH`). Each variant is converted separately and tagged with the game name in the `info_comment` field.
+
+**Deduplication** uses `(table_header, schema_length)` as a composite key — the same table can exist with different sizes (different game versions), but exact duplicates are skipped.
+
+#### Required File Structure
 
 ```
-convert_kurotools_schemas.py
-
-No command-line parameters required.
-
-REQUIREMENTS:
-  - kurodlc_schema.json in same directory (optional - will create new if missing)
-  - schemas/ folder with headers/ subfolder
-  - schemas/headers/ must contain KuroTools .json schema files
-
-AUTOMATIC DETECTION:
-  - Working directory: Where script is executed
-  - Input schema: ./kurodlc_schema.json
-  - KuroTools schemas: ./schemas/headers/*.json
-  - Output: ./kurodlc_schema_updated.json
-  - Report: ./conversion_report.txt
-
-FILE STRUCTURE:
-  your_directory/
-  ├── convert_kurotools_schemas.py
-  ├── kurodlc_schema.json (optional)
-  └── schemas/
-      └── headers/
-          ├── ATBonusParam.json
-          ├── ItemTableData.json
-          └── ... (280+ files)
+your_directory/
+├── convert_kurotools_schemas.py
+├── kurodlc_schema.json          (optional — creates new if missing)
+└── schemas/
+    └── headers/
+        ├── ATBonusParam.json
+        ├── ItemTableData.json
+        └── ... (280+ files)
 ```
 
-### What It Does
-
-The converter performs these steps:
-
-1. **Loads Existing Schema** (if exists)
-   - Reads `kurodlc_schema.json`
-   - Creates index of existing schemas by (table_header, schema_length)
-
-2. **Scans KuroTools Schemas**
-   - Searches `schemas/headers/` for all .json files
-   - Loads each schema definition
-
-3. **Converts Each Schema**
-   - Maps KuroTools data types to Python struct format
-   - Calculates total schema size in bytes
-   - Flattens nested structures (arrays, objects)
-   - Generates keys list and values string
-   - Detects primary keys (defaults to "id" if present)
-
-4. **Merges Results**
-   - Compares with existing schemas
-   - Prevents duplicates (same table + size)
-   - Preserves original schemas
-   - Adds only new entries
-
-5. **Outputs Files**
-   - `kurodlc_schema_updated.json` - Combined schema
-   - `conversion_report.txt` - Detailed statistics
-
-### Type Mapping Reference
-
-Complete mapping from KuroTools to kurodlc format:
-
-| KuroTools Type | Python Struct | Value Type | Size (bytes) | Description |
-|----------------|---------------|------------|--------------|-------------|
-| `byte` | `b` | `n` | 1 | Signed 8-bit integer |
-| `ubyte` | `B` | `n` | 1 | Unsigned 8-bit integer |
-| `short` | `h` | `n` | 2 | Signed 16-bit integer |
-| `ushort` | `H` | `n` | 2 | Unsigned 16-bit integer |
-| `int` | `i` | `n` | 4 | Signed 32-bit integer |
-| `uint` | `I` | `n` | 4 | Unsigned 32-bit integer |
-| `long` | `q` | `n` | 8 | Signed 64-bit integer |
-| `ulong` | `Q` | `n` | 8 | Unsigned 64-bit integer |
-| `float` | `f` | `n` | 4 | 32-bit floating point |
-| `toffset` | `Q` | `t` | 8 | Text offset (pointer to string) |
-| `u32array` | `QI` | `a` | 12 | Array of 32-bit values (offset + count) |
-| `u16array` | `QI` | `b` | 12 | Array of 16-bit values (offset + count) |
-
-**Value Type Legend:**
-- `n` = Number (integer or float)
-- `t` = Text (null-terminated string offset)
-- `a` = Array of 32-bit values
-- `b` = Array of 16-bit values (or byte array)
-
-### Nested Structure Handling
-
-KuroTools supports nested structures with a `size` parameter. These are automatically flattened in the conversion.
-
-**Example: Effects Array**
-
-KuroTools format:
-```json
-{
-    "FALCOM_PS4": {
-        "game": "Kuro1",
-        "schema": {
-            "id": "uint",
-            "effects": {
-                "size": 5,
-                "schema": {
-                    "id": "uint",
-                    "value1": "uint",
-                    "value2": "uint",
-                    "value3": "uint"
-                }
-            },
-            "hp": "uint"
-        }
-    }
-}
-```
-
-Converted to kurodlc format:
-```json
-{
-    "info_comment": "Kuro1 - Converted from KuroTools",
-    "table_header": "ItemTableData",
-    "schema_length": 88,
-    "schema": {
-        "schema": "<I20II",
-        "sch_len": 88,
-        "keys": [
-            "id",
-            "eff1_id", "eff1_value1", "eff1_value2", "eff1_value3",
-            "eff2_id", "eff2_value1", "eff2_value2", "eff2_value3",
-            "eff3_id", "eff3_value1", "eff3_value2", "eff3_value3",
-            "eff4_id", "eff4_value1", "eff4_value2", "eff4_value3",
-            "eff5_id", "eff5_value1", "eff5_value2", "eff5_value3",
-            "hp"
-        ],
-        "values": "nnnnnnnnnnnnnnnnnnnnnnn",
-        "primary_key": "id"
-    }
-}
-```
-
-**Size Calculation:**
-- `id` (uint) = 4 bytes
-- `effects` (5 × 4 × uint) = 80 bytes
-- `hp` (uint) = 4 bytes
-- **Total** = 88 bytes
-
-### Multi-Variant Schemas
-
-Many KuroTools schemas have multiple variants for different game versions. Each variant is converted separately.
-
-**Example: ItemTableData with 3 Variants**
-
-KuroTools file structure:
-```json
-{
-    "FALCOM_PS4": {
-        "game": "Kuro1",
-        "schema": { ... }  // Size: 248 bytes
-    },
-    "FALCOM_SWITCH": {
-        "game": "Ys_X",
-        "schema": { ... }  // Size: 176 bytes
-    },
-    "FALCOM_PC": {
-        "game": "Sora1",
-        "schema": { ... }  // Size: 232 bytes
-    }
-}
-```
-
-Converted to 3 separate entries:
-1. ItemTableData (248) - Kuro1
-2. ItemTableData (176) - Ys_X
-3. ItemTableData (232) - Sora1
-
-This allows the same table name to have different structures for different games.
-
-### Real Conversion Examples
-
-#### Example 1: Simple Schema - SkillPowerIcon
-
-**Input (KuroTools):**
-```json
-{
-    "FALCOM_PS5": {
-        "game": "Kai",
-        "schema": {
-            "skill_power": "int",
-            "icon_id": "int"
-        }
-    }
-}
-```
-
-**Output (kurodlc):**
-```json
-{
-    "info_comment": "Kai - Converted from KuroTools",
-    "table_header": "SkillPowerIcon",
-    "schema_length": 8,
-    "schema": {
-        "schema": "<2i",
-        "sch_len": 8,
-        "keys": ["skill_power", "icon_id"],
-        "values": "nn",
-        "primary_key": "skill_power"
-    }
-}
-```
-
-**Breakdown:**
-- 2 × `int` (4 bytes each) = 8 bytes total
-- Struct format: `<2i` (little-endian, 2 signed ints)
-- Values: `nn` (both are numbers)
-- Primary key: Auto-detected "skill_power" (contains "id" but not exact match, so uses first field with power/id pattern)
-
-#### Example 2: Complex Schema - BattleBGM
-
-**Input (KuroTools):**
-```json
-{
-    "FALCOM_PS5": {
-        "game": "Kuro2",
-        "schema": {
-            "id": "uint",
-            "bgm_normal": "toffset",
-            "bgm_advantage": "toffset",
-            "bgm_disadvantage": "toffset",
-            "bgm_boss": "toffset",
-            "int1": "int",
-            "int2": "int",
-            "int3": "int"
-        }
-    }
-}
-```
-
-**Output (kurodlc):**
-```json
-{
-    "info_comment": "Kuro2 - Converted from KuroTools",
-    "table_header": "BattleBGM",
-    "schema_length": 56,
-    "schema": {
-        "schema": "<I4Q3i",
-        "sch_len": 56,
-        "keys": [
-            "id", 
-            "bgm_normal", 
-            "bgm_advantage", 
-            "bgm_disadvantage", 
-            "bgm_boss",
-            "int1", 
-            "int2", 
-            "int3"
-        ],
-        "values": "nttttnnn",
-        "primary_key": "id"
-    }
-}
-```
-
-**Breakdown:**
-- 1 × `uint` (I) = 4 bytes
-- 4 × `toffset` (Q) = 32 bytes
-- 3 × `int` (i) = 12 bytes
-- **Total** = 56 bytes
-- Values: `n` for numbers, `t` for text offsets
-
-#### Example 3: Nested Array - HollowCoreEffParam
-
-**Input (KuroTools):**
-```json
-{
-    "FALCOM_PS4": {
-        "game": "Kuro1",
-        "schema": {
-            "id": "ubyte",
-            "name": "toffset",
-            "params": {
-                "size": 2,
-                "schema": {
-                    "value": "uint"
-                }
-            }
-        }
-    }
-}
-```
-
-**Output (kurodlc):**
-```json
-{
-    "info_comment": "Kuro1 - Converted from KuroTools",
-    "table_header": "HollowCoreEffParam",
-    "schema_length": 17,
-    "schema": {
-        "schema": "<BQ2I",
-        "sch_len": 17,
-        "keys": [
-            "id",
-            "name",
-            "params_1_value",
-            "params_2_value"
-        ],
-        "values": "ntnn",
-        "primary_key": "id"
-    }
-}
-```
-
-**Breakdown:**
-- 1 × `ubyte` (B) = 1 byte
-- 1 × `toffset` (Q) = 8 bytes
-- 2 × `uint` (I) = 8 bytes
-- **Total** = 17 bytes
-
-### Conversion Statistics
-
-Based on actual conversion run:
-
-| Metric | Count |
-|--------|-------|
-| Original kurodlc schemas | 39 |
-| KuroTools schema files | 282 |
-| Total variants converted | 343 |
-| New schemas added | 305 |
-| Final schema count | 344 |
-
-**Game Distribution:**
-- Kuro1: ~80 schemas
-- Kuro2: ~85 schemas
-- Kai: ~75 schemas
-- Ys_X: ~60 schemas
-- Sora1: ~40 schemas
-
-**Table Categories:**
-- Battle system: 25+
-- Items/Equipment: 30+
-- Skills/Abilities: 40+
-- Quests/Story: 35+
-- UI/Menus: 50+
-- Maps/Navigation: 30+
-- DLC/Shops: 20+
-- Misc: 70+
-
-### Duplicate Detection
-
-The converter prevents duplicates by checking:
-- `table_header` (table name)
-- `schema_length` (size in bytes)
-
-**Example:**
-```
-ItemTableData + 248 bytes = Kuro1 variant (kept if new)
-ItemTableData + 176 bytes = Ys_X variant (kept if new)
-ItemTableData + 248 bytes = Duplicate (skipped)
-```
-
-This means the same table can exist multiple times with different sizes (different game versions), but exact duplicates are avoided.
-
-### Output File: kurodlc_schema_updated.json
-
-The output file maintains the same format as the original kurodlc_schema.json:
-
-```json
-[
-    {
-        "info_comment": "Original entry",
-        "table_header": "ItemTableData",
-        "schema_length": 248,
-        "schema": { ... }
-    },
-    {
-        "info_comment": "Kuro2 - Converted from KuroTools",
-        "table_header": "BattleBGM",
-        "schema_length": 56,
-        "schema": { ... }
-    },
-    ...
-]
-```
-
-**File size:** ~200 KB (from ~25 KB original)
-
-### Output File: conversion_report.txt
-
-Detailed report with statistics and new schema list:
-
-```
-KuroTools Schema Conversion Report
-======================================================================
-
-Original schemas: 39
-KuroTools schemas found: 282
-Converted schemas: 343
-New schemas added: 305
-Total schemas: 344
-
-New Schema Tables:
-----------------------------------------------------------------------
-  BattleBGM                    Size:   56  Game: Kuro2 - Converted from KuroTools
-  SkillPowerIcon               Size:    8  Game: Kai - Converted from KuroTools
-  HollowCoreEffParam           Size:   17  Game: Kuro1 - Converted from KuroTools
-  ...
-  (305 total new entries)
-```
-
-### Error Handling
-
-The converter includes comprehensive error handling:
-
-**Missing Headers Directory:**
-```
-Headers directory not found: /path/to/schemas/headers
-  Found 0 schema file(s)
-
-⚠ WARNING: No schemas found!
-  Make sure the 'schemas' folder with 'headers' subfolder exists
-  in the same directory as this script.
-
-Press Enter to exit...
-```
-
-**Invalid JSON:**
-```
-Error loading ItemTableData.json: Expecting property name enclosed in double quotes
-```
-
-**Unknown Data Type:**
-```
-Error converting ItemTableData variant FALCOM_PS4: Unknown data type custom_type
-```
-
-**Conversion Issues:**
-Problematic schemas are skipped with error messages, but conversion continues for other schemas.
-
-### Advanced Workflows
-
-#### Workflow 1: Initial Setup
-
-```bash
-# 1. Download KuroTools
-git clone https://github.com/nnguyen259/KuroTools.git
-
-# 2. Copy schemas folder
-copy KuroTools\schemas .\schemas /s
-
-# 3. Run conversion
-python convert_kurotools_schemas.py
-
-# 4. Review report
-type conversion_report.txt
-
-# 5. Backup and replace
-copy kurodlc_schema.json kurodlc_schema.json.backup
-copy kurodlc_schema_updated.json kurodlc_schema.json
-```
-
-#### Workflow 2: Update Schemas
-
-When KuroTools adds new schemas:
-
-```bash
-# 1. Update KuroTools schemas
-cd KuroTools
-git pull
-cd ..
-
-# 2. Update local schemas
-robocopy KuroTools\schemas .\schemas /s /mir
-
-# 3. Re-run converter
-python convert_kurotools_schemas.py
-
-# 4. Check what's new
-type conversion_report.txt
-
-# 5. Replace if satisfied
-copy kurodlc_schema_updated.json kurodlc_schema.json
-```
-
-#### Workflow 3: Selective Merge
-
-If you have custom schemas and want to add only specific new ones:
-
-```bash
-# 1. Run conversion
-python convert_kurotools_schemas.py
-
-# 2. Open both files
-# - kurodlc_schema.json (your custom version)
-# - kurodlc_schema_updated.json (merged version)
-
-# 3. Check conversion_report.txt for new entries
-
-# 4. Manually copy desired new schemas from updated file to your custom file
-
-# 5. Validate JSON syntax
-python -m json.tool kurodlc_schema.json
-```
-
-#### Workflow 4: CI/CD Integration
-
-Automate schema updates in CI/CD pipeline:
-
-```bash
-#!/bin/bash
-# update_schemas.sh
-
-# Clone/update KuroTools
-if [ ! -d "KuroTools" ]; then
-    git clone https://github.com/nnguyen259/KuroTools.git
-else
-    cd KuroTools && git pull && cd ..
-fi
-
-# Copy schemas
-cp -r KuroTools/schemas ./schemas
-
-# Backup existing schema
-cp kurodlc_schema.json kurodlc_schema.json.backup
-
-# Run conversion
-python convert_kurotools_schemas.py
-
-# Check if conversion succeeded
-if [ -f "kurodlc_schema_updated.json" ]; then
-    mv kurodlc_schema_updated.json kurodlc_schema.json
-    echo "✓ Schema updated successfully"
-    cat conversion_report.txt
-else
-    echo "✗ Schema conversion failed"
-    exit 1
-fi
-```
-
-### Troubleshooting
-
-#### Problem: Schema Size Mismatch
-
-**Symptom:** Converted schema has wrong size when tested with actual TBL file
-
-**Cause:** Complex nested structures or special types not properly handled
-
-**Solution:**
-1. Check KuroTools schema for complex nested structures
-2. Manually verify size calculation:
-   ```
-   Each ubyte/byte = 1 byte
-   Each ushort/short = 2 bytes
-   Each uint/int/float = 4 bytes
-   Each ulong/long/toffset = 8 bytes
-   Nested structure = size × (sum of inner fields)
-   ```
-3. Compare with actual TBL file entry size
-4. Manually edit schema if needed
-
-**Example Fix:**
-```json
-// If auto-calculated size is 100 but actual is 104:
-"schema_length": 100,  // Change to:
-"schema_length": 104,
-```
-
-#### Problem: Missing Primary Keys
-
-**Symptom:** Schema works but lacks primary key for duplicate detection
-
-**Solution:** Manually add primary key:
-```json
-{
-    "schema": {
-        ...
-        "primary_key": "id"  // Add this line
-    }
-}
-```
-
-Or for composite keys:
-```json
-"primary_key": ["id", "category", "subcategory"]
-```
-
-#### Problem: Nested Structure Not Flattened
-
-**Symptom:** Schema has nested array but keys list doesn't show individual elements
-
-**Cause:** Converter missed nested structure
-
-**Solution:** Manually flatten in converted schema:
-```json
-// Instead of:
-"keys": ["id", "effects", "hp"]
-
-// Use:
-"keys": ["id", "eff1_id", "eff1_val", "eff2_id", "eff2_val", "hp"]
-```
-
-### Best Practices
-
-1. **Always Backup**
-   ```bash
-   copy kurodlc_schema.json kurodlc_schema.json.backup
-   ```
-
-2. **Review Report**
-   - Check conversion_report.txt for new schemas
-   - Verify game assignments are correct
-   - Look for any error messages
-
-3. **Test Incrementally**
-   - Don't replace schema immediately
-   - Test with a few TBL files first
-   - Verify sizes match actual file entries
-
-4. **Keep KuroTools Updated**
-   - Periodically check for KuroTools updates
-   - Re-run converter to get new schemas
-
-5. **Document Custom Changes**
-   - If you manually edit converted schemas, document why
-   - Use comments in schema file:
-     ```json
-     {
-         "info_comment": "Kai - Converted from KuroTools - MANUALLY ADJUSTED size",
-         ...
-     }
-     ```
-
-6. **Version Control**
-   - Use git to track schema changes
-   - Commit before and after conversion
-   - Tag stable versions
-
-### Schema Coverage After Conversion
-
-**Before Conversion (39 schemas):**
-- Basic tables: ItemTableData, DLCTableData
-- Some shop/costume tables
-- Limited game-specific support
-
-**After Conversion (344 schemas):**
-
-**Battle System:**
-- BattleBGM, BattleLevelField, BattleLevelTurn
-- BattleEnemyLevelAdjust, BattleSCraftDamageRatio
-- SkillParam, SkillLevelParam, SkillRangeData
-
-**Items & Equipment:**
-- Multiple ItemTableData variants (Kuro1, Kuro2, Ys X, Sky)
-- CostumeParam, CostumeTable, CostumeAttachTable
-- QuartzParam, QuartzLineParam
-
-**Quests & Story:**
-- QuestText, QuestTitle, QuestRank
-- StoryMissionTable, TimeChartData
-- EventTable, EventGroupData
-
-**Shops & Trading:**
-- ShopItem, ShopInfo, ProductInfo
-- RecipeTableData, TradeItem
-
-**Maps & Navigation:**
-- MapInfoTable, MapJumpAreaData, MapSeaTable
-- FastTravelTable, LookPointTable
-
-**UI & Menus:**
-- HelpTableData, HelpTitle, HelpPage
-- NoteMenus (various), SettingMenuData
-
-**Character & Progression:**
-- ChrDataParam, CharaLibData, StatusParam
-- SupportAbilityParam, ConnectBonusParam
-
-**Minigames:**
-- FishingSpot, FishParam, FishInfo
-- BlackJackHelp, PokerHelp, CardData
-
-**DLC & Platform:**
-- DLCTable, DLCTableData, SteamDlcTableData
-
-**Game-Specific:**
-- HollowCore* tables (Kuro series)
-- RecaptureIsland* tables (Ys X)
-- AbordageTable (Ys X)
-
-### Schema Format Reference
-
-For reference, here's the complete schema format used by kurodlc_lib.py:
-
-```json
-{
-    "info_comment": "Human-readable description",
-    "table_header": "TableName",
-    "schema_length": 123,
-    "schema": {
-        "schema": "<format_string>",
-        "sch_len": 123,
-        "keys": ["field1", "field2", ...],
-        "values": "nttann...",
-        "primary_key": "id" or ["id", "category"]
-    }
-}
-```
-
-**Fields:**
-- `info_comment`: Description (usually game name + source)
-- `table_header`: Table name (must match TBL section name)
-- `schema_length`: Total size of one entry in bytes
-- `schema.schema`: Python struct format string
-- `schema.sch_len`: Same as schema_length (redundant but required)
-- `schema.keys`: List of field names
-- `schema.values`: String of value types (n/t/a/b for each field)
-- `schema.primary_key`: Field(s) used for duplicate detection
-
-**Struct Format String:**
-- `<` = Little-endian byte order
-- `B` = unsigned byte (8-bit)
-- `b` = signed byte (8-bit)
-- `H` = unsigned short (16-bit)
-- `h` = signed short (16-bit)
-- `I` = unsigned int (32-bit)
-- `i` = signed int (32-bit)
-- `Q` = unsigned long long (64-bit)
-- `q` = signed long long (64-bit)
-- `f` = float (32-bit)
-
-Numbers can prefix types: `2I` = two unsigned ints = `II`
-
-**Value Types:**
-- `n` = Number (decoded as Python int or float)
-- `t` = Text (8-byte offset to null-terminated string)
-- `a` = Array of 32-bit values (offset + count = 12 bytes)
-- `b` = Array of 16-bit values (offset + count = 12 bytes)
-
----
-
-## Summary
-
-The `convert_kurotools_schemas.py` script is a powerful tool for expanding TBL file support in the KuroDLC toolkit. It automates the tedious process of converting schema definitions from one format to another, saving hours of manual work and reducing errors.
-
-**Key Benefits:**
-- ✅ Converts 280+ schemas in seconds
-- ✅ Expands coverage from 39 to 344+ tables
-- ✅ Supports 5 different games
-- ✅ Automatic type mapping and size calculation
-- ✅ Prevents duplicates
-- ✅ Detailed reporting
-
-**Use Cases:**
-- Adding support for new TBL files
-- Updating schemas when games are patched
-- Supporting multiple game versions
-- Building comprehensive modding toolkits
-
-For most users, running the converter once with default settings is sufficient. Advanced users can use the detailed reports and manual editing capabilities for fine-tuned control.
+**No command-line parameters.** The script runs interactively, reads from fixed paths relative to the working directory, and outputs `kurodlc_schema_updated.json` + `conversion_report.txt`.
+
+#### Type Mapping Reference
+
+| KuroTools Type | Struct | Value Type | Size | Description |
+|----------------|--------|------------|------|-------------|
+| `byte` | `b` | `n` | 1 | Signed 8-bit |
+| `ubyte` | `B` | `n` | 1 | Unsigned 8-bit |
+| `short` | `h` | `n` | 2 | Signed 16-bit |
+| `ushort` | `H` | `n` | 2 | Unsigned 16-bit |
+| `int` | `i` | `n` | 4 | Signed 32-bit |
+| `uint` | `I` | `n` | 4 | Unsigned 32-bit |
+| `long` | `q` | `n` | 8 | Signed 64-bit |
+| `ulong` | `Q` | `n` | 8 | Unsigned 64-bit |
+| `float` | `f` | `n` | 4 | 32-bit float |
+| `toffset` | `Q` | `t` | 8 | Text offset (string pointer) |
+| `u32array` | `QI` | `a` | 12 | Array of 32-bit values |
+| `u16array` | `QI` | `b` | 12 | Array of 16-bit values |
 
 ---
 
 ### find_all_items.py
 
-**Version:** v2.0 (Standalone with multi-source support)  
-**Purpose:** Search and browse game items with intelligent auto-detection
+**Purpose:** Search and browse items from game data with intelligent filtering
+
+#### How It Works
+
+The script loads item data from `t_item` sources using the same multi-source detection system as other scripts (JSON → TBL → P3A, with interactive source selection). Data is parsed into a dictionary mapping `id` → `name` for each item in the `ItemTableData` section.
+
+**Search** supports three modes: no query (list all), name search (case-insensitive substring match in item names), and ID search (exact match). Auto-detection determines the mode: pure numbers trigger ID search, text triggers name search. Explicit prefixes `id:` and `name:` override auto-detection — this is important when searching for numbers in item names (e.g., `name:100`).
+
+Output is sorted by numeric ID with aligned columns.
 
 #### All Parameters
 
 ```
 find_all_items.py [search_query] [options]
 
-ARGUMENTS:
-  search_query   (Optional) Search query with optional prefix
-  
 SEARCH MODES:
-  id:NUMBER      Search by exact ID (e.g., id:100)
-  name:TEXT      Search in item names (e.g., name:sword)
-  TEXT           Auto-detect (numbers → ID search, text → name search)
-  
+  (no query)          List all items
+  TEXT                Auto-detect: numbers → ID search, text → name search
+  id:NUMBER           Explicit ID search (e.g., id:100)
+  name:TEXT           Explicit name search (e.g., name:sword)
+
 OPTIONS:
-  --source=TYPE       Force specific source: json, tbl, original, p3a, zzz
-  --no-interactive    Auto-select first source if multiple found
-  --keep-extracted    Keep temporary extracted files from P3A
-  --help              Show this help message
-  
-SUPPORTED SOURCES (auto-detected in priority order):
-  1. t_item.json
-  2. t_item.tbl.original
-  3. t_item.tbl
-  4. script_en.p3a / script_eng.p3a (extracts t_item.tbl)
-  5. zzz_combined_tables.p3a (extracts t_item.tbl)
+  --source=TYPE       Force source: json, tbl, original, p3a, zzz
+  --no-interactive    Auto-select first source
+  --keep-extracted    Keep temporary files from P3A
+  --help              Show help
 ```
 
-#### Examples with Real Data
-
-**Example 1: Search by ID (Auto-Detect)**
+#### Examples
 
 ```bash
-python find_all_items.py 310
+python find_all_items.py sword          # Find items containing "sword"
+python find_all_items.py 310            # Find item with ID 310
+python find_all_items.py name:310       # Find items with "310" in name
 ```
 
-**Output:**
+---
+
+### find_all_names.py
+
+**Purpose:** Search and browse character names from game data with intelligent filtering
+
+#### How It Works
+
+Functions identically to `find_all_items.py` but operates on `t_name` data (character name database). Loads from `t_name.json`, `t_name.tbl`, or P3A archives.
+
+**Additional search modes:** `full_name:TEXT` searches in the `full_name` field, and `model:TEXT` searches in the `model` field. This makes it easy to find all characters using a specific model prefix (e.g., `model:chr0100` finds all Van variants).
+
+**Additional display options:** `--show-full` adds the `full_name` column, `--show-model` adds the `model` column. Results are formatted with aligned columns.
+
+The `build_char_map()` function in other scripts relies on the same data — `find_all_names.py` is essentially a user-facing browser for the same character database used internally by `kurodlc_add_mdl.py`.
+
+#### All Parameters
+
 ```
-# Auto-detected ID search for '310'
-# Use 'name:310' to search for '310' in item names instead
+find_all_names.py [search_query] [options]
 
-Loading item data...
-Using source: t_item.json
-Loaded 2116 items from: t_item.json
+SEARCH MODES:
+  (no query)          List all characters
+  TEXT                Auto-detect: numbers → ID search, text → name search
+  id:NUMBER           Search by exact character ID
+  name:TEXT           Search in character names
+  full_name:TEXT      Search in full names
+  model:TEXT          Search in model names
 
-310 : Earth Sepith
-
-Total: 1 item(s)
+OPTIONS:
+  --source=TYPE       Force source: json, tbl, original, p3a, zzz
+  --no-interactive    Auto-select first source
+  --keep-extracted    Keep temporary files from P3A
+  --show-full         Show full names in output
+  --show-model        Show model names in output
+  --help              Show help
 ```
 
-**Example 2: Search by Name**
+#### Examples
 
 ```bash
-python find_all_items.py sepith
-```
+python find_all_names.py van --show-full --show-model
+# 100 : Van              | Van Arkride           | chr0100_01
 
-**Output:**
-```
-Loading item data...
-Using source: t_item.json
-Loaded 2116 items from: t_item.json
-
-310 : Earth Sepith
-311 : Water Sepith
-312 : Fire Sepith
-313 : Wind Sepith
-314 : Time Sepith
-315 : Space Sepith
-316 : Mirage Sepith
-317 : Sepith Mass
-318 : All Element Sepith
-
-Total: 9 item(s)
-```
-
-**Example 3: Explicit Search Modes**
-
-```bash
-# Explicit ID search
-python find_all_items.py id:310
-
-# Explicit name search (useful for numbers in names)
-python find_all_items.py name:100
-```
-
-**Example 4: Force Specific Source**
-
-```bash
-# Force JSON source
-python find_all_items.py sword --source=json
-
-# Force TBL source (requires kurodlc_lib.py)
-python find_all_items.py sword --source=tbl
-
-# Extract from P3A archive (requires p3a_lib.py + dependencies)
-python find_all_items.py sword --source=p3a
-```
-
-**Example 5: Multi-Source Selection (Interactive)**
-
-```bash
-python find_all_items.py
-
-# When multiple sources exist:
-# 
-# Multiple data sources detected. Select source to use:
-#   1) t_item.json
-#   2) t_item.tbl.original
-#   3) t_item.tbl
-#   4) script_en.p3a (extract t_item.tbl)
-# 
-# Enter choice [1-4]:
-```
-
-**Example 6: Automation (No Interactive Prompts)**
-
-```bash
-# For CI/CD or scripts - auto-select first source
-python find_all_items.py sepith --source=json --no-interactive > items.txt
-```
-
-**Example 7: Using with P3A Archives**
-
-```bash
-# Extract t_item.tbl from P3A and search
-python find_all_items.py sword --source=p3a
-
-# Keep extracted file for debugging
-python find_all_items.py sword --source=p3a --keep-extracted
-```
-
-#### Real Item Categories
-
-From t_item.json, items are organized by category:
-
-```
-Category 0:  Sepith items (310-318)
-Category 2:  Key items
-Category 17: Costume items
-Category 30: Casino items
+python find_all_names.py model:chr0100
+# Shows all model variants for character chr0100
 ```
 
 ---
 
 ### find_all_shops.py
 
-**Version:** v2.0 (Standalone with multi-source support)  
-**Purpose:** List all shops from game data with flexible source handling
+**Purpose:** Search and browse shops from game data
+
+#### How It Works
+
+Same pattern as `find_all_items.py` but operates on `t_shop` data. Loads shop information from `t_shop.json`, `t_shop.tbl`, or P3A archives. Searches by shop ID or shop name using the same auto-detect logic. The `--debug` flag shows raw data structure information, useful for understanding the JSON schema.
 
 #### All Parameters
 
 ```
-find_all_shops.py [search_text] [options]
+find_all_shops.py [search_query] [options]
 
-ARGUMENTS:
-  search_text   (Optional) Filter shops by text in name (case-insensitive)
-  
+SEARCH MODES:
+  (no query)          List all shops
+  TEXT                Auto-detect: numbers → ID search, text → name search
+  id:NUMBER           Search by exact shop ID
+  name:TEXT           Search in shop names
+
 OPTIONS:
-  --source=TYPE       Force specific source: json, tbl, original, p3a, zzz
-  --no-interactive    Auto-select first source if multiple found
-  --keep-extracted    Keep temporary extracted files from P3A
+  --source=TYPE       Force source: json, tbl, original, p3a, zzz
+  --no-interactive    Auto-select first source
+  --keep-extracted    Keep temporary files from P3A
   --debug             Show debug information about data structure
-  --help              Show this help message
-  
-SUPPORTED SOURCES (auto-detected in priority order):
-  1. t_shop.json
-  2. t_shop.tbl.original
-  3. t_shop.tbl
-  4. script_en.p3a / script_eng.p3a (extracts t_shop.tbl)
-  5. zzz_combined_tables.p3a (extracts t_shop.tbl)
-```
-
-#### Examples with Real Data
-
-**Example 1: List All Shops**
-
-```bash
-python find_all_shops.py
-```
-
-**Output (first 20 shops):**
-```
-Loading shop data...
-Using source: t_shop.json
-Loaded 215 shops from: t_shop.json
-
-  4 : Casino
-  5 : Item Shop
-  6 : Weapon/Armor Shop
-  7 : Shared Table Test
-  8 : Modification/Trade Shop
-  9 : Kitchen
- 10 : Orbments
- 21 : Melrose Newspapers & Tobacco
- 22 : Melrose Newspapers & Tobacco
- 23 : Melrose Newspapers & Tobacco
- 24 : Montmart Bistro
- 25 : Montmart Bistro
- 26 : Montmart Bistro
- 27 : Stanley's Factory
- 28 : Stanley's Factory
-...
-
-Total: 215 shop(s)
-```
-
-**Example 2: Search for Specific Shop**
-
-```bash
-python find_all_shops.py melrose
-```
-
-**Output:**
-```
-Loading shop data...
-Using source: t_shop.json
-Loaded 215 shops from: t_shop.json
-
- 21 : Melrose Newspapers & Tobacco
- 22 : Melrose Newspapers & Tobacco
- 23 : Melrose Newspapers & Tobacco
-
-Total: 3 shop(s)
-```
-
-**Example 3: Using with Debug Mode**
-
-```bash
-python find_all_shops.py --debug
-```
-
-**Output:**
-```
-DEBUG: Loaded 215 shop entries
-DEBUG: Type of shops: <class 'list'>
-DEBUG: First shop entry: {'id': 5, 'shop_name': 'Item Shop', ...}
-DEBUG: Type of first entry: <class 'dict'>
-
-...shop listing...
-```
-
-**Example 4: Force TBL Source**
-
-```bash
-python find_all_shops.py --source=tbl
-```
-
-**Example 5: Automation**
-
-```bash
-python find_all_shops.py --source=json --no-interactive > shops_list.txt
-```
-
-#### Using Output for Template Generation
-
-1. **Find shops:**
-```bash
-python find_all_shops.py > shops_list.txt
-```
-
-2. **Select shop IDs for your template:**
-```
-For general items: 5, 6, 8, 10
-For specific vendor: 21, 22, 23
-```
-
-3. **Use in template generation:**
-```bash
-python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-template --shop-ids=5,6,8,10
+  --help              Show help
 ```
 
 ---
 
 ### find_unique_item_id_for_t_costumes.py
 
-**Version:** v2.0 (Standalone with multi-source support)  
-**Purpose:** Extract all unique costume item IDs from game data
+**Purpose:** Extract all unique item IDs from costume data (CostumeParam section)
+
+#### How It Works
+
+Loads `t_costume` data from `t_costume.json`, `t_costume.tbl`, or P3A archives. Iterates through the `CostumeParam` section and extracts every `item_id` value. Deduplicates and sorts the results. Supports three output formats: `list` (Python-style list), `count` (just the total), and `range` (min-max with count).
+
+This is useful for understanding what costume IDs are already used by the game, complementing `find_unique_item_id_from_kurodlc.py` which checks DLC files.
 
 #### All Parameters
 
@@ -1855,92 +775,22 @@ python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-
 find_unique_item_id_for_t_costumes.py [options]
 
 OPTIONS:
-  --source=TYPE       Force specific source: json, tbl, original, p3a, zzz
-  --no-interactive    Auto-select first source if multiple found
-  --keep-extracted    Keep temporary extracted files from P3A
+  --source=TYPE       Force source: json, tbl, original, p3a, zzz
+  --no-interactive    Auto-select first source
+  --keep-extracted    Keep temporary files from P3A
   --format=FORMAT     Output format: list (default), count, range
-  --help              Show this help message
-  
-OUTPUT FORMATS:
-  list   Print Python list of IDs: [100, 101, 102, ...]
-  count  Print count of unique IDs: 150 unique item IDs
-  range  Print ID range: 100-5000 (150 IDs)
-  
-SUPPORTED SOURCES (auto-detected in priority order):
-  1. t_costume.json
-  2. t_costume.tbl.original
-  3. t_costume.tbl
-  4. script_en.p3a / script_eng.p3a (extracts t_costume.tbl)
-  5. zzz_combined_tables.p3a (extracts t_costume.tbl)
+  --help              Show help
 ```
-
-#### Examples with Real Data
-
-**Example 1: Extract Costume IDs (Default List Format)**
-
-```bash
-python find_unique_item_id_for_t_costumes.py
-```
-
-**Output:**
-```
-Loading costume data...
-Using source: t_costume.json
-Loaded 487 costumes from: t_costume.json
-
-[0, 2350, 2351, 2352, 2353, ..., 4807, 4808, 4809]
-```
-
-**Example 2: Count Only**
-
-```bash
-python find_unique_item_id_for_t_costumes.py --format=count
-```
-
-**Output:**
-```
-Loading costume data...
-Using source: t_costume.json
-Loaded 487 costumes from: t_costume.json
-
-487 unique item IDs
-```
-
-**Example 3: Range Info**
-
-```bash
-python find_unique_item_id_for_t_costumes.py --format=range
-```
-
-**Output:**
-```
-Loading costume data...
-Using source: t_costume.json
-Loaded 487 costumes from: t_costume.json
-
-0-4809 (487 IDs)
-```
-
-**Example 4: Force JSON Source**
-
-```bash
-python find_unique_item_id_for_t_costumes.py --source=json
-```
-
-**Example 5: Extract from P3A Archive**
-
-```bash
-python find_unique_item_id_for_t_costumes.py --source=p3a --no-interactive
-```
-
-**Use case:** Find which IDs are used by game costumes to avoid conflicts when creating custom costume mods.
 
 ---
 
 ### find_unique_item_id_for_t_item_category.py
 
-**Version:** v2.0 (Standalone with multi-source support)  
-**Purpose:** Extract item IDs by category from game item database
+**Purpose:** Extract unique item IDs from a specific category in ItemTableData
+
+#### How It Works
+
+Loads `t_item` data and filters entries by the `category` field matching the specified number. Extracts `id` values from matching entries, deduplicates, and sorts. Useful for understanding what IDs exist in a specific item category (e.g., category 17 = costumes, category 5 = weapons).
 
 #### All Parameters
 
@@ -1948,162 +798,672 @@ python find_unique_item_id_for_t_costumes.py --source=p3a --no-interactive
 find_unique_item_id_for_t_item_category.py <category> [options]
 
 ARGUMENTS:
-  category      Category number to filter items by (integer, REQUIRED)
+  <category>          Category number to filter by (integer, required)
 
 OPTIONS:
-  --source=TYPE       Force specific source: json, tbl, original, p3a, zzz
-  --no-interactive    Auto-select first source if multiple found
-  --keep-extracted    Keep temporary extracted files from P3A
+  --source=TYPE       Force source: json, tbl, original, p3a, zzz
+  --no-interactive    Auto-select first source
+  --keep-extracted    Keep temporary files from P3A
   --format=FORMAT     Output format: list (default), count, range
-  --help              Show this help message
-  
-OUTPUT FORMATS:
-  list   Print Python list of IDs: [100, 101, 102, ...]
-  count  Print count of unique IDs: 150 unique item IDs in category 5
-  range  Print ID range: 100-5000 (150 IDs in category 5)
-  
-SUPPORTED SOURCES (auto-detected in priority order):
-  1. t_item.json
-  2. t_item.tbl.original
-  3. t_item.tbl
-  4. script_en.p3a / script_eng.p3a (extracts t_item.tbl)
-  5. zzz_combined_tables.p3a (extracts t_item.tbl)
+  --help              Show help
 ```
 
-#### Examples with Real Data
-
-**Example 1: Extract Sepith IDs (Category 0)**
+#### Example
 
 ```bash
-python find_unique_item_id_for_t_item_category.py 0
+python find_unique_item_id_for_t_item_category.py 17 --format=range
+# Output: 3500-3650 (45 IDs in category 17)
 ```
-
-**Output:**
-```
-Loading item data for category 0...
-Using source: t_item.json
-Loaded 2116 items from: t_item.json
-
-[310, 311, 312, 313, 314, 315, 316, 317, 318]
-```
-
-**Example 2: Count Costume Items (Category 17)**
-
-```bash
-python find_unique_item_id_for_t_item_category.py 17 --format=count
-```
-
-**Output:**
-```
-Loading item data for category 17...
-Using source: t_item.json
-Loaded 2116 items from: t_item.json
-
-487 unique item IDs in category 17
-```
-
-**Example 3: Range for Category 5**
-
-```bash
-python find_unique_item_id_for_t_item_category.py 5 --format=range
-```
-
-**Output:**
-```
-Loading item data for category 5...
-Using source: t_item.json
-Loaded 2116 items from: t_item.json
-
-100-450 (78 IDs in category 5)
-```
-
-**Example 4: Force TBL Source**
-
-```bash
-python find_unique_item_id_for_t_item_category.py 17 --source=tbl
-```
-
-**Example 5: Automation**
-
-```bash
-# Extract all categories to separate files
-for cat in 0 2 5 17 30; do
-  python find_unique_item_id_for_t_item_category.py $cat --source=json --no-interactive > category_$cat.txt
-done
-```
-
-#### Known Item Categories
-
-From t_item.json:
-
-```
-Category 0:  Sepith (310-318)
-Category 2:  Key Items
-Category 5:  Consumables
-Category 17: Costumes (487 items, ID range 0-4809)
-Category 30: Casino Items
-```
-
-**Use case:** Find which IDs are used by specific item categories to avoid conflicts or to understand item organization.
 
 ---
 
+### find_unique_item_id_from_kurodlc.py
 
+**Purpose:** Extract item IDs from kurodlc files with multiple output modes and game data checking
+
+#### How It Works
+
+This script scans `.kurodlc.json` files and extracts all item IDs. It uses `extract_item_ids()` which reads four sections (CostumeParam → `item_id`, ItemTableData → `id`, DLCTableData → `items` array values, ShopItem → `item_id`). The `is_valid_kurodlc_structure()` function validates files by checking for known section names.
+
+**Check mode** is the most powerful feature. It loads game item data (same multi-source system) and cross-references every DLC item ID against the game database. Each ID is marked `[OK]` (available — not in game data) or `[BAD]` (conflict — exists in game data). Color output uses `colorama` on Windows. This is essentially a read-only version of what `resolve_id_conflicts_in_kurodlc.py` does in its detection phase.
+
+**Output modes** control how results are displayed:
+
+- **Single file** — `<file.kurodlc.json>`: outputs a sorted list of unique IDs from one file
+- **searchall** — processes all `.kurodlc.json` files, outputs one combined sorted list
+- **searchallbydlc** — shows IDs per file, then combined unique list
+- **searchallbydlcline** — same as above but each ID on its own line
+- **searchallline** — combined list with each ID on its own line
+- **check** — cross-reference DLC IDs against game data
+
+#### All Parameters
+
+```
+find_unique_item_id_from_kurodlc.py <mode> [options]
+
+MODES:
+  <file.kurodlc.json>     Process single file, print unique item_ids
+  searchall                Process all .kurodlc.json, print combined list
+  searchallbydlc           Per-file lists, then combined unique list
+  searchallbydlcline       Like searchallbydlc but one ID per line
+  searchallline            Combined list, one ID per line
+  check                    Cross-reference DLC IDs against game data
+
+CHECK MODE OPTIONS:
+  --source=TYPE       Force source: json, tbl, original, p3a, zzz
+  --no-interactive    Auto-select first source
+  --keep-extracted    Keep temporary extracted files
+```
+
+#### Example: Check Mode
+
+```bash
+python find_unique_item_id_from_kurodlc.py check --source=json
+```
+
+**Output:**
+```
+3596 : available [OK]
+3597 : available [OK]
+ 310 : Earth Sepith [BAD]
+
+Summary:
+Total IDs : 3
+OK        : 2
+BAD       : 1
+
+Source used for check: t_item.json
+```
+
+---
+
+## 3D Model Viewer Scripts
+
+All viewer scripts are located in the `viewer_mdl/` directory. They form an evolution from simple to full-featured:
+
+| Script | Renders | Textures | Animation | Window | Key Feature |
+|--------|---------|----------|-----------|--------|-------------|
+| viewer.py | .fmt/.vb/.ib | ❌ | ❌ | Browser | HTML export with Three.js |
+| viewer_mdl.py | .mdl direct | ❌ | ❌ | Browser | Direct MDL parsing |
+| viewer_mdl_window.py | .mdl direct | ❌ | ❌ | Native | pywebview, no temp files |
+| viewer_mdl_optimized.py | .mdl direct | ❌ | ❌ | Native | Base64 compression for large models |
+| viewer_mdl_textured.py | .mdl direct | ✅ DDS | ❌ | Native | Texture loading via Pillow |
+| viewer_mdl_textured_anim.py | .mdl direct | ✅ DDS | ✅ Full | Native | **Main viewer** — animations, shaders, gamepad |
+| viewer_mdl_textured_scene.py | .mdl direct | ✅ DDS | ✅ Full | Native | Scene mode — maps, terrain, FPS camera |
+
+---
+
+### viewer.py
+
+**Purpose:** Standalone HTML-based 3D viewer using pre-exported .fmt/.vb/.ib files
+
+#### How It Works
+
+This is the simplest viewer. It expects a model directory containing pre-exported geometry files in GPU buffer format: `.fmt` (vertex format descriptor), `.vb` (vertex buffer), and `.ib` (index buffer). These are typically produced by `kuro_mdl_export_meshes.py`.
+
+The `TrailsModelLoader` class reads these files using `InputLayout` to parse vertex formats (semantic names, data types, byte offsets) from `.fmt`, then `_load_vertices()` decodes vertex data from `.vb` and `_load_indices()` reads triangle indices from `.ib`. Each mesh is loaded separately based on numbered file groups (e.g., `0.fmt`, `0.vb`, `0.ib`).
+
+**Normal computation** uses `compute_smooth_normals_with_sharing()` which groups vertices by position (within a tolerance), accumulates face normals across shared positions, and normalizes the result. This produces smooth shading even when the same position appears in multiple vertices (typical for UV seams).
+
+The `export_html()` function generates a self-contained HTML file embedding Three.js inline (from local `three.min.js`). Mesh data is serialized as JSON arrays in the HTML. The viewer implements orbit controls, mesh list toggle, wireframe mode, and basic lighting.
+
+#### Parameters
+
+```
+viewer.py <model_path> [--no-original]
+
+  model_path          Path to model directory (containing .fmt/.vb/.ib files)
+  --no-original       Use computed smooth normals instead of original normals from .vb
+```
+
+---
+
+### viewer_mdl.py
+
+**Purpose:** Direct .mdl file preview without intermediate exported files
+
+#### How It Works
+
+Unlike `viewer.py`, this script reads `.mdl` files directly. It imports `decryptCLE`, `obtain_material_data`, and `obtain_mesh_data` from `kuro_mdl_export_meshes.py` to parse the binary MDL format. CLE-encrypted models are automatically decrypted using `blowfish` and `zstandard`.
+
+The `load_mdl_direct()` function calls the parser, which returns mesh data including vertex positions, normals, UV coordinates, and triangle indices. If the model contains original normals and `--use-original-normals` is set, those are used; otherwise smooth normals are computed.
+
+The `export_html_from_meshes()` function generates HTML similar to `viewer.py` but with MDL-specific mesh naming (using material names from the MDL header). Output is a single HTML file opened in the default browser.
+
+#### Parameters
+
+```
+viewer_mdl.py <mdl_path> [--use-original-normals]
+
+  mdl_path                Path to .mdl file
+  --use-original-normals  Use normals from MDL data instead of computing smooth normals
+```
+
+---
+
+### viewer_mdl_window.py
+
+**Purpose:** Native window .mdl viewer with automatic cleanup (no files left behind)
+
+#### How It Works
+
+Identical rendering to `viewer_mdl.py` but uses `pywebview` to display in a native OS window (Edge WebView2 on Windows, GTK WebKit2 on Linux, WKWebView on macOS) instead of exporting a permanent HTML file. The HTML is written to a temp directory which is automatically cleaned up on exit via `atexit.register()`.
+
+The script creates a `tempfile.mkdtemp()` directory, writes the generated HTML there, launches `webview.create_window()`, and blocks on `webview.start()`. When the window is closed, the temp directory is deleted.
+
+#### Parameters
+
+```
+viewer_mdl_window.py <mdl_path> [--use-original-normals]
+
+  Same as viewer_mdl.py. Requires: pip install pywebview
+```
+
+---
+
+### viewer_mdl_optimized.py
+
+**Purpose:** Optimized native window viewer for large models
+
+#### How It Works
+
+Same as `viewer_mdl_window.py` but optimized for models with high polygon counts. Large mesh data is **base64-encoded and compressed** before embedding in HTML to avoid WebView2 size limits. The browser-side JavaScript decodes the base64 data back into typed arrays.
+
+This resolves issues where very large models (100K+ vertices) would cause the WebView to fail due to excessive inline JSON data.
+
+#### Parameters
+
+```
+viewer_mdl_optimized.py <mdl_path> [--use-original-normals]
+
+  Same as viewer_mdl_window.py. Requires: pip install pywebview
+```
+
+---
+
+### viewer_mdl_textured.py
+
+**Purpose:** Textured MDL viewer with DDS support
+
+#### How It Works
+
+Extends `viewer_mdl_window.py` with texture loading. The `load_mdl_with_textures()` function first parses the MDL to extract material information (which textures each material references), then uses `lib_texture_loader.py` to find and convert DDS texture files.
+
+**Texture resolution** searches for DDS files in multiple locations: the model's directory, parent directories, and common game directory structures (`dx11/image/`, `common/image/`, etc.). Found DDS textures are converted to PNG using Pillow (`PIL`) and copied to the temp directory. The HTML references these PNG files via relative paths.
+
+The material-texture mapping connects each mesh's material name to its diffuse texture, normal map, and other texture types parsed from the MDL material data.
+
+A JS API class (`Api`) is exposed to the webview, providing Python ↔ JavaScript bridge for file operations like screenshot saving.
+
+#### Parameters
+
+```
+viewer_mdl_textured.py <mdl_file> [--use-original-normals]
+
+  Requires: pip install pywebview Pillow
+```
+
+---
+
+### viewer_mdl_textured_anim.py
+
+**Version:** Ver 1.0  
+**Purpose:** Full-featured 3D model viewer with textures, skeleton, animations, and gamepad support
+
+This is the **main viewer** — the most capable and feature-rich script.
+
+#### How It Works
+
+**MDL Loading** extends `viewer_mdl_textured.py` with skeleton and animation support. `load_skeleton_from_mdl()` parses bone hierarchy data directly from the raw MDL binary — it scans for bone name strings and parent-child relationships encoded in the file. Each bone has a name, parent index, and local transform matrix.
+
+**Animation Loading** (`load_animations_from_directory()`) scans the model directory for animation files matching the pattern `*_m_*.mdl` (e.g., `chr5001_m_idle.mdl`, `chr5001_m_walk.mdl`). Each animation file contains bone transform keyframes (position, rotation, scale per bone per frame). The loader extracts these and packages them as JSON-serializable animation data. Built-in procedural animations (T-Pose, Idle, Wave, Walk) serve as fallbacks when no external animation files exist.
+
+**Face Animations** (`load_face_animations_from_directory()`) load from `*_face.mdl` files. These contain morph target or bone-based facial expressions (blinking, talking, emotions). Face animations are tagged separately in the UI.
+
+**FXO Shader Support** parses compiled DXBC shader files (`.fxo`) found in a sibling `fxo/` directory. The `parse_fxo_shader()` function reads the shader binary to extract uniform names (constant buffer layouts) and texture slot bindings. When FXO shaders are available, the viewer renders materials using **toon/cel shading** parameters from the game's actual shader data, matching in-game appearance. The `--no-shaders` flag disables this and uses standard PBR materials.
+
+**Gamepad Support** implements a polling system in JavaScript that detects connected controllers and maps their inputs. Supported controller types:
+
+- **DualSense** (PS5) — full support with touchpad/adaptive triggers
+- **DualShock** (PS4) — standard button mapping
+- **Switch Pro** — Nintendo-style button layout
+- **Generic** — fallback XInput mapping
+- **Keyboard** — WSAD + mouse orbit
+
+Gamepad controls allow third-person camera orbit, model rotation, animation switching, and speed control. Button mappings include: left stick for camera orbit, right stick for zoom, D-pad for animation selection, triggers for speed adjustment, face buttons for mode toggles (wireframe, bones, screenshot, etc.).
+
+**UI Features** (rendered in HTML/CSS/JS):
+
+- Mesh list with individual show/hide toggles
+- Mesh highlighting on hover
+- Auto-hide shadow/kage meshes (configurable)
+- Background color picker
+- Lighting controls (ambient/directional intensity, direction)
+- Wireframe overlay toggle
+- Skeleton visualization with bone hierarchy
+- Animation player with play/pause, speed, frame scrubber
+- Face animation controls
+- Screenshot capture (saved to Downloads folder)
+- Video recording with quality settings (requires `av` module)
+- Skybox/environment map support
+- FXO shader toggle
+- Physics simulation with collision and intensity controls
+- FreeCam (free camera flight mode)
+- Configurable via `viewer_mdl_textured_config.md`
+
+#### Parameters
+
+```
+viewer_mdl_textured_anim.py <path_to_model.mdl> [options]
+
+  --recompute-normals  Recompute smooth normals instead of using originals from MDL
+                       (slower loading, typically no visual difference)
+  --debug              Enable verbose console logging in browser DevTools
+  --skip-popup         Skip loading progress popup on startup
+  --no-shaders         Disable toon shader (FXO), use standard PBR materials
+
+  Requires: pip install pywebview Pillow
+  Optional: pip install av (for video recording)
+```
+
+#### Configuration
+
+The viewer reads `viewer_mdl_textured_config.md` for persistent settings. Runtime configuration is available in the generated HTML via the `CONFIG` object:
+
+```javascript
+const CONFIG = {
+  CAMERA_ZOOM: 1.0,           // Camera zoom factor (0.8=close, 1.5=far)
+  AUTO_HIDE_SHADOW: true,      // Hide shadow meshes on load
+  INITIAL_BACKGROUND: 0x1a1a2e // Background color (hex)
+};
+```
+
+---
+
+### viewer_mdl_textured_scene.py
+
+**Purpose:** Scene viewer for loading entire game maps with multiple MDL models
+
+#### How It Works
+
+This script extends `viewer_mdl_textured_anim.py` with a **scene mode** that parses binary scene JSON files and renders complete 3D game environments. When invoked with `--scene`, it bypasses single-model loading and instead:
+
+**Scene Parsing** (`parse_scene_json()`) reads binary JSON files from the `scene/` directory. These files define actor placements in a game map — each entry contains an actor type (e.g., `StaticMeshActor`, `FieldTerrain`, `PointLight`, `PlantActor`), a model name, and a 4×4 transformation matrix (position, rotation, scale). Non-visual actor types (lights, sounds, navigation) are identified and excluded from model loading.
+
+**Directory Structure Resolution**: The scene expects a specific layout where `scene/` and `asset/` are sibling directories under a game root:
+```
+game_root/
+├── scene/
+│   └── mp0010.json          ← Scene file
+└── asset/
+    ├── common/model/        ← MDL files
+    ├── dx11/image/          ← DDS textures
+    └── ...
+```
+
+**MDL Index Building**: The script recursively scans `asset/common/model/`, `asset/dx11/model/`, and other subdirectories, building a case-insensitive index of all `.mdl` files (excluding animation files `*_m_*.mdl` and queue files `q_*`).
+
+**Model Name Resolution** uses an 8-strategy matching system to connect scene actor names to actual MDL files:
+
+1. **Exact match** — actor name matches MDL filename directly
+2. **Prefix stripping** — removes `CP_` and `EV_` prefixes
+3. **Door pattern** — `door_mp0010_00` → `ob0010dor00`
+4. **Vegetation clusters** — `CP_m0010_grass` → `ob0010plt*`
+5. **Field terrain** — `FieldTerrain` → `mp{mapid}` chunk models
+6. **Type names** — known non-visual types are skipped
+7. **Category hints** — name contains category keyword (cover, kusa, obj, etc.) → `ob{mapid}{cat}*`
+8. **Fallback** — unresolved models use placeholder geometry
+
+**Multi-Model Loading**: For each resolved unique model, `load_mdl_with_textures()` is called. Material names are prefixed with the model name (e.g., `chr5001##material_body`) to avoid collisions between models sharing material names. Texture search paths include the `asset/*/image/` directories.
+
+**Terrain Chunks**: `FieldTerrain` actors reference map-specific terrain chunks (e.g., `mp0010`, `mp0010_01`). These are loaded separately and placed according to their scene transforms.
+
+**Scene Rendering**: The generated HTML includes all model data as instances. Each scene actor is rendered by creating a Three.js `Object3D` with the model's geometry and applying the actor's 4×4 transform matrix. This allows hundreds of objects to share a few dozen unique geometries.
+
+**Scene-Specific UI Features**:
+
+- **FreeCam** (FPS-style camera) — always active in scene mode, WSAD + mouse for movement
+- **Minimap** — overhead view showing camera position and actor locations
+- **Search** — find actors by name in the scene hierarchy
+- **Category filters** — show/hide actors by type (terrain, buildings, props, vegetation, etc.)
+- **Fog controls** — distance fog for depth perception in large scenes
+- **Grid** — ground plane reference grid
+- All standard viewer features (textures, shaders, screenshots, gamepad, etc.)
+
+#### Parameters
+
+```
+viewer_mdl_textured_scene.py <path_to_model.mdl> [options]
+viewer_mdl_textured_scene.py --scene <scene_file.json> [options]
+
+SCENE MODE:
+  --scene <file>       Load a scene file (.json binary format)
+                       Searches: exact path, scene/ subdirectory
+                       Loads MDL models from asset/ directory
+
+STANDARD MODE:
+  (same as viewer_mdl_textured_anim.py — single model viewing)
+
+OPTIONS:
+  --recompute-normals  Recompute smooth normals
+  --debug              Enable verbose console logging
+  --skip-popup         Skip loading progress popup
+  --no-shaders         Disable FXO toon shaders
+
+  Requires: pip install pywebview Pillow
+```
+
+#### Scene Mode Example
+
+```bash
+python viewer_mdl_textured_scene.py --scene mp0010.json
+```
+
+**Output:**
+```
+============================================================
+SCENE MODE: mp0010.json
+============================================================
+[+] Parsed 847 actors (124 unique models)
+    StaticMeshActor: 612
+    FieldTerrain: 45
+    PointLight: 89
+    PlantActor: 56
+    SpotLightActor: 45
+
+[+] Model resolution: 98/124 models found
+[+] Terrain chunks in resolved: ['mp0010', 'mp0010_01', 'mp0010_02', ...]
+
+[+] Loading 98 unique MDL models...
+  [1/98] Loading ob0010bld001...
+    -> 12 meshes loaded
+  [2/98] Loading ob0010grd000...
+    -> 4 meshes loaded
+  ...
+
+[+] Loaded 98 models, 1247 total meshes
+[+] Launching viewer...
+```
+
+---
+
+## Library Files
+
+### kurodlc_lib.py
+
+**Purpose:** Read and write Kuro DLC binary table files (.tbl) with schema-based serialization
+
+*External library by eArmada8 (GitHub: kuro_dlc_tool)*
+
+#### How It Works
+
+The `kuro_tables` class is the core engine that powers DLC modding. It reads binary `.tbl` game data tables, deserializes them into Python dicts using schema definitions, merges DLC modifications from `.kurodlc.json` files, and writes the modified tables back to binary format.
+
+**Initialization** (`__init__` → `init_schemas()`): On creation, the class loads `kurodlc_schema.json` — a JSON array of schema definitions, each mapping a `(table_header, schema_length)` pair to a struct layout. It then scans all `.tbl` and `.tbl.original` files in the working directory recursively, reading their `#TBL` headers to build two indexes: `schema_dict` (table name → entry byte length) and `crc_dict` (table name → CRC32 checksum). These indexes allow the class to match any table section to its correct schema at runtime.
+
+**Schema lookup** (`get_schema(name, entry_length)`): Returns the schema for a given table section. Schemas are keyed by `(name, entry_length)` tuple because the same table name (e.g., `ItemTableData`) can have different byte layouts across game versions (Kuro 1 vs Kuro 2 vs Kai). If no schema matches, returns empty dict — the section is skipped during read/write.
+
+**Table reading** (`read_table(table_name)`): Parses a `#TBL` binary file. The format starts with magic `#TBL` + section count, followed by section headers (64-byte name string, CRC, offset, entry length, entry count). For each section, raw binary rows are unpacked using `struct.unpack()` with the schema's format string (e.g., `<I4Q3i`). The inner `decode_row()` function then transforms raw values:
+- `n` (number) → kept as integer/float
+- `t` (text offset) → seeks to the 64-bit offset in the file and reads a null-terminated UTF-8 string
+- `a` (u32 array) → seeks to the offset and reads `count` 32-bit unsigned integers
+- `b` (u16 array) → seeks to the offset and reads `count` 16-bit unsigned integers
+
+This produces a Python dict per row, with field names from the schema's `keys` array.
+
+**Table writing** (`write_table(table_name)`): The reverse process. First creates a backup (`.original`) if one doesn't exist. Reads the original table, merges DLC data via `update_table_with_kurodlc()`, then serializes back to binary. String and array data are written to a secondary buffer (`data2_buffer`) that follows the fixed-size row data. Text fields become 64-bit offsets pointing into this buffer. Arrays become offset+count pairs. The final binary is: `#TBL` header + section headers + packed rows + variable-length data buffer.
+
+**DLC merging** (`read_kurodlc_json()` → `validate_kurodlc_entries()` → `detect_duplicate_entries()` → `update_table_with_kurodlc()`): This pipeline loads a `.kurodlc.json` file, validates that every entry's keys match the schema (auto-correcting key order if possible), checks for duplicate primary keys across all loaded DLCs (warning the user about conflicts with source file attribution), and finally merges new entries into the table data. When a primary key exists in both the original table and DLC data, the DLC version replaces the original (last-write-wins by primary key).
+
+**Composite primary keys**: Some schemas define `primary_key` as a list (e.g., `["shop_id", "item_id"]`). The class handles this by creating a temporary tuple key `new_primary_key` that joins the component values, enabling correct deduplication even for multi-column primary keys.
+
+#### Key Methods
+
+| Method | Purpose |
+|--------|---------|
+| `init_schemas()` | Load `kurodlc_schema.json` + scan `.tbl` files for metadata |
+| `get_schema(name, length)` | Look up binary layout for a table section |
+| `read_table(name)` | Parse `.tbl` binary → Python dicts |
+| `write_table(name)` | Serialize Python dicts → `.tbl` binary (with backup) |
+| `read_kurodlc_json(name)` | Load + validate + dedup a single `.kurodlc.json` |
+| `read_all_kurodlc_jsons()` | Process all `*.kurodlc.json` in current directory |
+| `validate_kurodlc_entries()` | Check key names and value types against schema |
+| `detect_duplicate_entries()` | Warn about primary key conflicts between DLC files |
+| `update_table_with_kurodlc()` | Merge DLC entries into table (replace by primary key) |
+| `read_struct_from_json()` | Safe JSON file reader with detailed error messages |
+| `write_struct_to_json()` | JSON file writer (UTF-8 encoded) |
+
+#### Dependencies
+
+- `kurodlc_schema.json` — must be in the same directory as the library
+- Python standard library only (json, struct, shutil, glob, os)
+
+#### Used By
+
+All scripts that need to read game data from `.tbl` binary files: `resolve_id_conflicts_in_kurodlc.py`, `find_all_items.py`, `find_all_names.py`, `find_all_shops.py`, `find_unique_item_id_for_t_costumes.py`, `find_unique_item_id_for_t_item_category.py`, `find_unique_item_id_from_kurodlc.py`, `kurodlc_add_mdl.py`, `visualize_id_allocation.py`.
+
+---
+
+### p3a_lib.py
+
+**Purpose:** Read, extract, and create P3A archive files (Falcom's proprietary archive format)
+
+*External library by eArmada8 (GitHub: kuro_dlc_tool)*
+
+#### How It Works
+
+The `p3a_class` handles P3A archives — compressed file containers used by Falcom games to package game data (scripts, tables, textures, models). Archives like `script_en.p3a` contain `.tbl` table files that other scripts need to access for game data lookup.
+
+**Archive reading** (`read_p3a_toc()`): Parses the P3A header starting with magic `PH3ARCV\x00`. The header contains flags, version number (1100 or 1200), file count, and archive hash (xxHash64). For version 1200+, additional fields include extended header size and entry size. Each file entry is a 256-byte name string followed by compression type, compressed size, uncompressed size, file offset, compressed hash, and (v1200+) uncompressed hash. If flags bit 0 is set, a Zstandard compression dictionary follows the entries (magic `P3ADICT\x00`).
+
+**File decompression** (`read_file(entry, p3a_dict)`): Reads compressed data at the entry's offset, verifies integrity via xxHash64, then decompresses based on `cmp_type`:
+- **0** — uncompressed (raw copy)
+- **1** — LZ4 block compression (`lz4.block.decompress()`)
+- **2** — Zstandard compression (`zstandard.ZstdDecompressor()`)
+- **3** — Zstandard with shared dictionary (uses the archive's `P3ADICT` data for better compression ratios across similar files)
+
+After decompression, the uncompressed hash is verified (v1200+).
+
+**File extraction** (`extract_all_files(p3a_archive, output_dir)`): Reads the TOC, iterates all entries, decompresses each, and writes to disk preserving the internal directory structure. Prompts before overwriting existing files.
+
+**Archive creation** (`p3a_pack_files(file_list, ...)`): Builds a new P3A archive from a list of files. Supports all four compression types. For type 3 (dictionary-based Zstandard), it first trains a compression dictionary from all input files using `zstandard.train_dictionary()` with a 112KB dictionary size. Files are aligned to 64-byte boundaries within the archive. The TOC is written first (header + entries + optional dictionary), followed by the compressed file data block.
+
+**Folder packing** (`pack_folder(folder_name, ...)`): Convenience method that recursively collects all files in a folder and packs them into a P3A with paths relative to the folder root.
+
+#### Compression Types
+
+| Type | Method | Use Case |
+|------|--------|----------|
+| 0 | None | Small files, debugging |
+| 1 | LZ4 | Fast compression/decompression (default) |
+| 2 | Zstandard | High compression ratio |
+| 3 | Zstandard + Dict | Best ratio for similar files (e.g., table collections) |
+
+#### Dependencies
+
+- `lz4` — LZ4 block compression (`pip install lz4`)
+- `zstandard` — Zstandard compression/decompression (`pip install zstandard`)
+- `xxhash` — xxHash64 integrity verification (`pip install xxhash`)
+
+#### Used By
+
+All scripts that access game data from P3A archives: when a user has `script_en.p3a` or `zzz_combined_tables.p3a` instead of pre-extracted `.tbl`/`.json` files, the scripts use `p3a_lib` to extract the needed table on-the-fly to a temporary file.
+
+---
+
+### kuro_mdl_export_meshes.py
+
+**Purpose:** Parse ED9/Kuro no Kiseki .mdl model files and export geometry as .fmt/.ib/.vb buffers
+
+*External library by eArmada8 (GitHub: kuro_mdl_tool), based on Uyjulian's parser*
+
+#### How It Works
+
+This is the foundational MDL parser that all viewer scripts depend on. It reads the proprietary binary `.mdl` format used by Falcom's Kuro no Kiseki engine and extracts geometry, material, and skeleton data.
+
+**CLE Decryption** (`decryptCLE(file_content)`): Kuro no Kiseki models can be encrypted and/or compressed. The function checks the file magic and applies transformations in a loop until raw MDL data is obtained:
+- Magic `F9BA` or `C9BA` → Blowfish CTR decryption with a hardcoded 16-byte key and 8-byte IV
+- Magic `D9BA` → Zstandard decompression
+
+The loop handles chained encryption+compression (decrypt first, then decompress).
+
+**MDL Structure**: The binary format starts with a 12-byte header (magic `MDL ` = `0x204c444d`, version, flags). The remainder is a sequence of typed sections, each with an 8-byte header (type ID, size). Section types:
+- **Type 0** — Material data
+- **Type 1** — Mesh/geometry data
+- **Type 2** — Skeleton/bone hierarchy
+- **Type 4** — Primitive data (Kuro 2+)
+
+The `isolate_*_data()` functions seek through sections to find and return the raw bytes for a specific type.
+
+**Material Parsing** (`obtain_material_data(mdl_data)`): Reads the material section as a sequence of material blocks. Each block contains:
+- `material_name` — Pascal string (1-byte length prefix + ASCII)
+- `shader_name` — the shader program name (e.g., `chr_skin`, `chr_eye`)
+- `str3` — additional shader identifier
+- `textures[]` — array of texture references, each with: texture image name (DDS filename without extension), texture slot index, wrap modes (S/T), and version-specific unknowns
+- `shaders[]` — shader parameter values with typed data (int, float, vec2, vec3, vec4, matrix4x4 as base64)
+- `material_switches[]` — named boolean-like switches that control shader behavior
+- `uv_map_indices` — which UV channels this material uses
+
+The shader switches are hashed with xxHash64 for quick comparison (stored as `shader_switches_hash_referenceonly`).
+
+**Mesh Parsing** (`obtain_mesh_data(mdl_data, material_struct, trim_for_gpu)`): The most complex function. For each mesh in the MDL:
+1. Reads mesh header: mesh name (from skeleton node), node count, submesh count
+2. For each submesh: reads vertex buffer layout descriptors (semantic name, DXGI format, byte offset), vertex count, index count, and the raw GPU buffer data
+3. Decodes vertex buffers using `lib_fmtibvb` functions — each vertex is unpacked according to its DXGI format (e.g., `R32G32B32_FLOAT` for positions, `R8G8B8A8_UNORM` for blend weights)
+4. Reads index buffers (16-bit or 32-bit triangle indices)
+5. Associates each submesh with its material via `material_dict`
+
+The `trim_for_gpu` flag controls whether to keep only GPU-relevant vertex attributes (position, normal, UV, blend) or preserve all attributes including debug data.
+
+For Kuro 2+ models (version > 1), vertex and index data is stored in a separate primitive section (type 4) rather than inline in the mesh section. The `isolate_primitive_data()` and `parse_primitive_header()` functions handle this layout.
+
+**Skeleton Parsing** (`obtain_skeleton_data(mdl_data)`): Reads the bone hierarchy as a flat list of nodes. Each node contains:
+- `name` — bone name (Pascal string)
+- `type` — 0=transform, 1=skin child, 2=mesh
+- `mesh_index` — which mesh this bone controls (-1 if none)
+- `pos_xyz` — local position (3 floats)
+- `unknown_quat` — quaternion rotation (4 floats)
+- `skin_mesh` — skin mesh reference
+- `rotation_euler_rpy` — Euler angles roll/pitch/yaw (3 floats)
+- `scale` — local scale (3 floats)
+- `children[]` — list of child node indices
+
+The parent-child relationships form a tree where the root is typically node 0.
+
+**Export** (`process_mdl()`, `write_fmt_ib_vb()`): The main export pipeline reads an MDL file, decrypts it, extracts materials/meshes/skeleton, and writes per-submesh output files:
+- `*.fmt` — text-based vertex format descriptor (semantic names, DXGI formats, byte offsets)
+- `*.vb` — raw vertex buffer (binary, matches fmt layout)
+- `*.ib` — raw index buffer (16-bit or 32-bit triangles)
+- `*.vgmap` — vertex group mapping (bone name → index, JSON)
+- `material_info.json` — full material data including textures and shader params
+- `mesh_info.json` — mesh metadata (names, node counts, submesh info)
+- `skeleton.json` — complete bone hierarchy
+- `image_list.json` — list of referenced DDS texture filenames
+
+#### Key Functions
+
+| Function | Purpose |
+|----------|---------|
+| `decryptCLE()` | Decrypt/decompress CLE-encrypted MDL data |
+| `obtain_material_data()` | Parse material section → texture refs, shader params |
+| `obtain_mesh_data()` | Parse mesh section → vertex/index buffers, layouts |
+| `obtain_skeleton_data()` | Parse skeleton section → bone hierarchy |
+| `process_mdl()` | Full pipeline: read MDL → export .fmt/.vb/.ib + JSON |
+| `isolate_*_data()` | Extract raw bytes for a specific MDL section type |
+| `write_fmt_ib_vb()` | Write a single submesh's geometry files |
+
+#### Dependencies
+
+- `blowfish` — Blowfish cipher for CLE decryption (`pip install blowfish`)
+- `zstandard` — Zstandard decompression (`pip install zstandard`)
+- `xxhash` — hash verification (`pip install xxhash`)
+- `numpy` — array operations
+- `lib_fmtibvb.py` — GPU buffer format I/O (must be in same directory)
+
+#### Used By
+
+All viewer scripts (`viewer_mdl.py`, `viewer_mdl_textured.py`, `viewer_mdl_textured_anim.py`, `viewer_mdl_textured_scene.py`) import three key functions: `decryptCLE`, `obtain_material_data`, `obtain_mesh_data`. The viewers call these to load MDL data directly into memory (without writing intermediate files to disk), then convert the mesh buffers into Three.js-compatible JSON for browser rendering.
+
+---
+
+### lib_texture_loader.py
+
+**Purpose:** DDS texture loading, path resolution, and format conversion
+
+#### How It Works
+
+**DDSHeader** class parses the 128-byte DDS file header, extracting dimensions (`width`, `height`), mipmap count, and pixel format (FourCC code like `DXT1`, `DXT5`, `BC7`, etc.).
+
+**find_texture_file()** searches for a texture by name across multiple directories. It tries several path variations: exact filename, with `.dds` extension, uppercase/lowercase variants, and common game directory structures. The `search_paths` list is built by the caller based on the model's location and game asset structure.
+
+**convert_dds_to_png_pil()** converts DDS binary data to PNG bytes using Pillow. Pillow handles common DDS formats (DXT1/BC1, DXT5/BC3, BC7, uncompressed RGBA). Returns `None` for unsupported formats.
+
+**convert_dds_to_rgba_raw()** is a fallback converter that decodes DDS to raw RGBA pixel data without Pillow, handling basic uncompressed formats only.
+
+**load_texture_as_data_url()** combines finding and converting: locates a DDS file, converts to PNG, then encodes as a base64 data URL for HTML embedding.
+
+**load_material_textures()** processes a material's texture references (from MDL material data), resolves each texture name to a file path, converts to PNG, and caches results. Returns a map of texture slot → file info.
+
+---
+
+### lib_fmtibvb.py
+
+**Purpose:** Read/write .fmt, .ib, .vb files (GPU buffer format I/O)
+
+*External library by eArmada8 (GitHub: gust_stuff)*
+
+This library provides functions for parsing DXGI vertex format descriptors and reading/writing GPU buffer data. It handles:
+
+- **unpack_dxgi_vector()** / **pack_dxgi_vector()** — Convert between binary GPU data and Python lists. Supports FLOAT, UINT, SINT, UNORM, SNORM formats in 8/16/32-bit widths.
+- **read_fmt()** / **write_fmt()** — Parse `.fmt` files (text-based vertex layout descriptors with semantic names, formats, byte offsets).
+- **read_vb()** / **write_vb()** — Read/write vertex buffer files, decoding each vertex according to the format descriptor.
+- **read_ib()** / **write_ib()** — Read/write index buffer files (16-bit or 32-bit triangle indices).
+- **read_struct_from_json()** / **write_struct_to_json()** — JSON serialization helpers for format structures.
+
+Used by `viewer.py` and `kuro_mdl_export_meshes.py` for geometry I/O.
+
+---
 
 ## Data Structure Specifications
 
-### .kurodlc.json Structure
+### .kurodlc.json File Structure
 
-**Complete structure with all sections:**
+A `.kurodlc.json` file contains DLC mod data organized into sections:
 
 ```json
 {
   "CostumeParam": [
     {
-      "char_restrict": 1,
-      "type": 0,
       "item_id": 3596,
+      "char_restrict": 1,
+      "mdl_name": "chr5001_c02aa",
       "unk0": 0,
-      "unk_txt0": "",
-      "mdl_name": "c_van01b",
       "unk1": 0,
       "unk2": 0,
-      "attach_name": "",
-      "unk_txt1": "",
-      "unk_txt2": ""
+      "unk3": "",
+      "unk_txt": ""
     }
   ],
   "ItemTableData": [
     {
       "id": 3596,
-      "chr_restrict": 1,
-      "flags": "",
-      "unk_txt": "1",
       "category": 17,
-      "subcategory": 15,
-      "name": "Costume Pack Vol.1",
-      "desc": "Custom costume for party member",
-      "visual_name": "",
-      "icon_index": 0,
-      "int0": 0,
-      "int1": 1,
+      "sub_category": 0,
+      "char_restrict": 1,
+      "name": "Custom Costume - Van",
+      "desc": "A custom costume for Van.",
       "price": 0,
-      "int3": 0,
-      "sell_price": 0,
-      "sort_id": 0
+      "sell_price": 0
     }
   ],
   "DLCTableData": [
     {
       "id": 1,
-      "sort_id": 0,
+      "sort_id": 1,
       "items": [3596, 3597, 3598],
-      "unk0": 0,
       "quantity": [1, 1, 1],
-      "name": "Costume Pack Vol.1",
-      "desc": "Custom costume for party member",
-      "int3": 0,
-      "empty": 0
+      "name": "Custom Costume Pack",
+      "desc": "A collection of custom costumes."
     }
   ],
   "ShopItem": [
@@ -2120,262 +1480,118 @@ Category 30: Casino Items
 }
 ```
 
-**Field Descriptions:**
+**Section roles:**
+- **CostumeParam** — Links item IDs to 3D model files (MDL) and restricts to specific characters
+- **ItemTableData** — Defines item metadata (name, description, category, price)
+- **DLCTableData** — Groups items into DLC packages with quantities
+- **ShopItem** — Assigns items to in-game shops
 
-**CostumeParam Section:**
-- `char_restrict`: Character ID restriction (1=Van, 2=Agnes, etc.)
-- `type`: Costume type
-- `item_id`: Item ID (must match ItemTableData)
-- `mdl_name`: 3D model filename
-- `attach_name`: Attachment model (weapons, accessories)
+**Shop-only variant** (v2.2): Files with only a `ShopItem` section are valid. These define shop assignments without creating new items (used for adding existing items to additional shops).
 
-**ItemTableData Section:**
-- `id`: Item ID (must be unique, 1-5000)
-- `chr_restrict`: Character restriction (0=all, 1=Van, etc.)
-- `category`: Item category (17=costume, 0=consumable, etc.)
-- `subcategory`: Item subcategory
-- `name`: Item display name
-- `desc`: Item description
-- `price`: Purchase price (0 for non-purchasable)
-- `sell_price`: Selling price
+### ID Relationships
 
-**DLCTableData Section:**
-- `id`: DLC pack ID
-- `items`: Array of item IDs included in DLC
-- `quantity`: Quantity of each item (parallel array to items)
-- `name`: DLC pack name
-- `desc`: DLC pack description
+The `item_id` field connects all sections:
 
-**ShopItem Section:**
-- `shop_id`: Shop ID (from t_shop.json ShopInfo)
-- `item_id`: Item ID to sell
-- `unknown`: Unknown field (usually 1)
-- `start_scena_flags`: Scenario flags to enable item
-- `end_scena_flags`: Scenario flags to disable item
+```
+CostumeParam.item_id ─┐
+ItemTableData.id ──────┼── Same ID value
+DLCTableData.items[] ──┤
+ShopItem.item_id ──────┘
+```
 
-### t_item.json Structure
+Changing an ID in one section requires changing it in all four.
 
-**Real structure from game data:**
+### kurodlc_schema.json Structure
+
+Defines binary table formats for `.tbl` files:
 
 ```json
 {
-  "headers": [
-    {"name": "ItemTableData", "schema": "Kai"}
-  ],
-  "data": [
-    {
-      "name": "ItemTableData",
-      "data": [
-        {
-          "id": 310,
-          "chr_restrict": 0,
-          "flags": "",
-          "unk_txt": "0",
-          "category": 0,
-          "subcategory": 0,
-          "name": "Earth Sepith",
-          "desc": "A blue-green sepith that embodies the earth element.",
-          "visual_name": "",
-          "icon_index": 310,
-          "int0": 0,
-          "int1": 99,
-          "price": 10,
-          "int3": 0,
-          "sell_price": 5,
-          "sort_id": 310
-        },
-        {
-          "id": 311,
-          "chr_restrict": 0,
-          "flags": "",
-          "unk_txt": "0",
-          "category": 0,
-          "subcategory": 0,
-          "name": "Water Sepith",
-          "desc": "A blue sepith that embodies the water element.",
-          "visual_name": "",
-          "icon_index": 311,
-          "int0": 0,
-          "int1": 99,
-          "price": 10,
-          "int3": 0,
-          "sell_price": 5,
-          "sort_id": 311
-        }
-      ]
-    }
-  ]
+  "info_comment": "Kuro2 - Converted from KuroTools",
+  "table_header": "ItemTableData",
+  "schema_length": 248,
+  "schema": {
+    "schema": "<I4Q3i",
+    "sch_len": 248,
+    "keys": ["id", "name", "desc", "category", ...],
+    "values": "nttnnn...",
+    "primary_key": "id"
+  }
 }
 ```
 
-**Game Item ID Ranges:**
-- Sepith: 310-318
-- Consumables: 100-309, 319+
-- Key Items: Various ranges
-- Costumes: 2350-4921
-- Total items: 2116
-- ID range: 1-4921
+- `schema` — Python struct format string (little-endian)
+- `keys` — Field names matching struct fields
+- `values` — Type codes: `n`=number, `t`=text offset, `a`=u32 array, `b`=u16 array
+- `primary_key` — Main lookup field
 
-### t_shop.json Structure
+---
 
-**Real structure from game data:**
+## Real Data Examples
 
-```json
-{
-  "headers": [
-    {"name": "ShopInfo", "schema": "Kuro1"},
-    {"name": "ShopItem", "schema": "Kuro1"}
-  ],
-  "data": [
-    {
-      "name": "ShopInfo",
-      "data": [
-        {
-          "id": 5,
-          "shop_name": "Item Shop",
-          "long1": 5,
-          "flag": "C",
-          "empty": 0,
-          "shop_price_percent": 100,
-          "shop_cam_pos_x": 0.294,
-          "shop_cam_pos_y": 1.309,
-          "shop_cam_pos_z": -0.135,
-          "shop_cam_rotation_1": 4.46,
-          "shop_cam_rotation_2": 215.846,
-          "shop_cam_rotation_3": 0.0,
-          "shop_cam_rotation_4": 2.0,
-          "int1": 0,
-          "int2": 0,
-          "int3": 0,
-          "int4": 0
-        }
-      ]
-    },
-    {
-      "name": "ShopItem",
-      "data": [
-        {
-          "shop_id": 5,
-          "item_id": 100,
-          "unknown": 1,
-          "start_scena_flags": [],
-          "empty1": 0,
-          "end_scena_flags": [],
-          "int2": 0
-        }
-      ]
-    }
-  ]
-}
+### Game Shops (from t_shop.json)
+
+```
+ID  5: Item Shop
+ID  6: Weapon/Armor Shop
+ID  8: Modification/Trade Shop
+ID 10: Orbments
+ID 21: Melrose Newspapers & Tobacco
+ID 22: Melrose Newspapers & Tobacco
+ID 23: Melrose Newspapers & Tobacco
 ```
 
-**Shop ID Reference:**
-- General shops: 5, 6, 8, 10
-- Vendor chains: 21-23, 24-26, 27-28
-- Special: 4 (Casino), 9 (Kitchen)
-- Total shops: 215
+### Common Shop Assignment Strategies
+
+**All general shops:**
+```bash
+--shop-ids=5,6,8,10
+```
+
+**Specific vendor (all locations):**
+```bash
+--shop-ids=21,22,23
+```
+
+**Costume-specific:**
+```bash
+--shop-ids=6
+```
 
 ---
 
 ## Export/Import Formats
 
-### ID Mapping Export Format
+### id_mapping JSON (resolve_id_conflicts)
 
-**File:** `id_mapping_YYYYMMDD_HHMMSS.json`
-
-**Structure:**
 ```json
 {
-  "source_file": "my_mod.kurodlc.json",
+  "source_file": "my_costume_mod.kurodlc.json",
   "timestamp": "2026-01-31 14:30:22",
   "game_database": "t_item.json",
   "game_id_count": 2116,
   "game_id_range": [1, 4921],
-  "engine_limit": 5000,
-  "algorithm": "smart_v2.7",
   "mappings": {
     "310": 2500,
-    "311": 2501,
-    "312": 2502
+    "311": 2501
   },
   "conflicts": [
     {
       "old_id": 310,
       "new_id": 2500,
-      "reason": "Conflict with game item: Earth Sepith",
-      "sections_affected": ["CostumeParam", "ItemTableData", "DLCTableData.items"]
-    },
-    {
-      "old_id": 311,
-      "new_id": 2501,
-      "reason": "Conflict with game item: Water Sepith",
-      "sections_affected": ["CostumeParam", "ItemTableData", "DLCTableData.items"]
+      "reason": "Conflict with game item: Earth Sepith"
     }
-  ],
-  "statistics": {
-    "total_ids_in_dlc": 50,
-    "conflicts_found": 3,
-    "conflicts_resolved": 3,
-    "safe_ids": 47
-  }
+  ]
 }
 ```
 
-**Manual Editing:**
+The `mappings` field is editable — modify new_id values before importing with `--import`.
 
-You can edit the `mappings` section to customize ID assignments:
+### Template JSON (shops_find / shops_create)
 
 ```json
 {
-  "mappings": {
-    "310": 3000,  // Changed from 2500 to 3000
-    "311": 3001,  // Changed from 2501 to 3001
-    "312": 2502   // Kept original assignment
-  }
-}
-```
-
-Then import:
-```bash
-python resolve_id_conflicts_in_kurodlc.py repair --import id_mapping_20260131_143022.json --apply
-```
-
-### Template Configuration Format
-
-**File:** `template_<source>.json`
-
-**Minimal Template:**
-```json
-{
-  "item_ids": [3596, 3597, 3598],
-  "shop_ids": [5, 6, 10]
-}
-```
-
-Uses default template structure.
-
-**Custom Template:**
-```json
-{
-  "_comment": ["Optional comment"],
-  "item_ids": [3596, 3597, 3598],
-  "shop_ids": [5, 6, 10],
-  "template": {
-    "shop_id": "${shop_id}",
-    "item_id": "${item_id}",
-    "custom_field": 42,
-    "metadata": {
-      "index": "${index}",
-      "total": "${count}"
-    }
-  },
-  "output_section": "ShopItem"
-}
-```
-
-**Advanced Template with Conditions:**
-```json
-{
+  "_comment": ["Usage instructions..."],
   "item_ids": [3596, 3597, 3598],
   "shop_ids": [5, 6, 10],
   "template": {
@@ -2385,14 +1601,9 @@ Uses default template structure.
     "start_scena_flags": [],
     "empty1": 0,
     "end_scena_flags": [],
-    "int2": 0,
-    "price_multiplier": 1.0,
-    "stock_quantity": 99,
-    "availability": {
-      "always_available": true,
-      "required_chapter": 1
-    }
-  }
+    "int2": 0
+  },
+  "output_section": "ShopItem"
 }
 ```
 
@@ -2402,958 +1613,30 @@ Uses default template structure.
 
 ### ID Conflict Repair Log
 
-**File:** `id_conflict_repair_YYYYMMDD_HHMMSS.log`
-
-**Sample Content:**
-```
-==========================================================
-ID CONFLICT REPAIR LOG
-==========================================================
-Timestamp: 2026-01-31 14:30:22
-Source File: my_costume_mod.kurodlc.json
-Game Database: t_item.json
-Algorithm: Smart v2.7 (middle-out distribution)
-
-==========================================================
-GAME DATABASE ANALYSIS
-==========================================================
-Total items in game: 2116
-ID range: 1 - 4921
-Engine limit: 1 - 5000
-Available IDs: 879 (5000 - 2116 - buffer)
-
-==========================================================
-DLC ANALYSIS
-==========================================================
-Total IDs in DLC: 50
-ID range: 100 - 149
-Sections:
-  - CostumeParam: 50 entries
-  - ItemTableData: 50 entries
-  - DLCTableData: 1 pack with 50 items
-
-==========================================================
-CONFLICTS DETECTED
-==========================================================
-Total conflicts: 21
-
-Conflicting IDs:
-  100 → Game item: "Tears" (Category: 1)
-  101 → Game item: "Tear Balm" (Category: 1)
-  102 → Game item: "Teara Balm" (Category: 1)
-  ...
-  120 → Game item: "Septium Chunk" (Category: 1)
-
-Safe IDs (no conflicts):
-  121-149 (29 IDs)
-
-==========================================================
-ID REASSIGNMENT PLAN
-==========================================================
-Algorithm: Smart v2.7
-Starting point: 2500 (middle of 1-5000 range)
-Direction: Ascending from middle
-
-Mappings:
-  100 → 2500
-  101 → 2501
-  102 → 2502
-  ...
-  120 → 2520
-
-IDs to keep unchanged: 121-149
-
-==========================================================
-APPLYING CHANGES
-==========================================================
-Backup created: my_costume_mod.kurodlc.json.bak_20260131_143022
-
-Updating CostumeParam section:
-  ✓ Entry 0: item_id 100 → 2500
-  ✓ Entry 1: item_id 101 → 2501
-  ...
-  ✓ Entry 20: item_id 120 → 2520
-  - Entries 21-49: No changes (IDs 121-149 are safe)
-
-Updating ItemTableData section:
-  ✓ Entry 0: id 100 → 2500
-  ✓ Entry 1: id 101 → 2501
-  ...
-  ✓ Entry 20: id 120 → 2520
-  - Entries 21-49: No changes
-
-Updating DLCTableData section:
-  ✓ DLC Pack 1: items array updated
-    [100,101,...,120] → [2500,2501,...,2520]
-    [121,...,149] unchanged
-
-==========================================================
-RESULTS
-==========================================================
-✓ All conflicts resolved
-✓ 21 IDs reassigned
-✓ 29 IDs kept unchanged
-✓ File saved: my_costume_mod.kurodlc.json
-✓ Backup available: my_costume_mod.kurodlc.json.bak_20260131_143022
-
-==========================================================
-VERIFICATION
-==========================================================
-✓ JSON structure valid
-✓ All ID references updated consistently
-✓ No new conflicts introduced
-✓ ID range within engine limit (1-5000)
-
-Operation completed successfully!
-==========================================================
-```
-
----
-
-## Advanced Workflows
-
-### Workflow 1: Complete Mod Creation Pipeline
-
-**Step 1: Create Initial DLC File**
-```json
-{
-  "CostumeParam": [
-    {"item_id": 100, "char_restrict": 1, "mdl_name": "c_van01b"},
-    {"item_id": 101, "char_restrict": 2, "mdl_name": "c_agnes01b"}
-  ],
-  "ItemTableData": [
-    {"id": 100, "name": "Custom Costume 01", "category": 17},
-    {"id": 101, "name": "Custom Costume 02", "category": 17}
-  ],
-  "DLCTableData": [
-    {"id": 1, "items": [100, 101], "name": "Custom DLC Pack 01"}
-  ]
-}
-```
-
-**Step 2: Check for Conflicts**
-```bash
-python resolve_id_conflicts_in_kurodlc.py checkbydlc
-```
-
-**Output:**
-```
-[BAD] 100 - Conflict! Used by: Tears
-[BAD] 101 - Conflict! Used by: Tear Balm
-```
-
-**Step 3: Fix Conflicts**
-```bash
-python resolve_id_conflicts_in_kurodlc.py repair --apply
-```
-
-**Result:** IDs reassigned to 2500, 2501
-
-**Step 4: Generate Shop Template**
-```bash
-python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-template costume --shop-ids=5,6,10
-```
-
-**Step 5: Create Shop Assignments**
-```bash
-python shops_create.py template_my_mod.kurodlc.json
-```
-
-**Step 6: Merge Shop Assignments**
-Copy ShopItem section from `output_template_my_mod.kurodlc.json` into `my_mod.kurodlc.json`
-
-**Final Result:**
-```json
-{
-  "CostumeParam": [
-    {"item_id": 2500, "char_restrict": 1, "mdl_name": "c_van01b"},
-    {"item_id": 2501, "char_restrict": 2, "mdl_name": "c_agnes01b"}
-  ],
-  "ItemTableData": [
-    {"id": 2500, "name": "Custom Costume 01", "category": 17},
-    {"id": 2501, "name": "Custom Costume 02", "category": 17}
-  ],
-  "DLCTableData": [
-    {"id": 1, "items": [2500, 2501], "name": "Costume Pack Vol.1"}
-  ],
-  "ShopItem": [
-    {"shop_id": 5, "item_id": 2500, "unknown": 1, ...},
-    {"shop_id": 5, "item_id": 2501, "unknown": 1, ...},
-    {"shop_id": 6, "item_id": 2500, "unknown": 1, ...},
-    {"shop_id": 6, "item_id": 2501, "unknown": 1, ...},
-    {"shop_id": 10, "item_id": 2500, "unknown": 1, ...},
-    {"shop_id": 10, "item_id": 2501, "unknown": 1, ...}
-  ]
-}
-```
-
-**Ready to use!** ✓ No conflicts, ✓ Items in shops
-
-### Workflow 2: Batch Processing Multiple DLCs
-
-**Scenario:** You have 5 DLC mods to process
-
-```bash
-# Create processing script
-cat > process_all_dlcs.sh << 'EOF'
-#!/bin/bash
-
-for dlc in mod1 mod2 mod3 mod4 mod5; do
-  echo "Processing ${dlc}.kurodlc.json..."
-  
-  # Fix conflicts
-  python resolve_id_conflicts_in_kurodlc.py repair --apply
-  
-  # Generate template
-  python shops_find_unique_item_id_from_kurodlc.py ${dlc}.kurodlc.json \
-    --generate-template costume \
-    --shop-ids=5,6,10 \
-    --no-interactive \
-    --output=template_${dlc}.json
-  
-  # Create shop assignments
-  python shops_create.py template_${dlc}.json
-  
-  echo "✓ ${dlc} processed!"
-done
-
-echo "All DLCs processed!"
-EOF
-
-chmod +x process_all_dlcs.sh
-./process_all_dlcs.sh
-```
-
-### Workflow 3: CI/CD Integration
-
-**GitHub Actions example:**
-
-```yaml
-name: Process DLC Mods
-
-on:
-  push:
-    paths:
-      - '**.kurodlc.json'
-
-jobs:
-  process:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v2
-      
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.9'
-      
-      - name: Install dependencies
-        run: |
-          pip install colorama --break-system-packages
-      
-      - name: Fix ID conflicts
-        run: |
-          python resolve_id_conflicts_in_kurodlc.py repair --apply
-      
-      - name: Generate shop templates
-        run: |
-          for file in *.kurodlc.json; do
-            python shops_find_unique_item_id_from_kurodlc.py "$file" \
-              --generate-template costume \
-              --default-shop-ids \
-              --no-interactive
-          done
-      
-      - name: Create shop assignments
-        run: |
-          for template in template_*.json; do
-            python shops_create.py "$template"
-          done
-      
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: processed-dlcs
-          path: |
-            *.kurodlc.json
-            output_*.json
-```
-
-### Workflow 4: Testing with Real Game Data
-
-**Test your DLC before release:**
-
-```bash
-# 1. Extract game data (if you have game files)
-# Use kuro_dlc_tool to extract t_item.tbl, t_shop.tbl, etc.
-
-# 2. Convert to JSON (if needed)
-# The toolkit works with both JSON and TBL
-
-# 3. Verify no conflicts
-python find_all_items.py t_item.json 2500
-# Should show: [No results] if ID is available
-
-# 4. Check your DLC IDs
-python find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json
-
-# 5. Verify against game database
-python resolve_id_conflicts_in_kurodlc.py checkbydlc
-
-# 6. Test shop assignments
-# Check if shop IDs exist in game
-python find_all_shops.py t_shop.json
-
-# 7. Validate structure
-# Make sure all sections are properly formatted
-```
-
-### Workflow 5: Manual ID Mapping Control
-
-**For precise control over ID assignments:**
-
-```bash
-# 1. Generate ID mapping export
-python resolve_id_conflicts_in_kurodlc.py repair --export
-
-# 2. Edit the mapping file
-nano id_mapping_20260131_143022.json
-
-# Example edits:
-{
-  "mappings": {
-    "100": 3000,  // Assign to specific range
-    "101": 3001,
-    "102": 3500,  // Skip some IDs
-    "103": 3501
-  }
-}
-
-# 3. Import custom mapping
-python resolve_id_conflicts_in_kurodlc.py repair \
-  --import id_mapping_20260131_143022.json \
-  --apply
-
-# 4. Verify results
-python find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json
-```
-
----
-
-## Real-World Examples
-
-### Example 1: Costume Pack for All Characters
-
-**Goal:** Create costume pack with 1 costume per character (8 characters)
-
-**Game Characters:**
-- ID 1: Van
-- ID 2: Agnes  
-- ID 3: Feri
-- ID 4: Aaron
-- ID 5: Risette
-- ID 6: Quatre
-- ID 7: Judith
-- ID 8: Bergard
-
-**DLC Structure:**
-```json
-{
-  "CostumeParam": [
-    {"item_id": 3596, "char_restrict": 1, "mdl_name": "c_van01b"},
-    {"item_id": 3597, "char_restrict": 2, "mdl_name": "c_agnes01b"},
-    {"item_id": 3598, "char_restrict": 3, "mdl_name": "c_feri01b"},
-    {"item_id": 3599, "char_restrict": 4, "mdl_name": "c_aaron01b"},
-    {"item_id": 3600, "char_restrict": 5, "mdl_name": "c_risette01b"},
-    {"item_id": 3601, "char_restrict": 6, "mdl_name": "c_quatre01b"},
-    {"item_id": 3602, "char_restrict": 7, "mdl_name": "c_judith01b"},
-    {"item_id": 3603, "char_restrict": 8, "mdl_name": "c_bergard01b"}
-  ],
-  "ItemTableData": [
-    {"id": 3596, "chr_restrict": 1, "name": "Costume Pack Vol.1", "category": 17},
-    {"id": 3597, "chr_restrict": 2, "name": "Costume Pack Vol.1", "category": 17},
-    {"id": 3598, "chr_restrict": 3, "name": "Costume Pack Vol.1", "category": 17},
-    {"id": 3599, "chr_restrict": 4, "name": "Costume Pack Vol.1", "category": 17},
-    {"id": 3600, "chr_restrict": 5, "name": "Costume Pack Vol.1", "category": 17},
-    {"id": 3601, "chr_restrict": 6, "name": "Costume Pack Vol.1", "category": 17},
-    {"id": 3602, "chr_restrict": 7, "name": "Costume Pack Vol.1", "category": 17},
-    {"id": 3603, "chr_restrict": 8, "name": "Costume Pack Vol.1", "category": 17}
-  ],
-  "DLCTableData": [
-    {
-      "id": 1,
-      "items": [3596, 3597, 3598, 3599, 3600, 3601, 3602, 3603],
-      "quantity": [1, 1, 1, 1, 1, 1, 1, 1],
-      "name": "Costume Pack Vol.1",
-      "desc": "Custom costume for party member"
-    }
-  ]
-}
-```
-
-**Processing:**
-```bash
-# Check conflicts (should be none if using 3596-3603)
-python resolve_id_conflicts_in_kurodlc.py checkbydlc
-
-# Generate shop template for Weapon/Armor Shop
-python shops_find_unique_item_id_from_kurodlc.py costume_pack.kurodlc.json \
-  --generate-template costume --shop-ids=6
-
-# Create shop assignments
-python shops_create.py template_costume_pack.kurodlc.json
-```
-
-**Result:** 8 costumes available in Weapon/Armor Shop
-
-### Example 2: Large Costume Collection (50+ Items)
-
-**Shops used (from t_shop.json):**
-- ID 5: Item Shop
-- ID 6: Weapon/Armor Shop
-- ID 21-23: Melrose Newspapers & Tobacco (3 locations)
-
-**Commands:**
-```bash
-# Generate template with multiple shop locations
-python shops_find_unique_item_id_from_kurodlc.py large_costume_pack.kurodlc.json \
-  --generate-template costume \
-  --shop-ids=5,6,21,22,23
-
-# Creates template with:
-# - 50 item IDs
-# - 5 shop locations
-# = 250 shop assignments
-
-python shops_create.py template_large_costume_pack.kurodlc.json
-
-# Result: 250 shop assignments generated in < 1 second
-```
-
----
-
-**End of Advanced Documentation**
-
-This advanced documentation covers all scripts, parameters, real data examples, and workflows. For basic usage, see the main README sections.
-
----
-
-## New Analysis Tools (v1.0) ⭐
-
-### visualize_id_allocation.py
-
-**Version:** v1.0  
-**Purpose:** Analyze and visualize ID allocation patterns to identify free ID ranges and fragmentation
-
-#### All Parameters
+Generated by `resolve_id_conflicts_in_kurodlc.py repair --apply`:
 
 ```
-visualize_id_allocation.py [options]
-
-OPTIONS:
-  --source=TYPE         Force specific source type
-                        Available: json, tbl, original, p3a, zzz
-                        Default: Auto-detect from available sources
-                        
-  --no-interactive      Auto-select first source if multiple found
-                        Useful for automated scripts
-                        
-  --keep-extracted      Keep temporary extracted files from P3A
-                        Default: Delete after use
-                        
-  --format=FORMAT       Output format selection
-                        Available: console, html, both
-                        Default: both
-                        
-  --block-size=N        Block size for console visualization
-                        Default: 50 (recommended: 25-100)
-                        Larger blocks = better overview
-                        Smaller blocks = more detail
-                        
-  --output=FILE         Custom HTML output filename
-                        Default: id_allocation_map.html
-                        Example: --output=my_report.html
-                        
-  --help                Show help message and exit
-
-SOURCES (automatically detected):
-  JSON sources:
-    - t_item.json
-    
-  TBL sources (requires kurodlc_lib.py):
-    - t_item.tbl
-    - t_item.tbl.original
-    
-  P3A sources (requires kurodlc_lib.py + dependencies):
-    - script_en.p3a / script_eng.p3a
-    - zzz_combined_tables.p3a
-    (automatically extracts t_item.tbl)
-
-OUTPUT:
-  Console Format:
-    - Color-coded block visualization
-    - Statistics table
-    - Gap analysis
-    - Fragmentation metrics
-    
-  HTML Format:
-    - Interactive grid map (100 columns)
-    - Hover tooltips with ID numbers
-    - Search functionality
-    - Free blocks table (sortable)
-    - Full statistics dashboard
-    - Responsive design
-
-STATISTICS PROVIDED:
-  - Engine Range (1-5000)
-  - Highest Used ID
-  - Occupied/Free ID counts and percentages
-  - Average Gap Size
-  - Fragmentation Index (0.0-1.0)
-  - Largest Free Block (start-end range)
-  - Total Free Blocks count
+id_conflict_repair_YYYYMMDD_HHMMSS.log
 ```
 
-#### Examples
+Contains: timestamp, source used, per-file conflict details, all ID mappings applied, backup file locations.
 
-**Example 1: Basic Analysis**
+### Conversion Report
 
-```bash
-python visualize_id_allocation.py
-
-# Output:
-# Loading item data...
-# Loaded 2116 items from: t_item.json
-#
-# Statistics:
-#   Engine Range:       1 - 5000
-#   Highest Used ID:    4921
-#   Occupied IDs:       2116 / 5000  (42.3%)
-#   Free IDs:           2884 / 5000  (57.7%)
-#   Fragmentation:      0.73 (High)
-#   Largest Free Block: 79 IDs (4922-5000)
-#
-# HTML report generated: id_allocation_map.html
-```
-
-**Example 2: Console Only (CI/CD)**
-
-```bash
-python visualize_id_allocation.py --format=console
-
-# Generates only console output, no HTML file
-# Useful for automated builds where HTML isn't needed
-```
-
-**Example 3: Custom HTML Report**
-
-```bash
-python visualize_id_allocation.py --format=html --output=project_allocation.html
-
-# Generates only HTML report with custom filename
-# Good for sharing with team
-```
-
-**Example 4: Larger Blocks for Overview**
-
-```bash
-python visualize_id_allocation.py --block-size=100
-
-# Each block represents 100 IDs instead of 50
-# Better for seeing overall patterns
-```
-
-**Example 5: Force Specific Source**
-
-```bash
-python visualize_id_allocation.py --source=json
-
-# Forces use of t_item.json
-# Skips other sources even if available
-```
-
-#### Real Data Example
-
-**Input:** t_item.json with 2116 items spread across IDs 1-4921
-
-**Console Output:**
-```
-ID Allocation Map (Block Size: 50)
-═══════════════════════════════════════════════════════════
-
-    0: ████████████████████████████████████████████████ [  0 -  49]  100.0%
-   50: ████████████████████████████████████████████████ [ 50 -  99]  100.0%
-  100: ████████████████████████████████████████████████ [100 - 149]  100.0%
-  150: ███████████████████████████████████░░░░░░░░░░░░░ [150 - 199]   76.0%
-  200: ████████████████████████████████████████████████ [200 - 249]  100.0%
-  250: ████████████████████████████████████████████████ [250 - 299]  100.0%
-  300: ████████████████████████████████████████████████ [300 - 349]  100.0%
-  350: ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ [350 - 399]    0.0%  ✨
-  400: ██████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ [400 - 449]   28.0%
-  ...
- 3500: ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ [3500-3549]    0.0%  ✨
- 3550: ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ [3550-3599]    0.0%  ✨
- 3600: ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ [3600-3649]    0.0%  ✨
-  ...
- 4950: ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ [4950-4999]   12.0%
-
-Legend: █ Occupied  ░ Free  ✨ Large free block detected
-```
-
-**HTML Output Features:**
-- Interactive 100×50 grid (5000 cells total)
-- Green cells for occupied IDs
-- Gray cells for free IDs
-- Hover shows exact ID number
-- Search box to jump to specific IDs
-- Sortable free blocks table
-
-#### Use Cases
-
-**1. Pre-Mod Planning:**
-```bash
-# Before creating a new mod
-python visualize_id_allocation.py
-
-# Review HTML report to find suitable ID ranges
-# Example findings:
-# - IDs 3500-3650: 151 free IDs (perfect for large weapon pack)
-# - IDs 1200-1245: 46 free IDs (good for armor set)
-```
-
-**2. Team Coordination:**
-```bash
-# Generate report for team
-python visualize_id_allocation.py --output=team_allocation.html
-
-# Share HTML file
-# Team members coordinate ID usage:
-# - Modder A: 3500-3599 (weapons)
-# - Modder B: 3600-3699 (armor)
-# - Modder C: 3700-3799 (accessories)
-```
-
-**3. Fragmentation Analysis:**
-```bash
-# Check fragmentation before major update
-python visualize_id_allocation.py
-
-# Fragmentation Index:
-# - 0.0-0.3: Low (few large gaps) - Ideal
-# - 0.4-0.6: Medium (mixed) - Acceptable
-# - 0.7-1.0: High (many small gaps) - Problematic
-```
-
-**4. CI/CD Integration:**
-```bash
-# Automated build script
-python visualize_id_allocation.py --format=console --no-interactive > allocation_report.txt
-
-# Parse output for available ID count
-# Fail build if insufficient free IDs
-```
-
----
-
-### find_all_names.py
-
-**Version:** v1.0  
-**Purpose:** Search and browse character names from game data with intelligent filtering
-
-#### All Parameters
+Generated by `convert_kurotools_schemas.py`:
 
 ```
-find_all_names.py [search_query] [options]
-
-ARGUMENTS:
-  search_query          Optional search query with modes:
-  
-  AUTO-DETECT MODE (no prefix):
-    123                 Number → searches by character ID
-    van                 Text → searches in character names
-    
-  EXPLICIT MODES (with prefix):
-    id:123              Search by exact character ID
-    name:van            Search in character names
-    name:123            Search "123" in names (not as ID!)
-    full_name:arkride   Search in full names
-    model:chr0100       Search in model names
-
-OPTIONS:
-  --source=TYPE         Force specific source type
-                        Available: json, tbl, original, p3a, zzz
-                        Default: Auto-detect from available sources
-                        
-  --no-interactive      Auto-select first source if multiple found
-                        
-  --keep-extracted      Keep temporary extracted files from P3A
-                        
-  --show-full           Show full names in output
-                        Adds full_name column to results
-                        
-  --show-model          Show model names in output
-                        Adds model column to results
-                        
-  --help                Show help message and exit
-
-SOURCES (automatically detected):
-  JSON sources:
-    - t_name.json
-    
-  TBL sources (requires kurodlc_lib.py):
-    - t_name.tbl
-    - t_name.tbl.original
-    
-  P3A sources (requires kurodlc_lib.py + dependencies):
-    - script_en.p3a / script_eng.p3a
-    - zzz_combined_tables.p3a
-    (automatically extracts t_name.tbl)
-
-OUTPUT FIELDS:
-  ID                    Character ID number
-  Name                  Character display name
-  Full Name             Complete name (with --show-full)
-  Model                 3D model identifier (with --show-model)
+conversion_report.txt
 ```
 
-#### Examples
+Contains: original schema count, converted count, new schemas added, per-table listing of new entries with sizes and game targets.
 
-**Example 1: List All Characters**
+### Backup Files
 
-```bash
-python find_all_names.py
+All scripts that modify `.kurodlc.json` files create timestamped backups:
 
-# Output:
-# Loading character name data...
-# Loaded 500 characters from: t_name.json
-#
-#   0 : (None)
-#   1 : Van
-#   2 : Agnes
-#   3 : Feri
-#   ...
-#
-# Total: 500 character(s)
+```
+filename.kurodlc.json_YYYYMMDD_HHMMSS.bak
 ```
 
-**Example 2: Search by Name (Auto-Detect)**
-
-```bash
-python find_all_names.py van
-
-# Output:
-# # Auto-detected name search for 'van'
-#
-# Loading character name data...
-# Loaded 500 characters from: t_name.json
-#
-# 100 : Van
-# 101 : Van Arkride
-# 225 : Vandaal
-#
-# Total: 3 character(s)
-```
-
-**Example 3: Search by ID (Auto-Detect)**
-
-```bash
-python find_all_names.py 100
-
-# Output:
-# # Auto-detected ID search for '100'
-# # Use 'name:100' to search for '100' in character names instead
-#
-# Loading character name data...
-# Loaded 500 characters from: t_name.json
-#
-# 100 : Van
-#
-# Total: 1 character(s)
-```
-
-**Example 4: Explicit Name Search (for numbers)**
-
-```bash
-python find_all_names.py name:100
-
-# Searches for "100" in character names
-# Useful when character names contain numbers
-```
-
-**Example 5: Search with Full Names and Models**
-
-```bash
-python find_all_names.py van --show-full --show-model
-
-# Output:
-# 100 : Van              | Van Arkride           | chr0100_01
-# 101 : Van Arkride      | Van Arkride (Full)    | chr0100_02
-# 225 : Vandaal          | Vandaal               | chr0225
-#
-# Total: 3 character(s)
-```
-
-**Example 6: Search by Model**
-
-```bash
-python find_all_names.py model:chr0100
-
-# Output:
-# 100 : Van              | chr0100_01
-# 101 : Van Arkride      | chr0100_02
-#
-# Total: 2 character(s)
-```
-
-**Example 7: Search in Full Names**
-
-```bash
-python find_all_names.py full_name:arkride
-
-# Searches in full_name field
-# Finds all characters with "arkride" in their full name
-```
-
-**Example 8: Force Specific Source**
-
-```bash
-python find_all_names.py van --source=json
-
-# Forces use of t_name.json
-# Ignores TBL/P3A sources
-```
-
-#### Real Data Example
-
-**Input:** t_name.json with character data
-
-```json
-{
-  "data": [
-    {
-      "name": "NameTableData",
-      "data": [
-        {
-          "character_id": 100,
-          "name": "Van",
-          "full_name": "Van Arkride",
-          "model": "chr0100_01"
-        },
-        {
-          "character_id": 101,
-          "name": "Agnes",
-          "full_name": "Agnes Claudel",
-          "model": "chr0101"
-        }
-      ]
-    }
-  ]
-}
-```
-
-**Query 1: Find Van**
-```bash
-$ python find_all_names.py van
-
-100 : Van
-
-Total: 1 character(s)
-```
-
-**Query 2: Find with Details**
-```bash
-$ python find_all_names.py van --show-full --show-model
-
-100 : Van | Van Arkride | chr0100_01
-
-Total: 1 character(s)
-```
-
-**Query 3: Find by ID**
-```bash
-$ python find_all_names.py 101 --show-full
-
-101 : Agnes | Agnes Claudel
-
-Total: 1 character(s)
-```
-
-#### Use Cases
-
-**1. Character ID Lookup for Scripting:**
-```bash
-# Need character ID for event script
-python find_all_names.py "van"
-
-# Output: 100 : Van
-# Use ID 100 in your script
-```
-
-**2. Model Reference for 3D Work:**
-```bash
-# Check which model a character uses
-python find_all_names.py id:100 --show-model
-
-# Output: 100 : Van | chr0100_01
-# Use chr0100_01 for custom model edits
-```
-
-**3. Character Database Export:**
-```bash
-# Export full character list
-python find_all_names.py --show-full --show-model > characters.txt
-
-# Creates complete character reference file
-```
-
-**4. Find All Variants:**
-```bash
-# Find all variations of a character
-python find_all_names.py model:chr0100
-
-# Shows all entries using chr0100 models
-# Useful for finding costume variants
-```
-
-**5. Multi-Language Name Lookup:**
-```bash
-# Find character by localized name
-python find_all_names.py full_name:arkride
-
-# Works across different name fields
-```
-
-#### Important Notes
-
-**Auto-Detection Behavior:**
-- Pure numbers (e.g., `100`) → ID search
-- Text or mixed (e.g., `van`, `chr100`) → Name search
-- Use explicit prefixes to override auto-detection
-
-**Search Tips:**
-- Searches are case-insensitive
-- Partial matches work (e.g., `van` finds `Van`, `Vandaal`)
-- Use `--show-full` and `--show-model` for complete information
-- Combine with grep/findstr for advanced filtering
-
-**Output Format:**
-- Aligned columns for clean display
-- Sorted by character ID (ascending)
-- Non-numeric IDs sorted last
-
----
-
-## Visual Guides
-
-For detailed visual examples of the ID allocation map, see:
-- **VISUALIZATION_GUIDE.md** - Complete visual guide with examples
-- **example_id_allocation_map.html** - Real HTML output example
-
-These guides include:
-- Statistics dashboard layout
-- Visual ID map examples
-- Free blocks table format
-- Search functionality examples
-- Usage tips and best practices
-
+These are full copies of the original file before any modification.
