@@ -272,7 +272,7 @@ def load_shops(force_source=None, no_interactive=False, keep_extracted=False):
 def print_usage():
     """Print usage information."""
     print(
-        "Usage: python find_all_shops.py [search_text] [options]\n"
+        "Usage: python find_all_shops.py [search_query] [options]\n"
         "\n"
         "This script searches through shop data from multiple source formats.\n"
         "\n"
@@ -284,7 +284,12 @@ def print_usage():
         "  5. zzz_combined_tables.p3a (extracts t_shop.tbl)\n"
         "\n"
         "Arguments:\n"
-        "  search_text   (Optional) Filter shops by text in their name (case-insensitive).\n"
+        "  search_query   (Optional) Search query with optional prefix:\n"
+        "\n"
+        "Search modes:\n"
+        "  id:NUMBER         - Search by exact shop ID (e.g., id:21)\n"
+        "  name:TEXT          - Search in shop names (e.g., name:armor or name:21)\n"
+        "  TEXT               - Auto-detect (numbers → ID search, text → name search)\n"
         "\n"
         "Options:\n"
         "  --source=TYPE       Force specific source: json, tbl, original, p3a, zzz\n"
@@ -298,13 +303,26 @@ def print_usage():
         "      Lists all shops from auto-detected source.\n"
         "\n"
         "  python find_all_shops.py blacksmith\n"
-        "      Lists all shops with 'blacksmith' in their name.\n"
+        "      Lists all shops with 'blacksmith' in their name (auto-detect).\n"
+        "\n"
+        "  python find_all_shops.py 21\n"
+        "      Lists shop with ID '21' (auto-detect: it's a number).\n"
+        "\n"
+        "  python find_all_shops.py name:21\n"
+        "      Lists all shops with '21' in their name (explicit name search).\n"
+        "\n"
+        "  python find_all_shops.py id:0\n"
+        "      Lists the shop with ID '0' (explicit ID search).\n"
         "\n"
         "  python find_all_shops.py --source=json\n"
         "      Lists all shops, forcing JSON source.\n"
         "\n"
         "  python find_all_shops.py armor --source=tbl --no-interactive\n"
-        "      Search for 'armor' using TBL source without interactive prompts."
+        "      Search for 'armor' using TBL source without interactive prompts.\n"
+        "\n"
+        "IMPORTANT:\n"
+        "  Use 'name:' prefix when searching for numbers in shop names!\n"
+        "  Otherwise, auto-detect will treat it as an ID search."
     )
 
 
@@ -312,6 +330,7 @@ def main():
     """Main function."""
     # Parse command line arguments
     search_text = None
+    search_id = None
     force_source = None
     no_interactive = False
     keep_extracted = False
@@ -346,9 +365,35 @@ def main():
         else:
             remaining_args.append(arg)
     
-    # Parse search text
+    # Parse search query
     if remaining_args:
-        search_text = remaining_args[0].lower()
+        param = remaining_args[0]
+        
+        # Check for prefix
+        if param.startswith('id:'):
+            # Explicit ID search
+            search_id = param[3:]
+            if not search_id:
+                print("Error: 'id:' prefix requires a value (e.g., id:21)")
+                sys.exit(1)
+        
+        elif param.startswith('name:'):
+            # Explicit name search
+            search_text = param[5:].lower()
+            if not search_text:
+                print("Error: 'name:' prefix requires a value (e.g., name:armor)")
+                sys.exit(1)
+        
+        else:
+            # Auto-detect mode
+            if param.isdigit():
+                search_id = param
+                # Inform user about auto-detection
+                print(f"# Auto-detected ID search for '{param}'", file=sys.stderr)
+                print(f"# Use 'name:{param}' to search for '{param}' in shop names instead", file=sys.stderr)
+                print("", file=sys.stderr)
+            else:
+                search_text = param.lower()
     
     # Load data
     print("Loading shop data...\n")
@@ -371,43 +416,51 @@ def main():
     
     print(f"\nLoaded {len(shops)} shops from: {source_info['path']}\n")
     
-    # Build shops dictionary from list of shop objects
-    shops_dict = {}
+    # Build shops list from loaded data
+    shop_list = []
     for shop in shops:
-        # Handle both dict objects and direct id/shop_name pairs
         if isinstance(shop, dict):
             if 'id' in shop and 'shop_name' in shop:
-                shops_dict[str(shop['id'])] = shop['shop_name']
+                shop_list.append({
+                    'id': str(shop['id']),
+                    'name': shop['shop_name']
+                })
             elif debug:
                 print(f"DEBUG: Shop missing fields - available keys: {shop.keys()}")
         else:
             print(f"Warning: Unexpected shop data format: {type(shop)}")
     
-    if not shops_dict:
+    if not shop_list:
         print("No valid shops found (missing 'id' or 'shop_name' fields).")
         if debug and shops:
             print(f"\nDEBUG: Sample shop data structure:")
             print(f"{shops[0]}")
         sys.exit(0)
     
-    # Apply filter
+    # Apply filters
+    filtered = shop_list
+    
     if search_text:
-        filtered = {
-            shop_id: name for shop_id, name in shops_dict.items()
-            if search_text in str(name).lower()
-        }
-    else:
-        filtered = shops_dict
+        filtered = [
+            shop for shop in filtered
+            if search_text in shop['name'].lower()
+        ]
+    
+    if search_id:
+        filtered = [
+            shop for shop in filtered
+            if search_id == shop['id']
+        ]
     
     # Display results
     if not filtered:
         print("No matching shops found.")
         return
     
-    max_len = max(len(shop_id) for shop_id in filtered.keys())
+    max_id_len = max(len(shop['id']) for shop in filtered)
     
-    for shop_id, shop_name in sorted(filtered.items(), key=lambda x: int(x[0])):
-        print(f"{shop_id.rjust(max_len)} : {shop_name}")
+    for shop in sorted(filtered, key=lambda x: int(x['id']) if x['id'].isdigit() else 999999):
+        print(f"{shop['id'].rjust(max_id_len)} : {shop['name']}")
     
     print(f"\nTotal: {len(filtered)} shop(s)")
 
