@@ -1,15 +1,18 @@
 # KuroDLC Modding Toolkit
 
-A comprehensive Python toolkit for creating and managing DLC mods for games using the KuroDLC format. This toolkit provides utilities for item discovery, ID management, conflict resolution, shop assignment automation, **schema conversion from KuroTools**, **ID allocation visualization**, and **3D model viewing**.
+A comprehensive Python toolkit for creating and managing DLC mods for games using the KuroDLC format. This toolkit provides utilities for item discovery, ID management, conflict resolution, shop assignment automation, **schema conversion from KuroTools**, **ID allocation visualization**, **automatic MDL-to-DLC entry generation**, and **3D model viewing with textures, animations, and scene rendering**.
 
 [![Python Version](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-GPL--3.0-green)](LICENSE)
 
-**viewer_mdl_textured_anim_beta.exe**
+---
 
-new tool for quick preview of model. ideally associate exe with mdl file. for correct display of textures it looks for standard folder structure.
-for proper function it needs to have all necessary data extracted in the game data structure, including model_info and mdl with animations,
-~~it currently only supports mi/json model_info in text form, it does not support binary for now~~ -resolved in beta3
+## 3D Model Viewer — Changelog
+
+**viewer_mdl_textured_anim.py/exe** — full-featured 3D model viewer with textures, skeleton, animations, physics, controller support, scene mode, and more.
+
+Ideally associate the .exe with .mdl files. For correct display of textures it looks for the standard folder structure. For proper function it needs to have all necessary data extracted in the game data structure, including `model_info` and `.mdl` with animations.
+
 ```
 └───asset
     ├───common
@@ -19,6 +22,10 @@ for proper function it needs to have all necessary data extracted in the game da
         └───image
         └───shader
 ```
+
+### Ver 1.0 — viewer_mdl_textured_anim.py/exe
+skybox support, changing lighting and background colors
+<img src="doc/viewer_anim10.png" width="100%">
 
 ## New Features in Beta
 
@@ -45,25 +52,21 @@ for proper function it needs to have all necessary data extracted in the game da
 - **skybox support, changing lighting and background colors**
 ---
 
-**Ver 1.0 - viewer_mdl_textured_anim.py/exe**<br>
-skybox support, changing lighting and background colors<br>
-<img src="doc/viewer_anim10.png" width="100%">
-
-**Beta9 - viewer_mdl_textured_anim.py/exe**<br>
-added facial animations<br>
-change exe file icon <img src="viewer_mdl/app.ico" width="20"> (-m PyInstaller --onefile --icon=app.ico)<br>
+### Beta9
+added facial animations
+change exe file icon <img src="viewer_mdl/app.ico" width="20"> (`-m PyInstaller --onefile --icon=app.ico`)
 <img src="doc/viewer_anim9.gif" width="100%">
 <img src="doc/viewer_anim9.png" width="100%">
 
-**Beta8 - viewer_mdl_textured_anim.py/exe**<br>
-mesh highlighting, meshes with box, shadow, kage in the name are hidden by default<br>
-support for lighting settings, enabling and disabling FXO shaders on the fly<br>
+### Beta8
+mesh highlighting, meshes with box, shadow, kage in the name are hidden by default
+support for lighting settings, enabling and disabling FXO shaders on the fly
 <img src="doc/viewer_anim8b.png" width="100%">
 <img src="doc/viewer_anim8.gif" width="100%">
 <img src="doc/viewer_anim8.png" width="100%">
 
-**Beta7 - viewer_mdl_textured_anim.py/exe**<br>
-support for game shader files (FXO), fallback to original shaders if not available or force fallback with --no-shaders<br>
+### Beta7
+support for game shader files (FXO), fallback to original shaders if not available or force fallback with `--no-shaders`
 ```
 └───asset
     ├───common
@@ -77,39 +80,39 @@ Game FXO shaders
 <img src="doc/viewer_anim7a.gif" width="100%">
 <img src="doc/viewer_anim7a.png" width="100%">
 
-Generated shaders - no FXO files
+Generated shaders — no FXO files
 <img src="doc/viewer_anim7b.gif" width="100%">
 <img src="doc/viewer_anim7b.png" width="100%">
 
-**Beta6 - viewer_mdl_textured_anim.py/exe**<br>
-3D FreeCam mode<br>
+### Beta6
+3D FreeCam mode
 <img src="doc/viewer_anim6.gif" width="100%">
 <img src="doc/viewer_anim6.png" width="100%">
 
-**Beta5 - viewer_mdl_textured_anim.py/exe**<br>
-Added controller support<br>
+### Beta5
+Added controller support
 <img src="doc/viewer_anim5a.png" width="100%">
 <img src="doc/viewer_anim5b.png" width="100%">
 
-**Beta4 - viewer_mdl_textured_anim.py/exe**<br>
-character movement support<br>
+### Beta4
+character movement support
 <img src="doc/viewer_anim4.gif" width="100%">
 <img src="doc/viewer_anim4.png" width="100%">
 
-**Beta3 - viewer_mdl_textured_anim.py/exe**<br>
-demo with collision on/off, physics intensity, and more<br>
+### Beta3
+demo with collision on/off, physics intensity, and more
 <img src="doc/viewer_anim3.gif" width="100%">
 <img src="doc/viewer_anim3.png" width="100%">
 
-**Beta2 - viewer_mdl_textured_anim.py/exe**<br>
+### Beta2
 <img src="doc/viewer_anim2.png" width="100%">
 
-**Beta1 - viewer_mdl_textured_anim.py/exe**<br>
+### Beta1
 <img src="doc/viewer_anim.png" width="100%">
 
-**Alpha - viewer_mdl_textured_scene.py**<br>
-alpha version<br>
+### Alpha — viewer_mdl_textured_scene.py
 i may never finish it :)<br>
+Scene viewer alpha
 ```
 ├───scene
 └───asset
@@ -129,24 +132,20 @@ building interiors
 new UI for actors
 <img src="doc/scene2b.png" width="100%">
 
-**viewer_mdl_textured.exe**
-new tool for quick preview of model. ideally associate exe with mdl file. for correct display of textures it looks for standard folder structure
-```
-└───asset
-    ├───common
-    │   └───model
-    └───dx11
-        └───image
-```
+### Legacy viewers
+
+**viewer_mdl_textured.exe** — textured model preview without animations
 <img src="doc/viewer.png" width="100%">
 
-New UI<br>
+New UI
 <img src="doc/viewer2.png" width="100%">
 
-> **⚠️ GPL-3.0 License Notice**  
-> This project uses libraries from [eArmada8/kuro_dlc_tool](https://github.com/eArmada8/kuro_dlc_tool) which are licensed under GPL-3.0.  
-> Therefore, this entire toolkit is also distributed under GPL-3.0 license.  
+> **⚠️ GPL-3.0 License Notice**
+> This project uses libraries from [eArmada8/kuro_dlc_tool](https://github.com/eArmada8/kuro_dlc_tool) which are licensed under GPL-3.0.
+> Therefore, this entire toolkit is also distributed under GPL-3.0 license.
 > See [License](#-license) section for details.
+
+---
 
 ## 📋 Table of Contents
 
@@ -156,7 +155,6 @@ New UI<br>
 - [Installation](#-installation)
 - [Quick Start](#-quick-start)
 - [Scripts Overview](#-scripts-overview)
-- [Detailed Documentation](#-detailed-documentation)
 - [Common Workflows](#-common-workflows)
 - [File Formats](#-file-formats)
 - [Troubleshooting](#-troubleshooting)
@@ -194,80 +192,81 @@ When creating DLC mods for Kuro engine games, modders face multiple challenges:
 - Manual schema conversion is complex and error-prone
 - Missing schemas prevent reading new TBL files
 
-**4. ID Range Planning (Visibility Problem)** ⭐ NEW
+**4. ID Range Planning (Visibility Problem)**
 - No visual overview of which IDs are occupied vs. free
 - Hard to find safe ID ranges for large mods
 - Team coordination requires manual tracking
 - Fragmentation analysis is impossible manually
 
-**5. Model Preview (3D Visualization Problem)** ⭐ NEW
-- No quick way to preview .mdl 3D models
+**5. MDL-to-DLC Entry Creation (Automation Problem)** ⭐ NEW
+- Adding new costume models to a DLC requires creating entries in four sections manually
+- Character identification from filenames is error-prone
+- Finding safe IDs across game data and existing DLCs is tedious
+- A single mod can have dozens of MDL files to process
+
+**6. Model Preview (3D Visualization Problem)**
+- No quick way to preview .mdl 3D models with textures and animations
 - External tools required for model inspection
-- Difficult to verify model integrity
-- Time-consuming workflow for model checking
+- Difficult to verify model integrity, shaders, and physics
+- No scene-level visualization for maps and buildings
 
 ### The Solution
 
-This toolkit automates all five problems:
+This toolkit automates all six problems:
 
 **Primary: Automatic ID Conflict Resolution**
 ```bash
-# One command to detect and fix all conflicts
 python resolve_id_conflicts_in_kurodlc.py repair --apply
 ```
-- Automatically finds safe IDs within the 5000 limit
-- Smart distribution algorithm for better ID organization
-- Detailed logging and automatic backups
-- Manual control option for complex mods
 
 **Secondary: Bulk Shop Assignment**
 ```bash
-# Generate 500 shop assignments in seconds
 python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-template
 python shops_create.py template_my_mod.json
 ```
-- Batch assign items to multiple shops
-- Customizable templates for different shop structures
-- 50 items × 10 shops = 500 entries generated instantly
 
 **Tertiary: Schema Conversion**
 ```bash
-# Convert KuroTools schemas to kurodlc format
 python convert_kurotools_schemas.py
 ```
-- Automatically converts 280+ schemas from KuroTools
-- Adds support for new TBL files (Kuro 1, 2, Kai, Ys X, Sky)
-- Expands schema coverage from 39 to 344+ structures
-- Works with local schemas folder (no internet needed)
 
-**Quaternary: ID Allocation Visualization** ⭐ NEW
+**Quaternary: ID Allocation Visualization**
 ```bash
-# Generate visual ID allocation map
 python visualize_id_allocation.py
 ```
-- Interactive HTML report with color-coded ID map
-- Console visualization with statistics
-- Gap analysis and fragmentation metrics
-- Identifies safe ID ranges for modding
 
-**Quinary: 3D Model Viewing** ⭐ NEW
+**Quinary: Automatic MDL Entry Generation** ⭐ NEW
 ```bash
-# Quick preview of .mdl files
+# Preview what would be added (dry-run, default)
+python kurodlc_add_mdl.py FalcoDLC.kurodlc.json
+
+# Apply changes
+python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --apply
+```
+- Scans directory for .mdl files not yet in your DLC
+- Auto-identifies characters from filenames using t_name data
+- Finds safe IDs from game data + all existing .kurodlc.json files
+- Generates complete CostumeParam, ItemTableData, DLCTableData, and ShopItem entries
+- Dry-run by default, `--apply` required to write
+
+**Senary: 3D Model Viewing with Textures, Animations & Scenes**
+```bash
+# Character viewer with textures + animations
+python viewer_mdl/viewer_mdl_textured_anim.py character.mdl
+
+# Scene viewer (maps, buildings)
+python viewer_mdl/viewer_mdl_textured_scene.py --scene mp0010.json
+
+# Simple viewers
 python viewer_mdl/viewer_mdl.py character.mdl
 python viewer_mdl/viewer_mdl_window.py character.mdl
 ```
-- Standalone 3D model viewer
-- Native window or HTML output
-- Automatic normal computation
-- No temporary files left behind
 
 ---
 
 ## ✨ Features
 
 ### Primary Purpose: ID Conflict Resolution
-The main reason this toolkit was created - **automatic detection and resolution of item ID conflicts** between your DLC mods and game data. Never worry about conflicting IDs breaking your mods again!
-
 - **⚠️ Conflict Detection**: Automatically detect ID conflicts between DLC and game data
 - **🔧 Smart Resolution v2.7**: Intelligent ID assignment algorithm with 1-5000 range limit
 - **🎯 Better Distribution**: IDs assigned from middle of range (2500) for optimal spacing
@@ -275,43 +274,49 @@ The main reason this toolkit was created - **automatic detection and resolution 
 - **✅ Validation**: Comprehensive .kurodlc.json structure validation
 
 ### Secondary Purpose: Bulk Shop Assignment
-Quickly assign items to multiple shops without manual editing - **batch generate shop assignments** for your entire item set with a single command!
-
-- **🛒 Shop Integration v2.1**: Generate shop assignments with customizable templates
+- **🛒 Shop Integration v2.2**: Generate shop assignments with customizable templates
 - **📦 Bulk Operations**: Assign hundreds of items to multiple shops instantly
 - **🎨 Custom Templates**: Define your own shop item structure
 - **🤖 CI/CD Support**: Non-interactive mode for automated workflows
+- **🏪 Shop-only files**: Support for .kurodlc.json files with only ShopItem section (v2.2)
 
 ### Tertiary Purpose: Schema Conversion
-Automatically convert KuroTools schemas to expand support for new TBL files!
-
 - **🔄 Automatic Conversion**: Convert 280+ KuroTools schemas in seconds
 - **📈 Massive Expansion**: From 39 to 344+ supported TBL structures
 - **🎮 Multi-Game Support**: Kuro 1, Kuro 2, Kai, Ys X, Sky 1st
 - **🔍 Smart Detection**: Automatically prevents duplicates
 - **📊 Detailed Reports**: Full conversion logs and statistics
 
-### Quaternary Purpose: ID Allocation Visualization ⭐ NEW
-Visualize ID allocation patterns and find safe ranges for your mods!
-
+### Quaternary Purpose: ID Allocation Visualization
 - **📊 Interactive HTML Maps**: Color-coded visualization of ID usage
 - **🖥️ Console Visualization**: Terminal-based ID allocation display
 - **📈 Statistics Dashboard**: Occupancy rates, fragmentation metrics
 - **🔍 Gap Analysis**: Identify free ID blocks and optimal ranges
 - **🎯 Range Planning**: Find safe ID ranges for large mod projects
-- **👥 Team Coordination**: Share visual reports for coordinated modding
 
-### Quinary Purpose: 3D Model Viewing ⭐ NEW
-Quick preview and inspection of .mdl 3D model files!
+### Quinary Purpose: Automatic MDL Entry Generation ⭐ NEW
+- **🤖 Auto-scan**: Finds .mdl files in directory not yet in your DLC
+- **👤 Character Identification**: Uses t_name data for char_restrict and naming
+- **🆔 Smart ID Assignment**: Searches 1-5000 range across game data + all .kurodlc.json files
+- **📝 Complete Entries**: Generates CostumeParam, ItemTableData, DLCTableData, ShopItem
+- **🔒 Safe Defaults**: Dry-run by default, timestamped backups with `--apply`
+- **🌐 UTF-8 Support**: `--no-ascii-escape` for proper character display (e.g. Agnès)
 
-- **🎨 Multiple Viewers**: Choose between HTML, window, or optimized versions
-- **🖼️ Standalone Operation**: No external dependencies for basic viewing
-- **🔄 Auto Normal Computation**: Smooth normals calculated automatically
-- **🧹 Clean Operation**: No temporary files left behind (window version)
-- **⚙️ Flexible Options**: Original or computed normals support
+### Senary Purpose: 3D Model Viewing
+- **🎨 Textured Rendering**: Full DDS texture support with automatic path resolution
+- **🦴 Skeleton & Animations**: T-Pose, Idle, Wave, Walk, facial animations
+- **⚛️ Physics Simulation**: Character physics with collision and intensity controls
+- **🎮 Controller Support**: DualSense, DualShock, Switch Pro, Generic, Keyboard (WSAD)
+- **🎬 Scene Mode**: Parse binary scene JSON and render 3D map layouts with FPS camera
+- **🔍 FXO Shader Support**: Game shader files with fallback to generated shaders
+- **📹 Video Recording**: Including quality settings for video and screenshots
+- **🌅 Skybox & Lighting**: Background colors, lighting settings, emissive fix
+- **🗺️ FreeCam Mode**: 3D free camera for landscapes and buildings
+- **🎯 Mesh Focus & Highlighting**: Focus on individual meshes, auto-hide shadow/kage meshes
 
 ### Additional Tools
 - **🔍 Item Discovery**: Search and browse game items from JSON, TBL, and P3A sources
+- **👤 Name Browser**: Search character names from game database
 - **📋 Multiple Formats**: Support for JSON, TBL, and P3A archive formats
 - **🎨 User-Friendly**: Interactive menus and colored output (Windows CMD compatible)
 
@@ -320,7 +325,7 @@ Quick preview and inspection of .mdl 3D model files!
 ## 📦 Requirements
 
 ### Python Version
-- Python 3.7 or higher
+- Python 3.7 or higher (Python 3.11 recommended for viewer_mdl with pywebview)
 
 ### Required Python Libraries
 Install via `install_python_modules.bat` (Windows) or manually:
@@ -332,12 +337,11 @@ pip install colorama --break-system-packages
 
 This toolkit uses libraries from [eArmada8/kuro_dlc_tool](https://github.com/eArmada8/kuro_dlc_tool):
 
-- **`p3a_lib.py`** - P3A archive handling (GPL-3.0)
-- **`kurodlc_lib.py`** - Kuro table (.tbl) file handling (GPL-3.0)
+- **`p3a_lib.py`** — P3A archive handling (GPL-3.0)
+- **`kurodlc_lib.py`** — Kuro table (.tbl) file handling (GPL-3.0)
 
 **⚠️ GPL-3.0 License Implications:**
 
-Because this toolkit uses GPL-3.0 licensed libraries, the following applies:
 - ✅ **This entire toolkit is licensed under GPL-3.0**
 - ✅ **You can freely use, modify, and distribute this toolkit**
 - ⚠️ **Any modifications must also be GPL-3.0**
@@ -355,10 +359,18 @@ pip install lz4 zstandard xxhash --break-system-packages
 
 **For 3D Model Viewing (viewer_mdl):**
 ```bash
-pip install numpy blowfish zstandard --break-system-packages
+pip install numpy blowfish zstandard xxhash --break-system-packages
 
-# For native window viewer (viewer_mdl_window.py):
-pip install pywebview --break-system-packages
+# For textured viewer (viewer_mdl_textured*.py):
+pip install pywebview Pillow --break-system-packages
+
+# For video recording:
+pip install av --break-system-packages
+```
+
+**All viewer_mdl dependencies at once:**
+```bash
+pip install colorama zstandard lz4 xxhash blowfish av pywebview Pillow --break-system-packages
 ```
 
 **Note:** If you only work with JSON files (`.kurodlc.json`, `t_item.json`, etc.), the optional dependencies are not needed. All core functionality works with JSON only.
@@ -380,8 +392,14 @@ cd KuroDLCTools
 
 ### Install Dependencies
 
-**Windows:**
+**Windows (root toolkit):**
 ```bash
+install_python_modules.bat
+```
+
+**Windows (viewer_mdl — includes Pillow, pywebview, av):**
+```bash
+cd viewer_mdl
 install_python_modules.bat
 ```
 
@@ -393,20 +411,16 @@ pip install colorama --break-system-packages
 pip install lz4 zstandard xxhash --break-system-packages
 
 # Optional: for 3D model viewing
-pip install numpy blowfish zstandard pywebview --break-system-packages
+pip install numpy blowfish zstandard pywebview Pillow av --break-system-packages
 ```
 
 ### Setup for Schema Conversion
 
 To use the schema converter, you need KuroTools schemas:
 
-**Option A: Download KuroTools (Recommended)**
 1. Download KuroTools from https://github.com/nnguyen259/KuroTools
 2. Extract the `schemas/` folder
 3. Place it in the same directory as `convert_kurotools_schemas.py`
-
-**Option B: Already Have KuroTools**
-If you already have KuroTools installed, just copy the `schemas/` folder to your toolkit directory.
 
 **File Structure:**
 ```
@@ -450,7 +464,19 @@ python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-
 python shops_create.py template_my_mod.json
 ```
 
-### 3. Visualize ID Allocation ⭐ NEW
+### 3. Add MDL Models to DLC Automatically ⭐ NEW
+```bash
+# Preview what would be added (dry-run, default)
+python kurodlc_add_mdl.py FalcoDLC.kurodlc.json
+
+# Apply changes with backup
+python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --apply
+
+# With custom shop IDs and ID range
+python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --shop-ids=21,22 --min-id=3000 --max-id=4000 --apply
+```
+
+### 4. Visualize ID Allocation
 ```bash
 # Generate both console and HTML visualization
 python visualize_id_allocation.py
@@ -460,44 +486,42 @@ python visualize_id_allocation.py --format=console
 
 # HTML only with custom name
 python visualize_id_allocation.py --format=html --output=my_report.html
-
-# Custom block size for visualization
-python visualize_id_allocation.py --block-size=100
 ```
 
-### 4. View 3D Models ⭐ NEW
+### 5. View 3D Models
 ```bash
-# HTML output (creates .html file)
+# Full viewer with textures + animations + physics (recommended)
+python viewer_mdl/viewer_mdl_textured_anim.py character.mdl
+
+# Scene mode (maps, buildings)
+python viewer_mdl/viewer_mdl_textured_scene.py --scene mp0010.json
+
+# Textured viewer without animations
+python viewer_mdl/viewer_mdl_textured.py character.mdl
+
+# Simple HTML output
 python viewer_mdl/viewer_mdl.py character.mdl
 
 # Native window (no files created)
 python viewer_mdl/viewer_mdl_window.py character.mdl
 
-# Optimized version
-python viewer_mdl/viewer_mdl_optimized.py character.mdl
-
-# Use original normals instead of computed
-python viewer_mdl/viewer_mdl.py character.mdl --use-original-normals
+# Disable toon shaders
+python viewer_mdl/viewer_mdl_textured_anim.py character.mdl --no-shaders
 ```
 
-### 5. Convert KuroTools Schemas
+### 6. Convert KuroTools Schemas
 ```bash
-# Convert all schemas
 python convert_kurotools_schemas.py
-
 # Output: kurodlc_schema_updated.json and conversion_report.txt
 ```
 
-### 6. Browse Game Items
+### 7. Browse Game Items
 ```bash
-# Find all items
 python find_all_items.py
-
-# Find specific category
-python find_unique_item_id_for_t_item_category.py
-
-# Find costumes
+python find_all_names.py
+python find_all_shops.py
 python find_unique_item_id_for_t_costumes.py
+python find_unique_item_id_for_t_item_category.py
 ```
 
 ---
@@ -524,14 +548,15 @@ python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=my_mod
 python resolve_id_conflicts_in_kurodlc.py repair --import --mapping-file=id_mapping_my_mod.json
 ```
 
-#### 2. `shops_find_unique_item_id_from_kurodlc.py` (v2.1)
+#### 2. `shops_find_unique_item_id_from_kurodlc.py` (v2.2)
 **Purpose:** Extract item IDs from DLC and generate shop assignment templates
 
 **Features:**
 - Automatic ID extraction from multiple sections
 - Template generation for shops_create.py
 - Auto-detect or manual shop ID specification
-- CI/CD support with --no-interactive flag
+- CI/CD support with `--no-interactive` flag
+- **NEW in v2.2:** Support for shop-only .kurodlc.json files (e.g. Daybreak2CostumeShop)
 
 **Usage:**
 ```bash
@@ -544,7 +569,7 @@ python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-
 **Purpose:** Generate shop assignments from template configuration
 
 **Features:**
-- Variable substitution (${shop_id}, ${item_id}, ${index}, ${count})
+- Variable substitution (`${shop_id}`, `${item_id}`, `${index}`, `${count}`)
 - Custom output sections
 - Custom template support
 - Backward compatible with v1.0
@@ -555,7 +580,51 @@ python shops_create.py template_my_mod.json
 python shops_create.py config.json output.json
 ```
 
-#### 4. `visualize_id_allocation.py` ⭐ NEW
+#### 4. `kurodlc_add_mdl.py` (v2.1) ⭐ NEW
+**Purpose:** Scan for .mdl files and automatically create complete DLC entries
+
+**Features:**
+- Scans directory for .mdl files not present in the target .kurodlc.json
+- Uses t_name data for character identification (char_restrict and character names)
+- Smart ID assignment: collects used IDs from t_item + all .kurodlc.json files
+- Tries continuous ID block first, falls back to scattered search
+- Generates CostumeParam, ItemTableData, DLCTableData, ShopItem entries
+- Dry-run by default (preview only), `--apply` required to write
+- Timestamped backups (`_YYYYMMDD_HHMMSS.bak`)
+- UTF-8 support with `--no-ascii-escape`
+
+**Usage:**
+```bash
+# Preview (dry-run, default)
+python kurodlc_add_mdl.py FalcoDLC.kurodlc.json
+
+# Apply changes
+python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --apply
+
+# Custom options
+python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --shop-ids=21,22 --apply
+python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --min-id=3000 --max-id=4000 --apply
+python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --no-interactive --no-ascii-escape --apply
+```
+
+**Options:**
+```
+--apply             Apply changes (without this, runs in dry-run mode)
+--dry-run           Explicit dry-run (default behavior, no changes written)
+--shop-ids=1,2,3    Override shop IDs (default: auto-detect from file)
+--min-id=N          Minimum ID for search range (default: 1)
+--max-id=N          Maximum ID for search range (default: 5000)
+--no-interactive    Auto-select sources without prompting
+--no-backup         Skip backup creation when applying
+--no-ascii-escape   Write UTF-8 directly (e.g. Agnès instead of Agn\u00e8s)
+```
+
+**Requirements (in the same directory):**
+- `.mdl` files to add
+- t_name source (`t_name.json`, `t_name.tbl`, or P3A archive)
+- t_item source (`t_item.json`, `t_item.tbl`, or P3A archive)
+
+#### 5. `visualize_id_allocation.py`
 **Purpose:** Visualize ID allocation patterns and statistics
 
 **Features:**
@@ -574,13 +643,7 @@ python visualize_id_allocation.py --format=console --block-size=100
 python visualize_id_allocation.py --source=json --no-interactive
 ```
 
-**Output:**
-- `id_allocation_map.html` - Interactive HTML report
-- Console statistics and visualization
-- Free blocks table
-- Fragmentation analysis
-
-#### 5. `convert_kurotools_schemas.py`
+#### 6. `convert_kurotools_schemas.py`
 **Purpose:** Convert KuroTools schema definitions to kurodlc_schema.json format
 
 **Features:**
@@ -595,137 +658,170 @@ python visualize_id_allocation.py --source=json --no-interactive
 python convert_kurotools_schemas.py
 ```
 
-**Requirements:**
-- KuroTools `schemas/` folder in same directory
+**Requirements:** KuroTools `schemas/` folder in same directory
 
-**Output:**
-- `kurodlc_schema_updated.json` - Updated schema file
-- `conversion_report.txt` - Detailed conversion log
+**Output:** `kurodlc_schema_updated.json` and `conversion_report.txt`
 
 ### Discovery Scripts
 
-#### 6. `find_all_items.py`
-Browse all items from game database
+#### 7. `find_all_items.py`
+Browse all items from game database (supports JSON, TBL, P3A sources)
 
-**Usage:**
 ```bash
 python find_all_items.py
 python find_all_items.py --source=json
 ```
 
-#### 7. `find_all_names.py`
-Browse character names from game database
+#### 8. `find_all_names.py`
+Browse character names from game database (supports JSON, TBL, P3A sources)
 
-**Usage:**
 ```bash
 python find_all_names.py
 ```
 
-#### 8. `find_all_shops.py`
-Browse all shops from game database
+#### 9. `find_all_shops.py`
+Browse all shops from game database (supports JSON, TBL, P3A sources)
 
-**Usage:**
 ```bash
 python find_all_shops.py
 ```
 
-#### 9. `find_unique_item_id_for_t_costumes.py`
+#### 10. `find_unique_item_id_for_t_costumes.py`
 Find unique/available IDs for costume category
 
-**Usage:**
 ```bash
 python find_unique_item_id_for_t_costumes.py
 ```
 
-#### 10. `find_unique_item_id_for_t_item_category.py`
+#### 11. `find_unique_item_id_for_t_item_category.py`
 Find unique/available IDs by item category
 
-**Usage:**
 ```bash
 python find_unique_item_id_for_t_item_category.py
 ```
 
-#### 11. `find_unique_item_id_from_kurodlc.py`
+#### 12. `find_unique_item_id_from_kurodlc.py`
 Extract unique item IDs from DLC files
 
-**Usage:**
 ```bash
 python find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json
 ```
 
-### 3D Model Viewer Scripts ⭐ NEW
+### 3D Model Viewer Scripts (viewer_mdl/)
 
-#### 12. `viewer_mdl/viewer.py`
-Standalone 3D model viewer with minimal dependencies
-
-**Purpose:** Core viewer with HTML generation
+#### 13. `viewer_mdl_textured_anim.py` ⭐ MAIN VIEWER
+**Purpose:** Full-featured 3D model viewer with textures, skeleton, animations, physics, controller support, FXO shaders, facial animations, skybox, and video recording.
 
 **Usage:**
 ```bash
-python viewer_mdl/viewer.py character.mdl
-python viewer_mdl/viewer.py character.mdl --use-original-normals
+python viewer_mdl/viewer_mdl_textured_anim.py character.mdl
+python viewer_mdl/viewer_mdl_textured_anim.py character.mdl --recompute-normals
+python viewer_mdl/viewer_mdl_textured_anim.py character.mdl --no-shaders
+python viewer_mdl/viewer_mdl_textured_anim.py character.mdl --debug --skip-popup
 ```
 
-**Output:** HTML file with embedded 3D model
+**Options:**
+```
+--recompute-normals  Recompute smooth normals instead of using originals from MDL
+--debug              Enable verbose console logging in browser
+--skip-popup         Skip loading progress popup on startup
+--no-shaders         Disable toon shader rendering, use standard PBR materials
+```
 
-#### 13. `viewer_mdl/viewer_mdl.py`
-Standard HTML viewer with Three.js rendering
+**Key Features:**
+- DDS texture loading with automatic path resolution
+- Skeleton hierarchy visualization
+- Animations: T-Pose, Idle, Wave, Walk, facial animations
+- Physics simulation with collision and intensity controls
+- Controller support: DualSense, DualShock, Switch Pro, Generic, Keyboard (WSAD)
+- FXO game shader support with fallback
+- Video recording with quality settings
+- Skybox support, lighting and background color customization
+- Mesh highlighting, auto-hide shadow/kage meshes
+- Configurable via `viewer_mdl_textured_config.md`
 
-**Purpose:** Generate HTML visualization of .mdl files
+#### 14. `viewer_mdl_textured_scene.py` — Scene Viewer
+**Purpose:** Extended viewer with scene mode for rendering 3D map layouts, building interiors, and terrain
 
 **Usage:**
+```bash
+# Single model (same as viewer_mdl_textured_anim.py)
+python viewer_mdl/viewer_mdl_textured_scene.py character.mdl
+
+# Scene mode — load binary scene JSON
+python viewer_mdl/viewer_mdl_textured_scene.py --scene mp0010.json
+```
+
+**Scene Mode Features:**
+- Parses binary scene JSON files from `scene/` directory
+- Loads actual MDL models from `asset/`
+- Full viewer UI: textures, shaders, gamepad, screenshots
+- FreeCam, minimap, search, category filters
+- Fog, grid, wireframe, and all MDL viewer features
+
+**Expected directory structure:**
+```
+├───scene/          (scene JSON files)
+└───asset/
+    ├───common/
+    │   ├───model/
+    │   └───model_info/
+    └───dx11/
+        ├───image/
+        └───shader/
+```
+
+#### 15. `viewer_mdl_textured.py` — Textured Viewer (no animations)
+**Purpose:** Simplified textured model preview without skeleton or animations
+
+```bash
+python viewer_mdl/viewer_mdl_textured.py character.mdl
+```
+
+#### 16. `viewer_mdl.py` — HTML Viewer
+**Purpose:** Generate HTML visualization of .mdl files with Three.js
+
 ```bash
 python viewer_mdl/viewer_mdl.py character.mdl
+python viewer_mdl/viewer_mdl.py character.mdl --use-original-normals
 ```
-
-**Features:**
-- HTML output with Three.js
-- Automatic smooth normal computation
-- Optional original normals
 
 **Output:** `<model_name>_viewer.html`
 
-#### 14. `viewer_mdl/viewer_mdl_optimized.py`
-Optimized version with better performance
+#### 17. `viewer_mdl_window.py` — Native Window Viewer
+**Purpose:** Preview models in native window without creating files
 
-**Purpose:** Faster processing for large models
+```bash
+python viewer_mdl/viewer_mdl_window.py character.mdl
+```
 
-**Usage:**
+**Requires:** `pip install pywebview`
+
+**Platform Support:** Windows (Edge WebView2), Linux (GTK + WebKit2), macOS (WKWebView)
+
+#### 18. `viewer_mdl_optimized.py` — Optimized Viewer
+**Purpose:** Performance-optimized version using base64 compression for large models
+
 ```bash
 python viewer_mdl/viewer_mdl_optimized.py character.mdl
 ```
 
-**Features:**
-- Optimized mesh processing
-- Faster normal computation
-- Better memory usage
+#### 19. `viewer.py` — Standalone Core Viewer
+**Purpose:** Minimal standalone viewer with integrated loading functions
 
-#### 15. `viewer_mdl/viewer_mdl_window.py`
-Native window viewer (no HTML files)
-
-**Purpose:** Preview models in native window without creating files
-
-**Requirements:**
 ```bash
-pip install pywebview
+python viewer_mdl/viewer.py character.mdl
 ```
 
-**Usage:**
-```bash
-python viewer_mdl/viewer_mdl_window.py character.mdl
-python viewer_mdl/viewer_mdl_window.py character.mdl --use-original-normals
-```
+### Support Libraries (viewer_mdl/)
 
-**Features:**
-- Native window (WebView2 on Windows)
-- No temporary files left behind
-- Auto-cleanup on exit
-- Interactive 3D viewing
-
-**Platform Support:**
-- Windows: Edge WebView2
-- Linux: GTK + WebKit2
-- macOS: WKWebView
+| File | Description | Source |
+|------|-------------|--------|
+| `kuro_mdl_export_meshes.py` | MDL model parsing and mesh export | [eArmada8/kuro_mdl_tool](https://github.com/eArmada8/kuro_mdl_tool) |
+| `lib_fmtibvb.py` | Format/Index/Vertex buffer handling | [eArmada8/kuro_mdl_tool](https://github.com/eArmada8/kuro_mdl_tool) |
+| `lib_texture_loader.py` | DDS texture loading and conversion | KuroDLCTools |
+| `three.min.js` | Three.js 3D rendering library | [three.js](https://threejs.org/) |
+| `viewer_mdl_textured_config.md` | Viewer configuration documentation | KuroDLCTools |
 
 ---
 
@@ -736,63 +832,81 @@ python viewer_mdl/viewer_mdl_window.py character.mdl --use-original-normals
 # Step 1: Visualize available ID ranges
 python visualize_id_allocation.py
 
-# Step 2: Check existing DLC for conflicts
+# Step 2: Add MDL models to DLC automatically
+python kurodlc_add_mdl.py my_mod.kurodlc.json --apply
+
+# Step 3: Check for conflicts
 python resolve_id_conflicts_in_kurodlc.py checkbydlc
 
-# Step 3: Fix conflicts automatically
+# Step 4: Fix conflicts automatically
 python resolve_id_conflicts_in_kurodlc.py repair --apply
 
-# Step 4: Generate shop assignments
+# Step 5: Generate shop assignments
 python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-template
 python shops_create.py template_my_mod.json
 ```
 
-### Workflow 2: Manual ID Control
+### Workflow 2: Batch MDL Addition
 ```bash
-# Step 1: Export repair plan
+# Place all .mdl files in the working directory alongside game data
+
+# Preview what would be added
+python kurodlc_add_mdl.py FalcoDLC.kurodlc.json
+
+# Apply with custom ID range and shop IDs
+python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --shop-ids=21,22 --min-id=3000 --max-id=4000 --apply
+
+# Verify results
+python find_unique_item_id_from_kurodlc.py FalcoDLC.kurodlc.json
+```
+
+### Workflow 3: Manual ID Control
+```bash
+# Export repair plan
 python resolve_id_conflicts_in_kurodlc.py repair --export --export-name=my_mod
 
-# Step 2: Manually edit id_mapping_my_mod.json
+# Manually edit id_mapping_my_mod.json
 
-# Step 3: Import and apply
+# Import and apply
 python resolve_id_conflicts_in_kurodlc.py repair --import --mapping-file=id_mapping_my_mod.json
 ```
 
-### Workflow 3: Team Coordination
+### Workflow 4: Team Coordination
 ```bash
 # Team lead: Generate ID allocation report
 python visualize_id_allocation.py --format=html --output=team_report.html
 
 # Share team_report.html with team
-
-# Each modder: Use assigned ID ranges from report
-# Modder A: Uses IDs 3500-3599
-# Modder B: Uses IDs 3600-3699
+# Each modder uses assigned ID ranges from report
 ```
 
-### Workflow 4: Schema Update
+### Workflow 5: Schema Update
 ```bash
-# Step 1: Download KuroTools schemas folder
-
-# Step 2: Convert schemas
+# Download KuroTools schemas folder
+# Convert schemas
 python convert_kurotools_schemas.py
 
-# Step 3: Replace kurodlc_schema.json with kurodlc_schema_updated.json
-
-# Step 4: Test with new TBL files
+# Replace kurodlc_schema.json with kurodlc_schema_updated.json
+# Test with new TBL files
 python find_all_items.py --source=tbl
 ```
 
-### Workflow 5: 3D Model Inspection
+### Workflow 6: 3D Model Inspection
 ```bash
-# Quick preview
-python viewer_mdl/viewer_mdl_window.py character.mdl
+# Full-featured viewer (recommended)
+python viewer_mdl/viewer_mdl_textured_anim.py character.mdl
+
+# Without toon shaders
+python viewer_mdl/viewer_mdl_textured_anim.py character.mdl --no-shaders
+
+# Scene viewer for maps
+python viewer_mdl/viewer_mdl_textured_scene.py --scene mp1010.json
+
+# Quick preview without animations
+python viewer_mdl/viewer_mdl_textured.py character.mdl
 
 # Generate shareable HTML
 python viewer_mdl/viewer_mdl.py character.mdl
-
-# Batch processing
-for f in *.mdl; do python viewer_mdl/viewer_mdl.py "$f"; done
 ```
 
 ---
@@ -804,7 +918,7 @@ Main DLC mod configuration file. Contains:
 - **CostumeParam**: Costume definitions with item_id references
 - **ItemTableData**: Item metadata (names, descriptions, categories)
 - **DLCTableData**: DLC pack definitions with item lists
-- **ShopItem**: Shop assignment entries (optional)
+- **ShopItem**: Shop assignment entries (optional, can be standalone in v2.2)
 
 ### ID Mapping Format
 ```json
@@ -852,6 +966,7 @@ Main DLC mod configuration file. Contains:
 
 ### 3D Model Formats
 - **Input**: `.mdl` files (Kuro engine 3D models)
+- **Input**: `.json` scene files (binary scene format, for `--scene` mode)
 - **Output**: HTML with Three.js or native window display
 
 ---
@@ -866,7 +981,6 @@ pip install colorama --break-system-packages
 ```
 
 **2. "Cannot read .tbl files"**
-Install optional dependencies:
 ```bash
 pip install lz4 zstandard xxhash --break-system-packages
 ```
@@ -875,32 +989,50 @@ pip install lz4 zstandard xxhash --break-system-packages
 Download KuroTools and place `schemas/` folder in toolkit directory.
 
 **4. "No free IDs available"**
-Game has reached 5000 ID limit. Use visualize_id_allocation.py to find gaps.
+Game has reached 5000 ID limit. Use `visualize_id_allocation.py` to find gaps.
 
-**5. "viewer_mdl_window.py not working"**
-Install pywebview:
+**5. "viewer_mdl_textured_anim.py not working"**
+Install all viewer dependencies:
 ```bash
-pip install pywebview --break-system-packages
+pip install pywebview Pillow numpy blowfish zstandard xxhash --break-system-packages
 ```
 
-**6. Visualization shows no data**
-Ensure data source (t_item.json or .tbl) is in current directory.
+**6. Textures not loading in viewer**
+Ensure the standard folder structure exists relative to the model file:
+```
+└───asset
+    ├───common
+    │   └───model
+    │   └───model_info
+    └───dx11
+        └───image
+        └───shader
+```
+
+**7. "kurodlc_add_mdl.py: No t_name source found"**
+Place `t_name.json`, `t_name.tbl`, or a P3A archive in the working directory.
+
+**8. Visualization shows no data**
+Ensure data source (`t_item.json` or `.tbl`) is in current directory.
+
+**9. pywebview issues on Python 3.12+**
+Python 3.11 is recommended for pywebview compatibility. See `viewer_mdl/build.txt` for details.
 
 ### Platform-Specific Notes
 
 **Windows:**
 - Use `install_python_modules.bat` for easy setup
 - Colored output works in CMD and PowerShell
-- WebView2 required for viewer_mdl_window.py (usually pre-installed)
+- WebView2 required for viewer windows (usually pre-installed on Win 10+)
 
 **Linux:**
 - Use `--break-system-packages` flag with pip
-- Install GTK and WebKit2 for viewer_mdl_window.py
+- Install GTK and WebKit2 for viewer windows
 - Some distributions may need `python3` instead of `python`
 
 **macOS:**
 - Use `--break-system-packages` flag with pip
-- WKWebView used for viewer_mdl_window.py
+- WKWebView used for viewer windows
 
 ---
 
@@ -913,26 +1045,26 @@ Ensure data source (t_item.json or .tbl) is in current directory.
 4. **Leave buffer**: Don't use all IDs in a range, leave space for future additions
 5. **Document ranges**: Keep notes on which ID ranges your mods use
 
+### MDL Entry Generation
+1. **Preview first**: Always run `kurodlc_add_mdl.py` without `--apply` first
+2. **Have game data ready**: Ensure t_name and t_item sources are in the directory
+3. **Check ID ranges**: Use `--min-id` and `--max-id` to control where IDs are assigned
+4. **Use UTF-8**: Add `--no-ascii-escape` for proper character display in the JSON
+
 ### Shop Assignment
 1. **Generate templates**: Use `shops_find_unique_item_id_from_kurodlc.py --generate-template`
 2. **Review before applying**: Check generated template before running shops_create.py
 3. **Use meaningful shop IDs**: Match actual game shop IDs from t_shop.json
-4. **Batch operations**: Process all items at once instead of one-by-one
-
-### Schema Conversion
-1. **Backup original**: Keep copy of kurodlc_schema.json before updating
-2. **Review report**: Check conversion_report.txt for any errors
-3. **Test after update**: Verify TBL files load correctly after schema update
-4. **Share updates**: Updated schemas can be shared with community
+4. **Shop-only files**: v2.2 supports .kurodlc.json files with only ShopItem section
 
 ### 3D Model Viewing
-1. **Use window viewer for quick checks**: viewer_mdl_window.py is fastest
-2. **HTML for sharing**: Use viewer_mdl.py to create shareable visualizations
-3. **Original normals**: Use `--use-original-normals` if model looks incorrect
-4. **Batch processing**: Script loops for processing multiple models
+1. **Use the full viewer**: `viewer_mdl_textured_anim.py` is the most complete viewer
+2. **Scene mode for maps**: Use `--scene` flag for map/building exploration
+3. **Disable shaders if needed**: Use `--no-shaders` for standard PBR rendering
+4. **See config**: Check `viewer_mdl/viewer_mdl_textured_config.md` for customization
 
 ### General
-1. **Keep backups**: Script creates automatic backups, but keep your own too
+1. **Keep backups**: Scripts create automatic backups, but keep your own too
 2. **Read logs**: Check log files for detailed information on operations
 3. **Test incrementally**: Test changes on small DLCs before large projects
 4. **Version control**: Use git or similar to track changes to your mods
@@ -941,141 +1073,102 @@ Ensure data source (t_item.json or .tbl) is in current directory.
 
 ## 📜 Version History
 
-### v3.0 (2026-02-04) - MAJOR UPDATE ⭐
+### v3.1 (2026-02-14) - LATEST ⭐
 **New Features:**
-- **visualize_id_allocation.py**: Complete ID allocation visualization system
-  - Interactive HTML reports with color-coded maps
-  - Console visualization with statistics
-  - Gap analysis and fragmentation metrics
-  - Free block identification
-  - Customizable block sizes
-  - Multiple output formats (console, HTML, both)
-  
-- **3D Model Viewer Suite** (viewer_mdl/):
-  - `viewer.py`: Standalone core viewer
-  - `viewer_mdl.py`: Standard HTML viewer
-  - `viewer_mdl_optimized.py`: Performance-optimized version
-  - `viewer_mdl_window.py`: Native window viewer (no files)
-  - Automatic smooth normal computation
-  - Support for original normals
-  - Three.js integration
-  - Clean operation (no temp files in window mode)
+- **`kurodlc_add_mdl.py` v2.1**: Automatic MDL-to-DLC entry generation
+  - Scans directory for .mdl files not in DLC
+  - Smart ID assignment across game data + all .kurodlc.json files
+  - Character identification from filenames using t_name
+  - Generates complete CostumeParam, ItemTableData, DLCTableData, ShopItem
+  - Dry-run by default, `--apply` required to write
+  - Timestamped backups
+
+- **`viewer_mdl_textured_anim.py` Ver 1.0**: Full-featured 3D model viewer
+  - Skybox support, lighting and background customization
+  - Facial animations
+  - FXO game shader support with fallback
+  - Physics simulation with collision
+  - Controller support (DualSense, DualShock, Switch Pro, Generic, Keyboard)
+  - 3D FreeCam mode
+  - Video recording with quality settings
+  - Mesh highlighting and focus
+
+- **`viewer_mdl_textured_scene.py`**: Scene viewer
+  - Binary scene JSON parsing
+  - Renders 3D map layouts with FPS camera
+  - Full viewer UI: textures, shaders, gamepad, minimap, search
+
+- **`viewer_mdl_textured.py`**: Textured model viewer (no animations)
+- **`lib_texture_loader.py`**: DDS texture loading utility
 
 **Improvements:**
-- Enhanced documentation with new sections
-- Updated README with comprehensive feature list
-- Added VISUALIZATION_GUIDE.md
-- Improved example files
+- `shops_find_unique_item_id_from_kurodlc.py` v2.2: Shop-only file support
+- Updated install scripts with Pillow, av, pywebview
+- Viewer configuration documentation (`viewer_mdl_textured_config.md`)
+
+### v3.0 (2026-02-04)
+**New Features:**
+- **visualize_id_allocation.py**: Complete ID allocation visualization system
+- **3D Model Viewer Suite** (viewer_mdl/):
+  - `viewer.py`, `viewer_mdl.py`, `viewer_mdl_optimized.py`, `viewer_mdl_window.py`
+  - Automatic smooth normal computation
+  - Three.js integration
 
 ### v2.8 (2026-01-31) - Schema Conversion
-**New Features:**
 - **convert_kurotools_schemas.py**: Complete KuroTools schema converter
-  - Converts 280+ schema definitions
-  - Automatic type mapping and size calculation
-  - Nested structure flattening
-  - Duplicate detection and merging
-  - Detailed conversion reports
-  - Expands support from 39 to 344+ schemas
+  - Converts 280+ schema definitions, expands support from 39 to 344+
 
 ### v2.7.1 (2026-01-31) - resolve_id_conflicts BUGFIX
-- **Fixed:** Removed bare except clause (line 929)
-- **Improved:** 100% code quality score
-- **Improved:** Better error handling for timestamp parsing
-- **Status:** Production ready
+- Fixed bare except clause, improved error handling
 
 ### v2.7.0 (2026-01-31) - resolve_id_conflicts SMART ALGORITHM
-- **New:** Smart ID distribution algorithm
-- **New:** Middle-out assignment starting from ID 2500
-- **New:** Better ID spacing for cleaner organization
-- **New:** Enforced 1-5000 range limit
-- **Improved:** More efficient ID allocation
+- Smart ID distribution, middle-out assignment from 2500, enforced 1-5000 range
 
-### v2.1 (2026-01-31) - shops_find BUGFIX & CI/CD SUPPORT
-- **Fixed:** EOFError in non-interactive environments
-- **New:** `--no-interactive` flag for CI/CD pipelines
-- **New:** `--default-shop-ids` flag for automatic fallback
-- **Improved:** Clear error messages with actionable solutions
-- **Improved:** Better handling of DLCs without ShopItem section
-- **Improved:** 100% code quality score
-- **Status:** Production ready
+### v2.1 (2026-01-31) - shops_find BUGFIX & CI/CD
+- `--no-interactive` flag, `--default-shop-ids`, better error handling
 
-### v2.0 (2026-01-31) - shops_find TEMPLATE GENERATION
-- **New:** Template generation for shops_create.py
-- **New:** Auto-extract item IDs from DLC
-- **New:** Auto-extract shop IDs from ShopItem section
-- **New:** Auto-extract template structure
-- **New:** Custom output filenames
-- **Improved:** Workflow integration with shops_create.py
-
-### v2.0 (2026-01-31) - shops_create ENHANCED
-- **New:** Variable substitution: ${shop_id}, ${item_id}, ${index}, ${count}
-- **New:** Custom output sections
-- **New:** Custom templates support
-- **Improved:** Backward compatible with v1.0
-- **Improved:** Better error messages
+### v2.0 (2026-01-31) - shops_create ENHANCED & shops_find TEMPLATE
+- Variable substitution, custom templates, auto-extract IDs from DLC
 
 ### v1.0 (2025) - Initial Release
-- Basic ID extraction
-- Shop assignment generation
-- Item discovery tools
-- Conflict detection
+- Basic ID extraction, shop assignment, item discovery, conflict detection
 
 ---
 
 ## 🔗 External Dependencies
 
-This toolkit uses the following external libraries:
-
 ### From [eArmada8/kuro_dlc_tool](https://github.com/eArmada8/kuro_dlc_tool)
-- **`p3a_lib.py`** - P3A archive handling
-- **`kurodlc_lib.py`** - Kuro table (.tbl) file handling
+- **`p3a_lib.py`** — P3A archive handling
+- **`kurodlc_lib.py`** — Kuro table (.tbl) file handling
 
-**License:** GPL-3.0  
-**Author:** eArmada8  
-**Repository:** https://github.com/eArmada8/kuro_dlc_tool
+**License:** GPL-3.0 | **Author:** eArmada8
 
-**Note:** These libraries are included in this repository for convenience. All credit for these components goes to the original author.
+### From [eArmada8/kuro_mdl_tool](https://github.com/eArmada8/kuro_mdl_tool)
+- **`kuro_mdl_export_meshes.py`** — MDL model parsing and mesh export
+- **`lib_fmtibvb.py`** — Format/Index/Vertex buffer handling
 
-### From [eArmada8/kuro_mdl_tool](https://github.com/eArmada8/kuro_mdl_tool) ⭐ NEW
-- **`kuro_mdl_export_meshes.py`** - MDL model parsing and mesh export
-- **`lib_fmtibvb.py`** - Format/Index/Vertex buffer handling
+**License:** GPL-3.0 | **Author:** eArmada8
 
-**License:** GPL-3.0  
-**Author:** eArmada8  
-**Repository:** https://github.com/eArmada8/kuro_mdl_tool
-
-**Note:** These libraries are included in `viewer_mdl/` folder. All credit goes to the original author.
+**Note:** These libraries are included in the repository. All credit goes to the original authors.
 
 ### From [nnguyen259/KuroTools](https://github.com/nnguyen259/KuroTools)
-- **Schema definitions** - 280+ TBL structure definitions in `schemas/headers/`
+- **Schema definitions** — 280+ TBL structure definitions in `schemas/headers/`
 
-**Note:** KuroTools schemas are NOT included in this repository. Users must download them separately for schema conversion functionality.
-
-**How to get KuroTools schemas:**
-1. Visit https://github.com/nnguyen259/KuroTools
-2. Download or clone the repository
-3. Copy the `schemas/` folder to your toolkit directory
+**Note:** KuroTools schemas are NOT included in this repository. Users must download them separately.
 
 ### Python Packages
-- **`colorama`** - Cross-platform colored terminal output
-  - License: BSD
-  - Used for: User-friendly colored output in Windows CMD
 
-- **`numpy`** - Numerical computing (for model viewer)
-  - License: BSD
-  - Used for: 3D model vertex processing
-
-- **`pywebview`** - Native window webview (optional)
-  - License: BSD
-  - Used for: Native window viewer (viewer_mdl_window.py)
-
-- **`lz4`** (optional) - LZ4 compression
-- **`zstandard`** (optional) - Zstandard compression  
-- **`xxhash`** (optional) - xxHash hashing
-  - Required for: P3A and TBL file support
-
-- **`blowfish`** (optional) - Blowfish encryption
-  - Required for: CLE encrypted assets in model files
+| Package | License | Used for |
+|---------|---------|----------|
+| `colorama` | BSD | Colored terminal output (Windows CMD compatible) |
+| `numpy` | BSD | 3D model vertex processing |
+| `pywebview` | BSD | Native window viewer |
+| `Pillow` | HPND | DDS texture conversion |
+| `av` | LGPL | Video recording in viewer |
+| `blowfish` | MIT | CLE encrypted asset decryption |
+| `lz4` | BSD | LZ4 compression (P3A/TBL) |
+| `zstandard` | BSD | Zstandard compression (P3A/TBL) |
+| `xxhash` | BSD | xxHash hashing (P3A/TBL) |
 
 ---
 
@@ -1086,34 +1179,18 @@ Contributions are welcome! Since this project is GPL-3.0, all contributions must
 ### How to Contribute
 
 1. **Fork the repository**
-2. **Create a feature branch**
-   ```bash
-   git checkout -b feature/your-feature
-   ```
-3. **Make your changes**
-   - Follow existing code style
-   - Add comments for complex logic
-   - Update documentation if needed
-4. **Test your changes**
-   - Test with real DLC files
-   - Verify backward compatibility
-5. **Submit a pull request**
-   - Describe your changes clearly
-   - Reference any related issues
+2. **Create a feature branch**: `git checkout -b feature/your-feature`
+3. **Make your changes** — follow existing code style, add comments, update docs
+4. **Test your changes** — test with real DLC files, verify backward compatibility
+5. **Submit a pull request** — describe changes clearly, reference related issues
 
 ### Code Style
-- Use Python 3.7+ compatible syntax
-- Follow PEP 8 guidelines
-- Use meaningful variable names
-- Add docstrings to functions
-- Use `with open()` for file operations
+- Python 3.7+ compatible syntax
+- PEP 8 guidelines
+- Meaningful variable names
+- Docstrings on functions
+- `with open()` for file operations
 - Avoid bare `except:` clauses
-
-### Testing
-- Test with both JSON and TBL sources
-- Test with various DLC structures
-- Verify error handling
-- Check Windows CMD compatibility
 
 ---
 
@@ -1123,86 +1200,36 @@ Contributions are welcome! Since this project is GPL-3.0, all contributions must
 
 This project is licensed under the **GNU General Public License v3.0**.
 
-**Why GPL-3.0?**
+**Why GPL-3.0?** This toolkit uses libraries from [eArmada8/kuro_dlc_tool](https://github.com/eArmada8/kuro_dlc_tool) and [eArmada8/kuro_mdl_tool](https://github.com/eArmada8/kuro_mdl_tool), both GPL-3.0 licensed.
 
-This toolkit uses libraries from:
-- [eArmada8/kuro_dlc_tool](https://github.com/eArmada8/kuro_dlc_tool) (GPL-3.0)
-- [eArmada8/kuro_mdl_tool](https://github.com/eArmada8/kuro_mdl_tool) (GPL-3.0)
+✅ **You CAN:** Use, modify, distribute freely
+⚠️ **You MUST:** Keep GPL-3.0 license, make source available, license modifications under GPL-3.0
+❌ **You CANNOT:** Incorporate into proprietary/closed-source software
 
-Under GPL-3.0 terms, any software that incorporates GPL-3.0 licensed code must also be licensed under GPL-3.0.
+See the [LICENSE](LICENSE) file for the complete text.
 
-**What This Means for You:**
-
-✅ **You CAN:**
-- Use this toolkit freely for any purpose
-- Modify the toolkit for your needs
-- Distribute the toolkit to others
-- Distribute modified versions
-- Use it in your modding projects
-
-⚠️ **You MUST:**
-- Keep the GPL-3.0 license with the software
-- Make source code available to recipients
-- License any modifications under GPL-3.0
-- Document your changes
-- Include copyright notices
-
-❌ **You CANNOT:**
-- Incorporate this into proprietary/closed-source software
-- Change the license to a non-GPL-compatible license
-- Remove license or copyright notices
-
-**Full License Text:**
-
-See the [LICENSE](LICENSE) file for the complete GNU General Public License v3.0 text.
-
-**External Libraries:**
-- `p3a_lib.py` and `kurodlc_lib.py` from [eArmada8/kuro_dlc_tool](https://github.com/eArmada8/kuro_dlc_tool) (GPL-3.0)
-- `kuro_mdl_export_meshes.py` and `lib_fmtibvb.py` from [eArmada8/kuro_mdl_tool](https://github.com/eArmada8/kuro_mdl_tool) (GPL-3.0)
-- All credit for these components goes to the original authors
-
-**Questions about the License?**
-
-For more information about GPL-3.0, see:
-- https://www.gnu.org/licenses/gpl-3.0.html
-- https://choosealicense.com/licenses/gpl-3.0/
+**More info:** [gnu.org/licenses/gpl-3.0](https://www.gnu.org/licenses/gpl-3.0.html) | [choosealicense.com/gpl-3.0](https://choosealicense.com/licenses/gpl-3.0/)
 
 ---
 
 ## 🙏 Acknowledgments
 
-- **eArmada8** - For the original [kuro_dlc_tool](https://github.com/eArmada8/kuro_dlc_tool) and [kuro_mdl_tool](https://github.com/eArmada8/kuro_mdl_tool) libraries
-- **nnguyen259** - For [KuroTools](https://github.com/nnguyen259/KuroTools) schema definitions
-- **The Kuro modding community** - For testing and feedback
-- **All contributors** - Thank you for your contributions!
+- **eArmada8** — For [kuro_dlc_tool](https://github.com/eArmada8/kuro_dlc_tool) and [kuro_mdl_tool](https://github.com/eArmada8/kuro_mdl_tool) libraries
+- **nnguyen259** — For [KuroTools](https://github.com/nnguyen259/KuroTools) schema definitions
+- **The Kuro modding community** — For testing and feedback
+- **All contributors** — Thank you for your contributions!
 
 ---
 
 ## 📚 Advanced Documentation
 
-For comprehensive, in-depth documentation including:
-- **Complete parameter reference** for all scripts
-- **Real data examples** from t_item.json, t_shop.json, t_costume.json
-- **Data structure specifications** (.kurodlc.json, exports, imports, logs)
-- **Advanced workflows** (CI/CD, batch processing, manual ID mapping)
-- **Real-world scenarios** with actual game data
-- **Schema conversion details**
-- **Visualization guide** ⭐ NEW
-- **3D model viewer guide** ⭐ NEW
+For comprehensive, in-depth documentation see:
 
-See **[ADVANCED_DOCUMENTATION.md](doc/ADVANCED_DOCUMENTATION.md)** ⭐
+**[ADVANCED_DOCUMENTATION.md](doc/ADVANCED_DOCUMENTATION.md)** — Complete parameter reference, real data examples, data structure specs, advanced workflows
 
-**What's included:**
-- ✅ All script parameters documented
-- ✅ Examples with real game data
-- ✅ Complete data structure specifications
-- ✅ Export/Import format specifications
-- ✅ Log file formats and examples
-- ✅ Advanced workflows (CI/CD, batch processing)
-- ✅ Real-world examples
-- ✅ Schema conversion guide
-- ✅ ID visualization guide ⭐ NEW
-- ✅ 3D model viewer guide ⭐ NEW
+**[NEW_FEATURES_DOCUMENTATION.md](doc/NEW_FEATURES_DOCUMENTATION.md)** — Visualization guide, 3D model viewer guide
+
+**[viewer_mdl_textured_config.md](viewer_mdl/viewer_mdl_textured_config.md)** — Viewer configuration (camera zoom, shadow hiding, background colors)
 
 **Quick links:**
 - [Script Parameter Reference](doc/ADVANCED_DOCUMENTATION.md#script-reference)
@@ -1210,8 +1237,8 @@ See **[ADVANCED_DOCUMENTATION.md](doc/ADVANCED_DOCUMENTATION.md)** ⭐
 - [Real Data Examples](doc/ADVANCED_DOCUMENTATION.md#real-data-examples)
 - [Advanced Workflows](doc/ADVANCED_DOCUMENTATION.md#advanced-workflows)
 - [Schema Conversion Guide](doc/ADVANCED_DOCUMENTATION.md#schema-conversion)
-- [Visualization Guide](NEW_FEATURES_DOCUMENTATION.md) ⭐ NEW
-- [3D Viewer Guide](doc/ADVANCED_DOCUMENTATION.md#3d-model-viewing) ⭐ NEW
+- [Visualization Guide](doc/NEW_FEATURES_DOCUMENTATION.md)
+- [3D Viewer Guide](doc/ADVANCED_DOCUMENTATION.md#3d-model-viewing)
 
 ---
 
