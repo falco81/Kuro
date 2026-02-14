@@ -42,7 +42,12 @@ for proper function it needs to have all necessary data extracted in the game da
 - **emissive_g fix**
 - **facial animations**
 - **change exe file icon <img src="viewer_mdl/app.ico" width="20">**
+- **skybox support, changing lighting and background colors**
 ---
+
+**Ver 1.0 - viewer_mdl_textured_anim.py/exe**<br>
+skybox support, changing lighting and background colors<br>
+<img src="doc/viewer_anim10.png" width="100%">
 
 **Beta9 - viewer_mdl_textured_anim.py/exe**<br>
 added facial animations<br>
