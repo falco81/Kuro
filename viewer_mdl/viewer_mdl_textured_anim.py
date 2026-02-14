@@ -1606,12 +1606,70 @@ def load_mdl_with_textures(mdl_path: Path, temp_dir: Path, recompute_normals: bo
 # -----------------------------
 # Generate HTML with skeleton support
 # -----------------------------
+def load_ground_textures(mdl_path: Path, temp_dir: Path) -> dict:
+    """Look for PBR ground textures next to script or MDL file.
+    Copies found textures into temp_dir/textures/ and returns dict of relative paths."""
+    tex_names = {
+        'diff': 'ground_diff.png',
+        'normal': 'ground_nor_gl.png',
+        'arm': 'ground_arm.png',
+    }
+    search_dirs = [
+        Path(__file__).parent,
+        Path(__file__).parent / 'textures',
+        Path.cwd(),
+        Path.cwd() / 'textures',
+        mdl_path.parent,
+        mdl_path.parent / 'textures',
+    ]
+    temp_textures_dir = temp_dir / 'textures'
+    temp_textures_dir.mkdir(exist_ok=True)
+    result = {}
+    for key, filename in tex_names.items():
+        for d in search_dirs:
+            fpath = d / filename
+            if fpath.exists():
+                dest = temp_textures_dir / filename
+                shutil.copy2(fpath, dest)
+                result[key] = f'textures/{filename}'
+                break
+    required = {'diff', 'normal', 'arm'}
+    has_required = required.issubset(result.keys())
+    if has_required:
+        src_dir = None
+        for d in search_dirs:
+            if (d / tex_names['diff']).exists():
+                src_dir = d
+                break
+        print(f"  [OK] Ground PBR textures (3/3) from {src_dir}")
+    elif result:
+        missing = required - result.keys()
+        print(f"  [!!] Missing ground textures: {missing}, falling back to procedural")
+    return result if has_required else {}
+
+
 def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_map: dict, 
                                 skeleton_data: dict, model_info: dict, debug_mode: bool = False,
                                 bind_matrices: dict = None, animations_data: list = None,
                                 skip_popup: bool = False, no_shaders: bool = False,
-                                recompute_normals: bool = False) -> str:
+                                recompute_normals: bool = False, temp_dir: Path = None) -> str:
     """Generate HTML content with texture and skeleton support."""
+    
+    # Load PBR ground textures if available
+    ground_textures = load_ground_textures(mdl_path, temp_dir) if temp_dir else {}
+    ground_tex_js = ""
+    if ground_textures:
+        ground_tex_js = f"""
+    const GROUND_TEX_DIFF = '{ground_textures["diff"]}';
+    const GROUND_TEX_NORMAL = '{ground_textures["normal"]}';
+    const GROUND_TEX_ARM = '{ground_textures["arm"]}';
+"""
+    else:
+        ground_tex_js = """
+    const GROUND_TEX_DIFF = null;
+    const GROUND_TEX_NORMAL = null;
+    const GROUND_TEX_ARM = null;
+"""
     
     meshes_data = []
     for m in meshes:
@@ -1753,6 +1811,13 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     }}
     .slider-row input[type="range"] {{
       flex: 1; cursor: pointer; accent-color: #7c3aed;
+    }}
+    .color-reset {{
+      font-size: 11px; color: #555; cursor: pointer; flex: none;
+      margin: 0 1px; transition: color 0.2s;
+    }}
+    .color-reset.active {{
+      color: #f59e0b;
     }}
 
     /* === Mesh toggles === */
@@ -2033,24 +2098,58 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         <span class="label">📊 Info Overlay</span>
         <span id="overlayModeLabel" style="font-size:11px;color:#a78bfa;min-width:52px;text-align:right;cursor:pointer;">Off</span>
       </div>
+      <div class="toggle-row" onclick="toggleSkyDome(); document.getElementById('swSkyDome').checked = skyDomeEnabled;">
+        <span class="label">🌄 Environment</span>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="swSkyDome" onchange="toggleSkyDome()">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row" onclick="toggleGridVisible(); document.getElementById('swGrid').checked = gridVisible;">
+        <span class="label">🔲 Floor Grid</span>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="swGrid" checked onchange="toggleGridVisible()">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="slider-row" style="align-items:center;">
+        <span class="info-text" style="min-width:72px;">Background:</span>
+        <input type="color" id="bgColorPicker" value="#1a1a2e" style="width:24px;height:20px;border:1px solid #555;border-radius:3px;padding:0;cursor:pointer;background:transparent;flex:none;"
+               oninput="setBgColor(this.value); updateColorReset('bgColorPicker','bgColorReset','#1a1a2e')">
+        <span id="bgColorReset" class="color-reset" title="Reset color"
+              onclick="document.getElementById('bgColorPicker').value='#1a1a2e'; setBgColor('#1a1a2e'); updateColorReset('bgColorPicker','bgColorReset','#1a1a2e');">↺</span>
+        <span id="bgColorLabel" style="font-size:10px;color:#888;margin-left:4px;flex:1;">#1a1a2e</span>
+      </div>
     </div>
 
     <div class="section-title" style="cursor:pointer;user-select:none;" onclick="const el=document.getElementById('lightingSection'); el.style.display=el.style.display==='none'?'block':'none'; this.querySelector('.arrow').textContent=el.style.display==='none'?'▶':'▼';">💡 Lighting <span class="arrow" style="font-size:10px;margin-left:4px;">▶</span></div>
     <div id="lightingSection" style="display:none;">
       <div class="slider-row">
         <span class="info-text" style="min-width:52px;">Ambient:</span>
+        <input type="color" id="lightAmbColor" value="#ffffff" style="width:24px;height:20px;border:1px solid #555;border-radius:3px;padding:0;cursor:pointer;background:transparent;flex:none;"
+               oninput="if(ambientLight)ambientLight.color.set(this.value); updateColorReset('lightAmbColor','lightAmbReset','#ffffff')">
+        <span id="lightAmbReset" class="color-reset" title="Reset color"
+              onclick="document.getElementById('lightAmbColor').value='#ffffff'; if(ambientLight)ambientLight.color.set('#ffffff'); updateColorReset('lightAmbColor','lightAmbReset','#ffffff');">↺</span>
         <input type="range" id="lightAmbient" min="0" max="2" step="0.05" value="0.6"
                style="flex:1;" oninput="if(ambientLight)ambientLight.intensity=parseFloat(this.value); document.getElementById('lightAmbVal').textContent=parseFloat(this.value).toFixed(2)">
         <span id="lightAmbVal" class="info-text" style="min-width:28px;text-align:right;color:#fbbf24;">0.60</span>
       </div>
       <div class="slider-row">
         <span class="info-text" style="min-width:52px;">Key:</span>
+        <input type="color" id="lightKeyColor" value="#ffffff" style="width:24px;height:20px;border:1px solid #555;border-radius:3px;padding:0;cursor:pointer;background:transparent;flex:none;"
+               oninput="if(dirLight1)dirLight1.color.set(this.value); updateColorReset('lightKeyColor','lightKeyReset','#ffffff')">
+        <span id="lightKeyReset" class="color-reset" title="Reset color"
+              onclick="document.getElementById('lightKeyColor').value='#ffffff'; if(dirLight1)dirLight1.color.set('#ffffff'); updateColorReset('lightKeyColor','lightKeyReset','#ffffff');">↺</span>
         <input type="range" id="lightKey" min="0" max="2" step="0.05" value="0.8"
                style="flex:1;" oninput="if(dirLight1)dirLight1.intensity=parseFloat(this.value); document.getElementById('lightKeyVal').textContent=parseFloat(this.value).toFixed(2)">
         <span id="lightKeyVal" class="info-text" style="min-width:28px;text-align:right;color:#fbbf24;">0.80</span>
       </div>
       <div class="slider-row">
         <span class="info-text" style="min-width:52px;">Fill:</span>
+        <input type="color" id="lightFillColor" value="#ffffff" style="width:24px;height:20px;border:1px solid #555;border-radius:3px;padding:0;cursor:pointer;background:transparent;flex:none;"
+               oninput="if(dirLight2)dirLight2.color.set(this.value); updateColorReset('lightFillColor','lightFillReset','#ffffff')">
+        <span id="lightFillReset" class="color-reset" title="Reset color"
+              onclick="document.getElementById('lightFillColor').value='#ffffff'; if(dirLight2)dirLight2.color.set('#ffffff'); updateColorReset('lightFillColor','lightFillReset','#ffffff');">↺</span>
         <input type="range" id="lightFill" min="0" max="2" step="0.05" value="0.4"
                style="flex:1;" oninput="if(dirLight2)dirLight2.intensity=parseFloat(this.value); document.getElementById('lightFillVal').textContent=parseFloat(this.value).toFixed(2)">
         <span id="lightFillVal" class="info-text" style="min-width:28px;text-align:right;color:#fbbf24;">0.40</span>
@@ -2075,7 +2174,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
                style="flex:1;" oninput="emissiveGlowOffset=parseFloat(this.value); applyEmissiveGlow(); document.getElementById('emissiveGlowVal').textContent=(emissiveGlowOffset>=0?'+':'')+emissiveGlowOffset.toFixed(2)">
         <span id="emissiveGlowVal" class="info-text" style="min-width:36px;text-align:right;color:#fbbf24;">+0.00</span>
       </div>
-      <button class="btn-action" onclick="document.getElementById('lightAmbient').value=0.6; document.getElementById('lightKey').value=0.8; document.getElementById('lightFill').value=0.4; if(ambientLight)ambientLight.intensity=0.6; if(dirLight1)dirLight1.intensity=0.8; if(dirLight2)dirLight2.intensity=0.4; document.getElementById('lightAmbVal').textContent='0.60'; document.getElementById('lightKeyVal').textContent='0.80'; document.getElementById('lightFillVal').textContent='0.40'; if(emissiveEnabled){{toggleEmissive();}} emissiveGlowOffset=0; document.getElementById('emissiveGlowSlider').value=0; document.getElementById('emissiveGlowVal').textContent='+0.00'; if(!fxoShadersEnabled){{setFxoShaders(true);}} document.getElementById('swFxo').checked=true;">🔄 Reset Lights</button>
+      <button class="btn-action" onclick="document.getElementById('lightAmbient').value=0.6; document.getElementById('lightKey').value=0.8; document.getElementById('lightFill').value=0.4; if(ambientLight){{ambientLight.intensity=0.6;ambientLight.color.set('#ffffff');}} if(dirLight1){{dirLight1.intensity=0.8;dirLight1.color.set('#ffffff');}} if(dirLight2){{dirLight2.intensity=0.4;dirLight2.color.set('#ffffff');}} document.getElementById('lightAmbVal').textContent='0.60'; document.getElementById('lightKeyVal').textContent='0.80'; document.getElementById('lightFillVal').textContent='0.40'; document.getElementById('lightAmbColor').value='#ffffff'; document.getElementById('lightKeyColor').value='#ffffff'; document.getElementById('lightFillColor').value='#ffffff'; updateColorReset('lightAmbColor','lightAmbReset','#ffffff'); updateColorReset('lightKeyColor','lightKeyReset','#ffffff'); updateColorReset('lightFillColor','lightFillReset','#ffffff'); if(emissiveEnabled){{toggleEmissive();}} emissiveGlowOffset=0; document.getElementById('emissiveGlowSlider').value=0; document.getElementById('emissiveGlowVal').textContent='+0.00'; if(!fxoShadersEnabled){{setFxoShaders(true);}} document.getElementById('swFxo').checked=true;">🔄 Reset Lights</button>
     </div>
 
     
@@ -2261,6 +2360,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     const bindMatricesData = {bind_matrices_json};
     const animationsData = {animations_json};
 
+    {ground_tex_js}
     const CONFIG = {{
       INITIAL_BACKGROUND: 0x1a1a2e,
       CAMERA_ZOOM: 1.5,
@@ -2654,6 +2754,14 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
     let tpCamPhi = 1.2;        // slight top-down angle
     let tpCamDist = 1;
     let groundGrid = null;
+    let gridVisible = true;
+    let skyDomeEnabled = false;
+    let skyDomeMesh = null;
+    let skyScene = null;
+    let skyCamera = null;
+    let skyGroundPlane = null;
+    let savedBgColor = null;
+    let savedCameraFar = null;
     let tpAutoAnimWalk = null;
     let tpAutoAnimIdle = null;
     let tpCurrentAutoAnim = null;
@@ -5204,6 +5312,403 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       updateStats();
     }}
 
+    function setBgColor(hex) {{
+      scene.background = new THREE.Color(hex);
+      const label = document.getElementById('bgColorLabel');
+      if (label) label.textContent = hex;
+    }}
+
+    function createSkyDome() {{
+      const geo = new THREE.SphereGeometry(10, 64, 32);
+      const mat = new THREE.ShaderMaterial({{
+        side: THREE.BackSide,
+        depthWrite: false,
+        uniforms: {{
+          uSunDir: {{ value: new THREE.Vector3(5, 10, 7).normalize() }},
+          uTime: {{ value: 0.0 }}
+        }},
+        vertexShader: `
+          varying vec3 vDir;
+          varying vec3 vWorldPos;
+          void main() {{
+            vDir = normalize(position);
+            vWorldPos = position;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }}
+        `,
+        fragmentShader: `
+          uniform vec3 uSunDir;
+          uniform float uTime;
+          varying vec3 vDir;
+          varying vec3 vWorldPos;
+
+          // ── Noise functions ──
+          float hash(vec2 p) {{
+            return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+          }}
+          float hash3(vec3 p) {{
+            return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
+          }}
+          float noise(vec2 p) {{
+            vec2 i = floor(p);
+            vec2 f = fract(p);
+            f = f * f * (3.0 - 2.0 * f);
+            return mix(mix(hash(i), hash(i + vec2(1,0)), f.x),
+                       mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y);
+          }}
+          float fbm(vec2 p) {{
+            float v = 0.0, a = 0.5;
+            mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);
+            for (int i = 0; i < 6; i++) {{
+              v += a * noise(p);
+              p = rot * p * 2.0;
+              a *= 0.5;
+            }}
+            return v;
+          }}
+          float fbm4(vec2 p) {{
+            float v = 0.0, a = 0.5;
+            mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);
+            for (int i = 0; i < 4; i++) {{
+              v += a * noise(p);
+              p = rot * p * 2.0;
+              a *= 0.5;
+            }}
+            return v;
+          }}
+
+          // ── Terrain height ──
+          float terrainHeight(vec2 p) {{
+            float h = 0.0;
+            // Rolling hills
+            h += fbm(p * 0.3) * 0.6;
+            // Distant mountains
+            float mtn = fbm(p * 0.08 + vec2(3.7, 1.2));
+            mtn = pow(max(mtn - 0.35, 0.0), 1.5) * 4.0;
+            h += mtn;
+            return h;
+          }}
+
+          // ── River path (sinuous curve) ──
+          float riverDist(vec2 p) {{
+            float river = p.x - sin(p.y * 0.15) * 3.0 - cos(p.y * 0.07) * 5.0 + 2.0;
+            return abs(river);
+          }}
+
+          // ── Dirt path ──
+          float pathDist(vec2 p) {{
+            float path = p.y + sin(p.x * 0.2) * 2.5 + cos(p.x * 0.08) * 4.0;
+            return abs(path);
+          }}
+
+          // ── Tree placement ──
+          float trees(vec2 p) {{
+            vec2 cell = floor(p * 1.5);
+            vec2 local = fract(p * 1.5) - 0.5;
+            float h = hash(cell);
+            if (h < 0.35) return 0.0; // density control
+            vec2 offset = vec2(hash(cell + 0.5) - 0.5, hash(cell + 1.5) - 0.5) * 0.6;
+            float d = length(local - offset);
+            float size = 0.15 + h * 0.12;
+            return smoothstep(size, size * 0.3, d);
+          }}
+
+          void main() {{
+            vec3 dir = normalize(vDir);
+            float y = dir.y;
+
+            // ── Sky ──
+            vec3 zenith = vec3(0.15, 0.28, 0.72);
+            vec3 horizonCol = vec3(0.52, 0.68, 0.88);
+            vec3 sunWarm = vec3(0.9, 0.78, 0.55);
+
+            float t = max(y, 0.0);
+            vec3 sky = mix(horizonCol, zenith, pow(t, 0.5));
+
+            // Sun influence on horizon
+            float sunH = dot(normalize(vec3(dir.x, 0.0, dir.z)),
+                            normalize(vec3(uSunDir.x, 0.0, uSunDir.z)));
+            sky = mix(sky, sunWarm, pow(max(sunH, 0.0), 4.0) * (1.0 - t) * 0.4);
+
+            // Sun disc + glow
+            float sd = max(dot(dir, uSunDir), 0.0);
+            sky += vec3(1.0, 0.97, 0.85) * pow(sd, 800.0) * 4.0;
+            sky += vec3(1.0, 0.85, 0.55) * pow(sd, 80.0) * 0.5;
+            sky += vec3(0.9, 0.65, 0.3) * pow(sd, 8.0) * 0.12;
+
+            // ── Clouds — layered ──
+            if (y > -0.08) {{
+              vec2 uv = dir.xz / (y + 0.12) * 1.8;
+
+              // High thin cirrus
+              float cirrus = fbm4((uv + uTime * 0.005) * 0.3);
+              cirrus = smoothstep(0.45, 0.7, cirrus) * 0.25;
+
+              // Main cumulus
+              float cloud = fbm((uv + uTime * 0.008) * 0.6);
+              cloud = smoothstep(0.38, 0.68, cloud);
+              float cloudAlpha = cloud * smoothstep(-0.08, 0.12, y) * 0.75;
+
+              // Cloud lighting
+              vec3 cloudBright = mix(vec3(0.97, 0.97, 1.0), vec3(1.0, 0.95, 0.85), pow(sd, 4.0) * 0.6);
+              vec3 cloudDark = vec3(0.55, 0.55, 0.62);
+              vec3 cloudCol = mix(cloudDark, cloudBright, smoothstep(0.3, 0.65, cloud));
+
+              sky = mix(sky, cloudCol, cloudAlpha);
+              sky = mix(sky, vec3(0.9, 0.92, 0.96), cirrus * smoothstep(-0.08, 0.2, y));
+            }}
+
+            // ── Ground ──
+            if (y < 0.03) {{
+              float gnd = smoothstep(0.03, -0.015, y);
+              vec2 gp = dir.xz / max(abs(y) + 0.005, 0.005);
+              float dist = length(gp);
+
+              // Terrain height for color variation
+              float th = terrainHeight(gp * 0.05);
+
+              // Base grass colors
+              vec3 grassA = vec3(0.22, 0.40, 0.12);
+              vec3 grassB = vec3(0.28, 0.45, 0.18);
+              vec3 grassC = vec3(0.35, 0.50, 0.20);
+              float grassNoise = fbm4(gp * 0.15);
+              vec3 grass = mix(grassA, grassB, grassNoise);
+              grass = mix(grass, grassC, smoothstep(0.4, 0.7, grassNoise));
+
+              // Grass detail texture
+              float detail = noise(gp * 2.0) * 0.1;
+              grass += detail * vec3(0.05, 0.08, 0.02);
+
+              // Mountain/hill coloring
+              vec3 rock = vec3(0.42, 0.38, 0.32);
+              vec3 snow = vec3(0.92, 0.93, 0.95);
+              vec3 mtnCol = mix(rock, snow, smoothstep(1.8, 2.8, th));
+              mtnCol = mix(grass, mtnCol, smoothstep(0.8, 1.5, th));
+
+              vec3 groundCol = mix(grass, mtnCol, smoothstep(0.5, 1.2, th));
+
+              // ── River ──
+              float rv = riverDist(gp * 0.05);
+              float riverWidth = 1.2 + sin(gp.y * 0.003) * 0.3;
+              float riverMask = smoothstep(riverWidth, riverWidth * 0.3, rv);
+
+              vec3 waterDeep = vec3(0.1, 0.22, 0.38);
+              vec3 waterShallow = vec3(0.15, 0.35, 0.45);
+              float waterNoise = noise(gp * 0.3 + uTime * 0.15);
+              vec3 waterCol = mix(waterDeep, waterShallow, waterNoise * 0.5 + 0.3);
+              // Specular glint on water
+              float waterSpec = pow(max(sd, 0.0), 32.0) * riverMask * 0.3;
+              waterCol += vec3(waterSpec);
+              // River bank - darker earth
+              vec3 riverBank = vec3(0.2, 0.18, 0.12);
+              float bankMask = smoothstep(riverWidth * 1.8, riverWidth, rv);
+              groundCol = mix(groundCol, riverBank, bankMask * 0.4);
+              groundCol = mix(groundCol, waterCol, riverMask);
+
+              // ── Dirt path ──
+              float pt = pathDist(gp * 0.05);
+              float pathWidth = 0.5 + noise(gp * 0.01) * 0.2;
+              float pathMask = smoothstep(pathWidth, pathWidth * 0.2, pt);
+              vec3 dirtCol = vec3(0.45, 0.36, 0.24);
+              vec3 dirtVar = vec3(0.50, 0.40, 0.28);
+              vec3 dirt = mix(dirtCol, dirtVar, noise(gp * 0.5));
+              groundCol = mix(groundCol, dirt, pathMask * (1.0 - riverMask));
+
+              // ── Trees ──
+              float treeMask = trees(gp * 0.04);
+              // No trees on river, path, or high mountains
+              treeMask *= (1.0 - riverMask) * (1.0 - pathMask * 0.8);
+              treeMask *= smoothstep(1.5, 0.8, th);
+              vec3 treeCol = mix(vec3(0.12, 0.28, 0.08), vec3(0.08, 0.22, 0.05),
+                                noise(gp * 0.8));
+              groundCol = mix(groundCol, treeCol, treeMask * 0.85);
+
+              // ── Sun shadow on ground ──
+              float sunGnd = max(dot(vec3(0, 1, 0), uSunDir), 0.0);
+              groundCol *= 0.7 + 0.3 * sunGnd;
+
+              // Aerial perspective (haze with distance)
+              vec3 hazeCol = horizonCol * 0.85;
+              groundCol = mix(groundCol, hazeCol, smoothstep(40.0, 500.0, dist));
+
+              sky = mix(sky, groundCol, gnd);
+            }}
+
+            // ── Horizon haze ──
+            float haze = 1.0 - abs(y);
+            sky = mix(sky, horizonCol * 0.92, pow(haze, 14.0) * 0.5);
+
+            // Tone mapping (soft)
+            sky = sky / (sky + 0.8) * 1.2;
+
+            gl_FragColor = vec4(sky, 1.0);
+          }}
+        `
+      }});
+      mat.userData.isSkyDome = true;
+      const mesh = new THREE.Mesh(geo, mat);
+      return mesh;
+    }}
+
+    function createGroundPlane(yPos) {{
+      const size = 200;
+      const geo = new THREE.PlaneGeometry(size, size, 1, 1);
+
+      // Placeholder material — will be upgraded when textures load
+      const mat = new THREE.MeshStandardMaterial({{
+        color: 0x3a5a2a,
+        roughness: 0.9,
+        metalness: 0.0,
+        side: THREE.FrontSide
+      }});
+
+      const plane = new THREE.Mesh(geo, mat);
+      plane.rotation.x = -Math.PI / 2;
+      plane.position.y = yPos;
+      plane.receiveShadow = true;
+      plane.renderOrder = -999;
+
+      // Load PBR textures if available
+      if (GROUND_TEX_DIFF) {{
+        const repeat = 18;
+        const aniso = renderer.capabilities.getMaxAnisotropy();
+        const groundTexLoader = new THREE.TextureLoader();
+        const loadGroundTex = (url) => new Promise((resolve, reject) => {{
+          groundTexLoader.load(url, (tex) => {{
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.minFilter = THREE.LinearMipmapLinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            tex.generateMipmaps = true;
+            tex.needsUpdate = true;
+            resolve(tex);
+          }}, undefined, (err) => {{
+            console.error('Ground texture load failed:', url, err);
+            reject(err);
+          }});
+        }});
+        Promise.all([
+          loadGroundTex(GROUND_TEX_DIFF),
+          loadGroundTex(GROUND_TEX_NORMAL),
+          loadGroundTex(GROUND_TEX_ARM)
+        ]).then(([diffTex, normTex, armTex]) => {{
+          [diffTex, normTex, armTex].forEach(t => {{ t.repeat.set(repeat, repeat); t.anisotropy = aniso; }});
+          if (THREE.SRGBColorSpace) diffTex.colorSpace = THREE.SRGBColorSpace;
+          else if (THREE.sRGBEncoding !== undefined) diffTex.encoding = THREE.sRGBEncoding;
+          mat.map = diffTex;
+          mat.normalMap = normTex;
+          // ARM packed texture: R=AO, G=Roughness, B=Metalness
+          mat.roughnessMap = armTex;
+          mat.roughness = 1.0;
+          mat.metalnessMap = armTex;
+          mat.metalness = 1.0;
+          // AO from R channel - needs uv2, copy from uv1
+          if (plane.geometry.attributes.uv) {{
+            plane.geometry.setAttribute('uv2', plane.geometry.attributes.uv);
+            mat.aoMap = armTex;
+            mat.aoMapIntensity = 1.0;
+          }}
+          mat.color.set(0xffffff);
+          mat.needsUpdate = true;
+          console.log('Ground PBR textures loaded OK');
+        }}).catch(err => {{
+          console.warn('Ground texture loading failed, keeping procedural color:', err);
+        }});
+      }}
+
+      return plane;
+    }}
+
+    function toggleSkyDome() {{
+      skyDomeEnabled = !skyDomeEnabled;
+      const sw = document.getElementById('swSkyDome');
+      if (sw) sw.checked = skyDomeEnabled;
+
+      if (skyDomeEnabled) {{
+        // Save current bg color
+        savedBgColor = '#' + scene.background.getHexString();
+        // Create sky scene + camera (rendered separately, no clipping issues)
+        skyScene = new THREE.Scene();
+        skyCamera = new THREE.PerspectiveCamera(camera.fov, camera.aspect, 0.1, 20);
+        // Create/recreate sky dome
+        if (skyDomeMesh) {{
+          skyDomeMesh.geometry.dispose();
+          skyDomeMesh.material.dispose();
+        }}
+        skyDomeMesh = createSkyDome();
+        skyScene.add(skyDomeMesh);
+
+        // Create ground plane at model feet (stays in main scene for depth)
+        if (skyGroundPlane) {{
+          scene.remove(skyGroundPlane);
+          skyGroundPlane.geometry.dispose();
+          skyGroundPlane.material.dispose();
+        }}
+        const box = new THREE.Box3();
+        meshes.filter(m => m.visible).forEach(m => box.expandByObject(m));
+        if (box.isEmpty()) meshes.forEach(m => box.expandByObject(m));
+        const groundY = box.isEmpty() ? 0 : box.min.y;
+        skyGroundPlane = createGroundPlane(groundY);
+        scene.add(skyGroundPlane);
+
+        scene.background = null;
+        renderer.setClearColor(0x000000, 0);
+        // Extend camera far to see ground plane
+        savedCameraFar = camera.far;
+        camera.far = Math.max(camera.far, 500);
+        camera.updateProjectionMatrix();
+      }} else {{
+        // Remove sky scene
+        skyScene = null;
+        skyCamera = null;
+        if (skyDomeMesh) {{
+          skyDomeMesh.geometry.dispose();
+          skyDomeMesh.material.dispose();
+          skyDomeMesh = null;
+        }}
+        // Remove ground plane
+        if (skyGroundPlane) {{
+          scene.remove(skyGroundPlane);
+          skyGroundPlane.geometry.dispose();
+          skyGroundPlane.material.dispose();
+          skyGroundPlane = null;
+        }}
+        // Restore bg color
+        const hex = savedBgColor || '#1a1a2e';
+        scene.background = new THREE.Color(hex);
+        renderer.autoClear = true;
+        // Restore camera far
+        if (savedCameraFar) {{
+          camera.far = savedCameraFar;
+          camera.updateProjectionMatrix();
+          savedCameraFar = null;
+        }}
+        document.getElementById('bgColorPicker').value = hex;
+        const label = document.getElementById('bgColorLabel');
+        if (label) label.textContent = hex;
+        updateColorReset('bgColorPicker','bgColorReset','#1a1a2e');
+      }}
+    }}
+
+    function updateColorReset(pickerId, resetId, defaultVal) {{
+      const picker = document.getElementById(pickerId);
+      const reset = document.getElementById(resetId);
+      if (picker && reset) {{
+        if (picker.value.toLowerCase() !== defaultVal.toLowerCase()) {{
+          reset.classList.add('active');
+        }} else {{
+          reset.classList.remove('active');
+        }}
+      }}
+    }}
+
+    function toggleGridVisible() {{
+      gridVisible = !gridVisible;
+      if (groundGrid) groundGrid.visible = gridVisible;
+      const sw = document.getElementById('swGrid');
+      if (sw) sw.checked = gridVisible;
+    }}
+
     function setFxoShaders(enabled) {{
       fxoShadersEnabled = enabled;
       meshes.forEach(m => {{
@@ -5842,6 +6347,7 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       const gridDivs = 120;
       groundGrid = new THREE.GridHelper(gridSize, gridDivs, 0x444466, 0x333355);
       groundGrid.position.y = box.min.y;
+      groundGrid.visible = gridVisible;
       scene.add(groundGrid);
       
       // Try to find walk/idle animations
@@ -6840,7 +7346,14 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       
       if (scale <= 1) {{
         // Native: just capture current frame
-        renderer.render(scene, camera);
+        if (skyDomeEnabled && skyScene && skyCamera && skyDomeMesh) {{
+          renderer.autoClear = false;
+          renderer.clear();
+          renderer.render(skyScene, skyCamera);
+          renderer.render(scene, camera);
+        }} else {{
+          renderer.render(scene, camera);
+        }}
         const tmpCanvas = document.createElement('canvas');
         tmpCanvas.width = renderer.domElement.width;
         tmpCanvas.height = renderer.domElement.height;
@@ -6888,7 +7401,27 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
       if (bones.length > 0) bones[0].updateMatrixWorld(true);
       if (skeleton) skeleton.update();
       
-      renderer.render(scene, camera);
+      // Update sky ground plane
+
+      
+      // Render: sky scene first, then main scene
+      if (skyDomeEnabled && skyScene && skyCamera && skyDomeMesh) {{
+        skyDomeMesh.material.uniforms.uTime.value = performance.now() * 0.001;
+        skyCamera.quaternion.copy(camera.quaternion);
+        skyCamera.fov = camera.fov;
+        skyCamera.aspect = camera.aspect;
+        skyCamera.updateProjectionMatrix();
+        if (camera.far < 500) {{
+          camera.far = 500;
+          camera.updateProjectionMatrix();
+        }}
+        renderer.autoClear = false;
+        renderer.clear();
+        renderer.render(skyScene, skyCamera);
+        renderer.render(scene, camera);
+      }} else {{
+        renderer.render(scene, camera);
+      }}
       
       // Composite render + overlays at actual render resolution
       const renderCanvas = document.createElement('canvas');
@@ -7685,7 +8218,27 @@ def generate_html_with_skeleton(mdl_path: Path, meshes: list, material_texture_m
         }}
       }});
 
-      renderer.render(scene, camera);
+
+      // Render: sky scene first (separate pass), then main scene
+      if (skyDomeEnabled && skyScene && skyCamera && skyDomeMesh) {{
+        skyDomeMesh.material.uniforms.uTime.value = clock.elapsedTime;
+        skyCamera.quaternion.copy(camera.quaternion);
+        skyCamera.fov = camera.fov;
+        skyCamera.aspect = camera.aspect;
+        skyCamera.updateProjectionMatrix();
+        // Ensure camera.far can see ground plane
+        if (camera.far < 500) {{
+          camera.far = 500;
+          camera.updateProjectionMatrix();
+        }}
+        renderer.autoClear = false;
+        renderer.clear();
+        renderer.render(skyScene, skyCamera);
+        renderer.render(scene, camera);
+      }} else {{
+        renderer.autoClear = true;
+        renderer.render(scene, camera);
+      }}
       
       // Composite frame for video recording (WebGL + bone names overlay)
       if (mediaRecorder && mediaRecorder.state === 'recording') {{
@@ -8100,7 +8653,7 @@ def main():
     html_content = generate_html_with_skeleton(
         mdl_path, meshes, material_texture_map, skeleton_data, model_info, debug_mode, bind_matrices,
         animations_data=animations_data, skip_popup=skip_popup, no_shaders=no_shaders,
-        recompute_normals=recompute_normals
+        recompute_normals=recompute_normals, temp_dir=temp_dir
     )
 
     # Save HTML to temp
