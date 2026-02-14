@@ -15,3 +15,7 @@ Alternative
 With ICO
 "c:\Program Files\Python311\python.exe" -m PyInstaller --onefile --icon=app.ico --add-data "three.min.js;." viewer_mdl_textured_anim.py
 set /p DUMMY=Hit ENTER to continue...
+
+With background
+"c:\Program Files\Python311\python.exe" -m PyInstaller --onefile --icon=app.ico --add-data "three.min.js;." --add-data "ground_arm.png;." --add-data "ground_diff.png;." --add-data "ground_nor_gl.png;." viewer_mdl_textured_anim.py
+set /p DUMMY=Hit ENTER to continue...
