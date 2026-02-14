@@ -175,6 +175,25 @@ def is_valid_kurodlc_structure(data: Dict) -> bool:
     
     return False
 
+def get_available_sections(data: Dict) -> Dict[str, str]:
+    """
+    Detect which extractable sections are present in the data.
+    
+    Returns:
+        Dict mapping mode name to section name, e.g. {"shop": "ShopItem", "costume": "CostumeParam"}
+    """
+    section_map = {
+        "shop": "ShopItem",
+        "costume": "CostumeParam",
+        "item": "ItemTableData",
+        "dlc": "DLCTableData",
+    }
+    available = {}
+    for mode, section in section_map.items():
+        if section in data and isinstance(data[section], list) and len(data[section]) > 0:
+            available[mode] = section
+    return available
+
 def extract_ids_by_mode(data: Dict, modes: Set[str]) -> Tuple[List[int], List[str]]:
     """
     Extract IDs based on selected modes.
@@ -285,7 +304,18 @@ def generate_template_config(json_file: str, data: Dict, modes: Set[str],
     unique_item_ids = sorted(set(all_ids))
     
     if not unique_item_ids:
-        print("Error: No item IDs found in selected sections.")
+        available = get_available_sections(data)
+        requested_str = ", ".join(sorted(modes))
+        if available:
+            available_str = ", ".join(sorted(available.keys()))
+            print(f"Error: No item IDs found in requested sections: {requested_str}")
+            print(f"Available sections in this file: {available_str}")
+            print(f"\nTry using one of these modes instead:")
+            print(f"  python {os.path.basename(__file__)} {json_file} --generate-template {available_str.split(', ')[0]}")
+            if "all" not in modes:
+                print(f"  python {os.path.basename(__file__)} {json_file} --generate-template all")
+        else:
+            print("Error: No extractable sections found in this file.")
         sys.exit(1)
     
     # Determine shop IDs
@@ -528,6 +558,14 @@ def main():
             for line in extraction_summary:
                 print(f"#   {line}", file=sys.stderr)
             print(f"# Total unique IDs: {len(unique_item_ids)}", file=sys.stderr)
+            print("", file=sys.stderr)
+        elif not unique_item_ids:
+            available = get_available_sections(data)
+            requested_str = ", ".join(sorted(requested_modes))
+            print(f"# Warning: No IDs found in requested sections: {requested_str}", file=sys.stderr)
+            if available:
+                available_str = ", ".join(sorted(available.keys()))
+                print(f"# Available sections in this file: {available_str}", file=sys.stderr)
             print("", file=sys.stderr)
         
         # Print result to stdout
