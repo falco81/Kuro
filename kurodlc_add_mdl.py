@@ -711,6 +711,7 @@ def print_usage():
         "  --max-id=N          Maximum ID for search range (default: 5000)\n"
         "  --no-interactive    Auto-select sources without prompting\n"
         "  --no-backup         Skip backup creation when applying\n"
+        "  --no-ascii-escape   Write UTF-8 directly (e.g. Agnès instead of Agn\\u00e8s)\n"
         "  --help              Show this help message\n"
         "\n"
         "Required files (in same directory as kurodlc.json):\n"
@@ -758,6 +759,7 @@ def main():
     max_id = 5000
     no_interactive = False
     do_backup = True
+    ensure_ascii = True
 
     args = sys.argv[2:]
 
@@ -788,6 +790,8 @@ def main():
             no_interactive = True
         elif arg == '--no-backup':
             do_backup = False
+        elif arg == '--no-ascii-escape':
+            ensure_ascii = False
         elif arg.startswith('--'):
             print(f"Error: Unknown option '{arg}'")
             sys.exit(1)
@@ -1064,7 +1068,7 @@ def main():
 
     try:
         with open(json_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
+            json.dump(data, f, indent=4, ensure_ascii=ensure_ascii)
         print(f"Written: {json_file}")
         print(f"\nDone! {len(resolved)} new MDL(s) added successfully.")
         print(f"\nReminder: Review generated item names in ItemTableData")
