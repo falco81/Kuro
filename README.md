@@ -1227,9 +1227,6 @@ For comprehensive, in-depth documentation see:
 
 **[ADVANCED_DOCUMENTATION.md](doc/ADVANCED_DOCUMENTATION.md)** — Complete parameter reference, real data examples, data structure specs, advanced workflows
 
-**[NEW_FEATURES_DOCUMENTATION.md](doc/NEW_FEATURES_DOCUMENTATION.md)** — Visualization guide, 3D model viewer guide
-
-**[viewer_mdl_textured_config.md](viewer_mdl/viewer_mdl_textured_config.md)** — Viewer configuration (camera zoom, shadow hiding, background colors)
 
 **Quick links:**
 - [Script Parameter Reference](doc/ADVANCED_DOCUMENTATION.md#script-reference)
