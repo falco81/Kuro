@@ -6,3 +6,4 @@ python -m PyInstaller --onefile --add-data "kurodlc_schema.json;." resolve_id_co
 python -m PyInstaller --onefile --add-data "kurodlc_schema.json;." shops_create.py
 python -m PyInstaller --onefile --add-data "kurodlc_schema.json;." shops_find_unique_item_id_from_kurodlc.py
 python -m PyInstaller --onefile --add-data "kurodlc_schema.json;." kurodlc_add_mdl.py
+python -m PyInstaller --onefile --add-data "kurodlc_schema.json;." shops_replace_in_kurodlc.py
