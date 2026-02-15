@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
-kurodlc_add_mdl.py - v2.1
+kurodlc_add_mdl.py - v2.2
 
 Scan directory for .mdl files not present in a .kurodlc.json file and add
 complete entries (CostumeParam, ItemTableData, DLCTableData, ShopItem) for each.
 
+If the target .kurodlc.json file does not exist, creates it from scratch.
+When creating a new DLCTableData record, uses t_dlc data for DLC ID assignment.
+
 Uses t_name data for character identification (char_restrict and character names).
 Uses t_item data + existing .kurodlc.json files for smart ID assignment.
+Uses t_dlc data (optional) for DLC ID validation and available ID suggestion.
 
 NEW in v2.0: Smart ID Assignment
 - Searches for free IDs in range 1-5000 (safe game limit)
@@ -537,6 +541,326 @@ def collect_all_used_ids(base_dir, items_dict, exclude_file=None):
 
 
 # =========================================================================
+# DLC ID management (t_dlc)
+# =========================================================================
+
+DLC_ID_MIN = 1
+DLC_ID_MAX = 350
+
+
+def load_dlc_ids_from_source(base_dir, source_type, source_path):
+    """
+    Load used DLC IDs from a t_dlc source.
+    Returns dict {dlc_id: dlc_name} or None on failure.
+    Handles both JSON generic fields (int1/text1) and named fields (id/name).
+    """
+    # Determine section name (Kuro uses DLCTableData, Ys X uses DLCTable)
+    section_names = ['DLCTableData', 'DLCTable']
+
+    raw_data = None
+    section_used = None
+
+    if source_type == 'json':
+        json_path = os.path.join(base_dir, 't_dlc.json')
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                jdata = json.load(f)
+            if isinstance(jdata, dict):
+                # Structure: {"data": [{"name": "DLCTableData", "data": [...]}]}
+                if "data" in jdata and isinstance(jdata["data"], list):
+                    for section in jdata["data"]:
+                        if section.get("name") in section_names:
+                            raw_data = section.get("data", [])
+                            section_used = section.get("name")
+                            break
+                # Structure: {"DLCTableData": [...]}
+                if raw_data is None:
+                    for sn in section_names:
+                        if sn in jdata:
+                            raw_data = jdata[sn]
+                            section_used = sn
+                            break
+        except Exception:
+            return None
+
+    elif source_type in ('tbl', 'original'):
+        if not HAS_LIBS:
+            return None
+        ext = '.tbl.original' if source_type == 'original' else '.tbl'
+        tbl_path = os.path.join(base_dir, f't_dlc{ext}')
+        try:
+            kt = kuro_tables()
+            table = kt.read_table(tbl_path)
+            if isinstance(table, dict):
+                for sn in section_names:
+                    if sn in table:
+                        raw_data = table[sn]
+                        section_used = sn
+                        break
+        except Exception:
+            return None
+
+    elif source_type in ('p3a', 'zzz'):
+        if not HAS_LIBS:
+            return None
+        temp_file = os.path.join(base_dir, 't_dlc.tbl.tmp')
+        try:
+            if not extract_from_p3a(source_path, 't_dlc.tbl', temp_file):
+                return None
+            kt = kuro_tables()
+            table = kt.read_table(temp_file)
+            if isinstance(table, dict):
+                for sn in section_names:
+                    if sn in table:
+                        raw_data = table[sn]
+                        section_used = sn
+                        break
+        except Exception:
+            return None
+        finally:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+
+    if not raw_data:
+        return None
+
+    # Build {id: name} dict handling both field naming conventions
+    dlc_dict = {}
+    for entry in raw_data:
+        if not isinstance(entry, dict):
+            continue
+        # Named fields (from tbl via kurodlc_lib)
+        if 'id' in entry:
+            dlc_id = entry['id']
+            dlc_name = entry.get('name', entry.get('text1', f'DLC #{dlc_id}'))
+        # Generic fields (from JSON)
+        elif 'int1' in entry:
+            dlc_id = entry['int1']
+            dlc_name = entry.get('text1', f'DLC #{dlc_id}')
+        else:
+            continue
+        dlc_dict[int(dlc_id)] = dlc_name
+
+    return dlc_dict
+
+
+def detect_t_dlc_sources(base_dir):
+    """Detect available t_dlc sources. Returns list of (type, path)."""
+    sources = []
+    candidates = [
+        ('json',     't_dlc.json'),
+        ('original', 't_dlc.tbl.original'),
+        ('tbl',      't_dlc.tbl'),
+        ('p3a',      'script_en.p3a'),
+        ('p3a',      'script_eng.p3a'),
+        ('zzz',      'zzz_combined_tables.p3a'),
+    ]
+    for stype, fname in candidates:
+        fpath = os.path.join(base_dir, fname)
+        if os.path.exists(fpath):
+            sources.append((stype, fpath))
+    return sources
+
+
+def load_t_dlc_data(base_dir, source_type=None, source_path=None, no_interactive=False):
+    """
+    Load t_dlc data. Returns {dlc_id: dlc_name} dict or None.
+    
+    If source_type/source_path are provided (from unified source selection),
+    uses those. Otherwise detects sources independently.
+    Silently returns None if unavailable (graceful fallback).
+    """
+    if source_type and source_path:
+        # Use the same source as t_name/t_item
+        result = load_dlc_ids_from_source(base_dir, source_type, source_path)
+        if result:
+            return result
+        # Fallback: try t_dlc-specific sources
+    
+    sources = detect_t_dlc_sources(base_dir)
+    if not sources:
+        return None
+
+    # Filter usable sources
+    usable = []
+    for stype, path in sources:
+        if stype == 'json':
+            usable.append((stype, path))
+        elif HAS_LIBS:
+            usable.append((stype, path))
+    if not usable:
+        return None
+
+    # Select source
+    if len(usable) == 1 or no_interactive:
+        stype, path = usable[0]
+    else:
+        print(f"\nMultiple t_dlc sources detected. Select source:")
+        for i, (st, p) in enumerate(usable, 1):
+            basename = os.path.basename(p)
+            if st in ('p3a', 'zzz'):
+                print(f"  {i}) {basename} (extract t_dlc.tbl)")
+            else:
+                print(f"  {i}) {basename}")
+        while True:
+            try:
+                choice = input(f"Enter choice [1-{len(usable)}]: ").strip()
+                if choice.isdigit() and 1 <= int(choice) <= len(usable):
+                    stype, path = usable[int(choice) - 1]
+                    break
+                print("Invalid choice, try again.")
+            except (EOFError, KeyboardInterrupt):
+                return None
+
+    return load_dlc_ids_from_source(base_dir, stype, path)
+
+
+def collect_used_dlc_ids(base_dir, t_dlc_dict=None):
+    """
+    Collect all used DLC IDs from:
+    1. t_dlc game data (if available)
+    2. All .kurodlc.json files in the directory
+    
+    Returns set of used DLC IDs.
+    """
+    used = set()
+
+    if t_dlc_dict:
+        used.update(t_dlc_dict.keys())
+
+    for fname in os.listdir(base_dir):
+        if not fname.lower().endswith('.kurodlc.json'):
+            continue
+        if '.bak' in fname.lower():
+            continue
+        fpath = os.path.join(base_dir, fname)
+        if not os.path.isfile(fpath):
+            continue
+        try:
+            with open(fpath, 'r', encoding='utf-8') as f:
+                fdata = json.load(f)
+            if 'DLCTableData' in fdata:
+                for dlc in fdata['DLCTableData']:
+                    if isinstance(dlc, dict) and 'id' in dlc:
+                        used.add(int(dlc['id']))
+        except Exception:
+            continue
+
+    return used
+
+
+def find_available_dlc_id(used_dlc_ids, min_id=DLC_ID_MIN, max_id=DLC_ID_MAX):
+    """
+    Find an available DLC ID in range [min_id, max_id).
+    Strategy: start after highest used ID within range, then wrap around.
+    
+    Returns int or None if no IDs available.
+    """
+    if not used_dlc_ids:
+        return min_id + 1
+
+    # Find highest used ID within range
+    ids_in_range = [i for i in used_dlc_ids if min_id <= i < max_id]
+    if ids_in_range:
+        start = max(ids_in_range) + 1
+    else:
+        start = min_id
+
+    # Search forward from start
+    for i in range(start, max_id):
+        if i not in used_dlc_ids:
+            return i
+
+    # Wrap: search from min_id to start
+    for i in range(min_id, start):
+        if i not in used_dlc_ids:
+            return i
+
+    return None
+
+
+def search_tdlc_interactive(dlc_dict, used_dlc_ids=None):
+    """
+    Interactive search mode for t_dlc data.
+    Supports same search syntax as find_all_shops.py / shops_replace:
+      id:NUMBER   - exact ID match
+      name:TEXT   - search in DLC names (even if TEXT is a number)
+      NUMBER      - auto: exact ID lookup + partial ID match
+      TEXT        - auto: name search
+    
+    Also marks IDs as [USED] if in used_dlc_ids from .kurodlc.json files
+    but not in t_dlc itself.
+    """
+    print(f"\n  === DLC search ({len(dlc_dict)} entries) ===")
+    print(f"  id:N = exact ID | name:TEXT = name search | or just type")
+    print(f"  Empty line returns to DLC ID input.\n")
+
+    while True:
+        try:
+            query = input("  search> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return
+
+        if not query:
+            return
+
+        results = []
+
+        if query.startswith('id:'):
+            id_str = query[3:].strip()
+            if not id_str:
+                print(f"  Usage: id:NUMBER (e.g. id:345)")
+                print()
+                continue
+            try:
+                did = int(id_str)
+                if did in dlc_dict:
+                    results.append((did, dlc_dict[did]))
+                elif used_dlc_ids and did in used_dlc_ids:
+                    results.append((did, '[USED in .kurodlc.json]'))
+            except ValueError:
+                print(f"  Error: '{id_str}' is not a valid ID")
+                print()
+                continue
+
+        elif query.startswith('name:'):
+            name_str = query[5:].strip().lower()
+            if not name_str:
+                print(f"  Usage: name:TEXT (e.g. name:costume)")
+                print()
+                continue
+            for dlc_id, name in sorted(dlc_dict.items()):
+                if name_str in name.lower():
+                    results.append((dlc_id, name))
+
+        elif query.isdigit():
+            did = int(query)
+            if did in dlc_dict:
+                results.append((did, dlc_dict[did]))
+            elif used_dlc_ids and did in used_dlc_ids:
+                results.append((did, '[USED in .kurodlc.json]'))
+            for dlc_id, name in sorted(dlc_dict.items()):
+                if query in str(dlc_id) and dlc_id != did:
+                    results.append((dlc_id, name))
+
+        else:
+            query_lower = query.lower()
+            for dlc_id, name in sorted(dlc_dict.items()):
+                if query_lower in name.lower():
+                    results.append((dlc_id, name))
+
+        if not results:
+            print(f"  No matches for '{query}'")
+        else:
+            max_id_len = max(len(str(r[0])) for r in results)
+            for dlc_id, name in results:
+                print(f"  {dlc_id:>{max_id_len}} : {name}")
+            print(f"  ({len(results)} result(s))")
+        print()
+
+
+# =========================================================================
 # kurodlc structure analysis
 # =========================================================================
 
@@ -622,7 +946,7 @@ def make_item_entry(template, item_id, char_restrict, name, desc):
         "flags": "",
         "unk_txt": "1",
         "category": 17,
-        "subcategory": 15,
+        "subcategory": 16,
         "unk0": 0, "unk1": 0, "unk2": 0, "unk3": 0, "unk4": 0,
         "eff1_id": 0, "eff1_0": 0, "eff1_1": 0, "eff1_2": 0,
         "eff2_id": 0, "eff2_0": 0, "eff2_1": 0, "eff2_2": 0,
@@ -694,14 +1018,24 @@ def print_usage():
         "Scan directory for .mdl files not yet in the kurodlc config and add\n"
         "complete entries (CostumeParam, ItemTableData, DLCTableData, ShopItem).\n"
         "\n"
-        "The script looks for .mdl files, t_name and t_item data in the same\n"
-        "directory as the .kurodlc.json file.\n"
+        "If the target file does not exist, it is created from scratch.\n"
+        "When no DLCTableData record exists, prompts for DLC ID and name.\n"
+        "Uses t_dlc data (if available) for DLC ID validation and suggestions.\n"
+        "\n"
+        "The script looks for .mdl files, t_name, t_item and optionally t_dlc\n"
+        "data in the same directory as the .kurodlc.json file.\n"
         "\n"
         "Smart ID Assignment (v2.0):\n"
         "  - Collects used IDs from t_item (game data) + all .kurodlc.json files\n"
         "  - Searches for free IDs in range 1-5000 (configurable)\n"
         "  - Tries continuous block first, falls back to scattered search\n"
         "  - Same algorithm as resolve_id_conflicts_in_kurodlc.py\n"
+        "\n"
+        "DLC ID Assignment (v2.2):\n"
+        "  - Loads t_dlc data for used DLC ID detection\n"
+        "  - Collects DLC IDs from all .kurodlc.json files in directory\n"
+        "  - Suggests first available ID after highest used in range 1-350\n"
+        "  - Validates against known DLC names from t_dlc\n"
         "\n"
         "Options:\n"
         "  --apply             Apply changes (without this, runs in dry-run mode)\n"
@@ -721,11 +1055,16 @@ def print_usage():
         "  t_item source       One of: t_item.json, t_item.tbl, script_en.p3a,\n"
         "                      script_eng.p3a, zzz_combined_tables.p3a\n"
         "\n"
+        "Optional files (for DLC ID validation):\n"
+        "  t_dlc source        One of: t_dlc.json, t_dlc.tbl, t_dlc.tbl.original,\n"
+        "                      script_en.p3a, script_eng.p3a, zzz_combined_tables.p3a\n"
+        "\n"
         "What gets generated for each new MDL:\n"
         "  CostumeParam    - char_restrict from t_name, mdl_name, new item_id\n"
         "  ItemTableData   - name: '<CharName> generated <mdl_name>'\n"
         "                    (placeholder for manual editing)\n"
-        "  DLCTableData    - item_id appended to existing DLC record\n"
+        "  DLCTableData    - item_id appended to existing DLC record,\n"
+        "                    or new record created with prompted DLC ID and name\n"
         "  ShopItem        - entries for each shop_id in the file\n"
         "\n"
         "Examples:\n"
@@ -734,6 +1073,9 @@ def print_usage():
         "\n"
         "  python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --apply\n"
         "      Apply changes and write to file (with timestamped backup).\n"
+        "\n"
+        "  python kurodlc_add_mdl.py NewMod.kurodlc.json --apply\n"
+        "      Create new file from scratch (prompts for DLC ID and name).\n"
         "\n"
         "  python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --shop-ids=21,22\n"
         "      Use specific shop IDs instead of auto-detected ones.\n"
@@ -753,6 +1095,17 @@ def main():
 
     # Parse arguments
     json_file = sys.argv[1]
+
+    # Ensure filename ends with .kurodlc.json
+    if not json_file.lower().endswith('.kurodlc.json'):
+        if json_file.lower().endswith('.kurodlc'):
+            corrected = json_file + '.json'
+        elif json_file.lower().endswith('.json'):
+            corrected = json_file[:-5] + '.kurodlc.json'
+        else:
+            corrected = json_file + '.kurodlc.json'
+        print(f"Note: Adding extension → {corrected}")
+        json_file = corrected
     apply_changes = False
     manual_shop_ids = None
     min_id = 1
@@ -796,30 +1149,36 @@ def main():
             print(f"Error: Unknown option '{arg}'")
             sys.exit(1)
 
-    # ---- Load kurodlc.json ----
-    if not os.path.exists(json_file):
-        print(f"Error: File '{json_file}' not found.")
-        sys.exit(1)
-
+    # ---- Load or create kurodlc.json ----
+    is_new_file = not os.path.exists(json_file)
     base_dir = os.path.dirname(os.path.abspath(json_file)) or '.'
 
-    try:
-        with open(json_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-    except Exception as e:
-        print(f"Error loading '{json_file}': {e}")
-        sys.exit(1)
+    if is_new_file:
+        print(f"File '{json_file}' does not exist — will create new DLC file.")
+        data = {
+            "CostumeParam": [],
+            "DLCTableData": [],
+            "ItemTableData": [],
+            "ShopItem": []
+        }
+    else:
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except Exception as e:
+            print(f"Error loading '{json_file}': {e}")
+            sys.exit(1)
 
-    if not isinstance(data, dict):
-        print(f"Error: '{json_file}' root must be a JSON object.")
-        sys.exit(1)
+        if not isinstance(data, dict):
+            print(f"Error: '{json_file}' root must be a JSON object.")
+            sys.exit(1)
 
     # Ensure required sections exist (initialize empty if missing)
     for section in ['CostumeParam', 'ItemTableData', 'DLCTableData', 'ShopItem']:
         if section not in data:
             data[section] = []
 
-    print(f"Loaded: {json_file}")
+    print(f"{'Creating' if is_new_file else 'Loaded'}: {json_file}")
     print(f"  CostumeParam:  {len(data['CostumeParam'])} entries")
     print(f"  ItemTableData: {len(data['ItemTableData'])} entries")
     print(f"  DLCTableData:  {len(data['DLCTableData'])} entries")
@@ -1007,12 +1366,112 @@ def main():
         print(f"  item_id={item_id}  char={char_id:>3d}  {char_name:<20s}  mdl={mdl_name}")
 
     # ---- Summary ----
+    # ---- DLCTableData: determine DLC ID and name if needed ----
+    dlc_id = None
+    dlc_name = None
+    needs_new_dlc_record = len(data['DLCTableData']) == 0
+
+    if needs_new_dlc_record:
+        print(f"\nNo existing DLCTableData record — need to assign a DLC ID.")
+
+        # Load t_dlc for DLC ID detection
+        t_dlc_dict = load_t_dlc_data(base_dir, source_type, source_path, no_interactive)
+        used_dlc_ids = collect_used_dlc_ids(base_dir, t_dlc_dict)
+        suggested_id = find_available_dlc_id(used_dlc_ids)
+
+        if t_dlc_dict or used_dlc_ids:
+            # Show loading info
+            if t_dlc_dict:
+                print(f"Loading t_dlc from: {len(t_dlc_dict)} game DLC entries")
+
+            # Analyze ID distribution
+            ids_in_range = [i for i in used_dlc_ids if DLC_ID_MIN <= i < DLC_ID_MAX]
+            ids_over = [i for i in used_dlc_ids if i >= DLC_ID_MAX]
+            free_count = DLC_ID_MAX - DLC_ID_MIN - len(ids_in_range)
+
+            print(f"\nDLC ID status:")
+            print(f"  Current IDs in use: {min(used_dlc_ids)}-{max(used_dlc_ids)} "
+                  f"({len(used_dlc_ids)} total)")
+            print(f"  Assignable range:   {DLC_ID_MIN}-{DLC_ID_MAX - 1} "
+                  f"({len(ids_in_range)} used, {free_count} available)")
+            if ids_over:
+                print(f"  Note: {len(ids_over)} ID(s) above {DLC_ID_MAX} exist "
+                      f"(game/mod IDs outside assignable range)")
+        else:
+            print(f"\nNo existing DLC IDs found.")
+            print(f"  Assignable range: {DLC_ID_MIN}-{DLC_ID_MAX - 1}")
+
+        if suggested_id is not None:
+            print(f"  Suggested ID:       {suggested_id}")
+
+        if no_interactive:
+            dlc_id = suggested_id if suggested_id is not None else 999
+            dlc_name = os.path.splitext(os.path.basename(json_file))[0]
+            if dlc_name.endswith('.kurodlc'):
+                dlc_name = dlc_name[:-8]
+            print(f"Using DLC ID: {dlc_id}, name: {dlc_name}")
+        else:
+            # Prompt for DLC ID
+            search_hint = "\n  ? = search DLCs" if t_dlc_dict else ""
+            while True:
+                default_str = f" [{suggested_id}]" if suggested_id is not None else ""
+                if search_hint:
+                    print(search_hint)
+                try:
+                    id_input = input(f"Enter DLC ID{default_str}: ").strip()
+                except (EOFError, KeyboardInterrupt):
+                    print("\nAborted.")
+                    sys.exit(1)
+
+                if id_input == '?' and t_dlc_dict:
+                    search_tdlc_interactive(t_dlc_dict, used_dlc_ids)
+                    continue
+
+                if not id_input and suggested_id is not None:
+                    dlc_id = suggested_id
+                    break
+                try:
+                    dlc_id = int(id_input)
+                    if dlc_id in used_dlc_ids:
+                        if t_dlc_dict and dlc_id in t_dlc_dict:
+                            print(f"Warning: ID {dlc_id} is assigned to '{t_dlc_dict[dlc_id]}'!")
+                        else:
+                            print(f"Warning: ID {dlc_id} is already used!")
+                        try:
+                            confirm = input("Use anyway? [y/N]: ").strip().lower()
+                        except (EOFError, KeyboardInterrupt):
+                            print("\nAborted.")
+                            sys.exit(1)
+                        if confirm == 'y':
+                            break
+                        continue
+                    break
+                except ValueError:
+                    print("Invalid input. Enter a number.")
+
+            # Prompt for DLC name (= desc)
+            dlc_name_default = os.path.splitext(os.path.basename(json_file))[0]
+            if dlc_name_default.endswith('.kurodlc'):
+                dlc_name_default = dlc_name_default[:-8]
+            try:
+                name_input = input(f"Enter DLC name [{dlc_name_default}]: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\nAborted.")
+                sys.exit(1)
+            dlc_name = name_input if name_input else dlc_name_default
+
+        print(f"  DLC record: id={dlc_id}, name='{dlc_name}'")
+
+    # ---- Summary ----
     print(f"\n{'='*60}")
     print(f"Summary of changes:")
     print(f"{'='*60}")
     print(f"  CostumeParam:  +{len(new_costume_entries)} entries")
     print(f"  ItemTableData: +{len(new_item_entries)} entries")
-    print(f"  DLCTableData:  +{len(new_item_ids)} item(s) added to existing record")
+    if needs_new_dlc_record:
+        print(f"  DLCTableData:  new record (id={dlc_id}) with {len(new_item_ids)} item(s)")
+    else:
+        print(f"  DLCTableData:  +{len(new_item_ids)} item(s) added to existing record")
     print(f"  ShopItem:      +{len(new_shop_entries)} entries "
           f"({len(resolved)} items x {len(shop_ids)} shops)")
     print(f"{'='*60}")
@@ -1026,25 +1485,17 @@ def main():
     data['ItemTableData'].extend(new_item_entries)
     data['ShopItem'].extend(new_shop_entries)
 
-    # DLCTableData: extend existing DLC record
-    if data['DLCTableData']:
-        dlc_record = data['DLCTableData'][0]
-        if 'items' in dlc_record:
-            dlc_record['items'].extend(new_item_ids)
-        if 'quantity' in dlc_record:
-            dlc_record['quantity'].extend([1] * len(new_item_ids))
-    else:
-        # No existing DLC record - create a minimal one
-        max_dlc_id = 0
+    # DLCTableData: extend existing DLC record or create new
+    if needs_new_dlc_record:
         dlc_record = {
-            "id": 999,
-            "sort_id": 999,
+            "id": dlc_id,
+            "sort_id": dlc_id,
             "items": new_item_ids,
             "unk0": 0,
             "quantity": [1] * len(new_item_ids),
             "unk1": 0,
-            "name": "Generated DLC",
-            "desc": "Auto-generated DLC record",
+            "name": dlc_name,
+            "desc": dlc_name,
             "unk_txt": "",
             "unk2": 0,
             "unk3": 1,
@@ -1053,9 +1504,15 @@ def main():
             "unk5": 0
         }
         data['DLCTableData'].append(dlc_record)
+    else:
+        dlc_record = data['DLCTableData'][0]
+        if 'items' in dlc_record:
+            dlc_record['items'].extend(new_item_ids)
+        if 'quantity' in dlc_record:
+            dlc_record['quantity'].extend([1] * len(new_item_ids))
 
     # ---- Backup and write ----
-    if do_backup:
+    if do_backup and not is_new_file:
         import datetime
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_file = json_file + f'_{timestamp}.bak'
@@ -1067,10 +1524,18 @@ def main():
             print(f"Warning: Could not create backup: {e}")
 
     try:
+        # Ensure section order: CostumeParam, DLCTableData, ItemTableData, ShopItem
+        section_order = ['CostumeParam', 'DLCTableData', 'ItemTableData', 'ShopItem']
+        ordered = {k: data[k] for k in section_order if k in data}
+        for k in data:
+            if k not in ordered:
+                ordered[k] = data[k]
+
         with open(json_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4, ensure_ascii=ensure_ascii)
+            json.dump(ordered, f, indent=4, ensure_ascii=ensure_ascii)
         print(f"Written: {json_file}")
-        print(f"\nDone! {len(resolved)} new MDL(s) added successfully.")
+        print(f"\nDone! {len(resolved)} new MDL(s) added successfully"
+              + (f" (new file created)" if is_new_file else "") + ".")
         print(f"\nReminder: Review generated item names in ItemTableData")
         print(f"  (search for 'generated' to find placeholder entries)")
     except Exception as e:
