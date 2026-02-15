@@ -861,6 +861,333 @@ def search_tdlc_interactive(dlc_dict, used_dlc_ids=None):
 
 
 # =========================================================================
+# Shop ID management (t_shop)
+# =========================================================================
+
+
+def collect_shops_recursive(node, result_list):
+    """Recursively find dicts with 'id' and 'shop_name' fields."""
+    if isinstance(node, dict):
+        if 'id' in node and 'shop_name' in node:
+            result_list.append(node)
+        for value in node.values():
+            collect_shops_recursive(value, result_list)
+    elif isinstance(node, list):
+        for item in node:
+            collect_shops_recursive(item, result_list)
+
+
+def load_tshop_from_json(json_file):
+    """Load t_shop from JSON using recursive search."""
+    try:
+        with open(json_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        shops = []
+        collect_shops_recursive(data, shops)
+        return shops
+    except Exception:
+        return None
+
+
+def load_tshop_from_tbl(tbl_file):
+    """Load t_shop from TBL file using recursive search."""
+    if not HAS_LIBS:
+        return None
+    try:
+        kt = kuro_tables()
+        table = kt.read_table(tbl_file)
+        shops = []
+        collect_shops_recursive(table, shops)
+        return shops
+    except Exception:
+        return None
+
+
+def extract_tshop_from_p3a(p3a_file, out_file):
+    """Extract t_shop.tbl from a P3A archive."""
+    if not HAS_LIBS:
+        return False
+    try:
+        p3a = p3a_class()
+        with open(p3a_file, 'rb') as p3a.f:
+            headers, entries, p3a_dict = p3a.read_p3a_toc()
+            for entry in entries:
+                if os.path.basename(entry['name']) == 't_shop.tbl':
+                    data = p3a.read_file(entry, p3a_dict)
+                    with open(out_file, 'wb') as f:
+                        f.write(data)
+                    return True
+        return False
+    except Exception:
+        return False
+
+
+def detect_tshop_sources(base_dir):
+    """Detect available t_shop sources. Returns list of (type, path)."""
+    sources = []
+    candidates = [
+        ('json',     't_shop.json'),
+        ('original', 't_shop.tbl.original'),
+        ('tbl',      't_shop.tbl'),
+        ('p3a',      'script_en.p3a'),
+        ('p3a',      'script_eng.p3a'),
+        ('zzz',      'zzz_combined_tables.p3a'),
+    ]
+    for stype, fname in candidates:
+        fpath = os.path.join(base_dir, fname)
+        if os.path.exists(fpath):
+            sources.append((stype, fpath))
+    return sources
+
+
+def load_t_shop_data(base_dir, source_type=None, source_path=None, no_interactive=False):
+    """
+    Load t_shop data. Returns {shop_id: shop_name} dict or None.
+    
+    If source_type/source_path are provided (from unified source),
+    tries P3A extraction first. Otherwise detects sources independently.
+    Silently returns None if unavailable (graceful fallback).
+    """
+    # Try unified source first (P3A archives contain t_shop.tbl too)
+    if source_type in ('p3a', 'zzz') and source_path:
+        temp_file = os.path.join(base_dir, 't_shop.tbl.tmp')
+        try:
+            if extract_tshop_from_p3a(source_path, temp_file):
+                shops_list = load_tshop_from_tbl(temp_file)
+                if shops_list:
+                    shop_dict = {}
+                    for shop in shops_list:
+                        if isinstance(shop, dict) and 'id' in shop and 'shop_name' in shop:
+                            shop_dict[int(shop['id'])] = shop['shop_name']
+                    if shop_dict:
+                        return shop_dict
+        except Exception:
+            pass
+        finally:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+
+    sources = detect_tshop_sources(base_dir)
+    if not sources:
+        return None
+
+    # Filter usable sources
+    usable = []
+    for stype, path in sources:
+        if stype == 'json':
+            usable.append((stype, path))
+        elif HAS_LIBS:
+            usable.append((stype, path))
+    if not usable:
+        return None
+
+    # Select source
+    if len(usable) == 1 or no_interactive:
+        stype, path = usable[0]
+    else:
+        print(f"\nMultiple t_shop sources detected. Select source:")
+        for i, (st, p) in enumerate(usable, 1):
+            basename = os.path.basename(p)
+            if st in ('p3a', 'zzz'):
+                print(f"  {i}) {basename} (extract t_shop.tbl)")
+            else:
+                print(f"  {i}) {basename}")
+        while True:
+            try:
+                choice = input(f"Enter choice [1-{len(usable)}]: ").strip()
+                if choice.isdigit() and 1 <= int(choice) <= len(usable):
+                    stype, path = usable[int(choice) - 1]
+                    break
+                print("Invalid choice, try again.")
+            except (EOFError, KeyboardInterrupt):
+                return None
+
+    # Load
+    shops_list = None
+    if stype == 'json':
+        shops_list = load_tshop_from_json(path)
+    elif stype in ('tbl', 'original'):
+        shops_list = load_tshop_from_tbl(path)
+    elif stype in ('p3a', 'zzz'):
+        temp_file = os.path.join(base_dir, 't_shop.tbl.tmp')
+        try:
+            if extract_tshop_from_p3a(path, temp_file):
+                shops_list = load_tshop_from_tbl(temp_file)
+        finally:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+
+    if not shops_list:
+        return None
+
+    shop_dict = {}
+    for shop in shops_list:
+        if isinstance(shop, dict) and 'id' in shop and 'shop_name' in shop:
+            shop_dict[int(shop['id'])] = shop['shop_name']
+
+    return shop_dict if shop_dict else None
+
+
+def search_tshop_interactive(shop_dict):
+    """
+    Interactive search mode for t_shop data.
+    Same syntax as shops_replace_in_kurodlc.py / find_all_shops.py:
+      id:NUMBER   - exact ID match
+      name:TEXT   - search in shop names
+      NUMBER      - auto: exact ID + partial ID match
+      TEXT        - auto: name search
+    """
+    print(f"\n  === Shop search ({len(shop_dict)} shops) ===")
+    print(f"  id:N = exact ID | name:TEXT = name search | or just type")
+    print(f"  Empty line returns to shop ID input.\n")
+
+    while True:
+        try:
+            query = input("  search> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return
+
+        if not query:
+            return
+
+        results = []
+
+        if query.startswith('id:'):
+            id_str = query[3:].strip()
+            if not id_str:
+                print(f"  Usage: id:NUMBER (e.g. id:21)")
+                print()
+                continue
+            try:
+                sid = int(id_str)
+                if sid in shop_dict:
+                    results.append((sid, shop_dict[sid]))
+            except ValueError:
+                print(f"  Error: '{id_str}' is not a valid ID")
+                print()
+                continue
+
+        elif query.startswith('name:'):
+            name_str = query[5:].strip().lower()
+            if not name_str:
+                print(f"  Usage: name:TEXT (e.g. name:armor)")
+                print()
+                continue
+            for shop_id, name in sorted(shop_dict.items()):
+                if name_str in name.lower():
+                    results.append((shop_id, name))
+
+        elif query.isdigit():
+            sid = int(query)
+            if sid in shop_dict:
+                results.append((sid, shop_dict[sid]))
+            for shop_id, name in sorted(shop_dict.items()):
+                if query in str(shop_id) and shop_id != sid:
+                    results.append((shop_id, name))
+
+        else:
+            query_lower = query.lower()
+            for shop_id, name in sorted(shop_dict.items()):
+                if query_lower in name.lower():
+                    results.append((shop_id, name))
+
+        if not results:
+            print(f"  No matches for '{query}'")
+        else:
+            max_id_len = max(len(str(r[0])) for r in results)
+            for shop_id, name in results:
+                print(f"  {shop_id:>{max_id_len}} : {name}")
+            print(f"  ({len(results)} result(s))")
+        print()
+
+
+def prompt_shop_ids_interactive(base_dir, source_type, source_path, no_interactive, default_ids=None):
+    """
+    Prompt user for shop IDs with optional ? search mode.
+    Loads t_shop for validation and search.
+    
+    Args:
+        default_ids: Pre-filled shop IDs shown as default (from existing file).
+                     User can press Enter to accept them.
+    
+    Returns list of shop IDs.
+    """
+    # Load t_shop
+    shop_dict = load_t_shop_data(base_dir, source_type, source_path, no_interactive)
+    if shop_dict:
+        print(f"Loaded t_shop: {len(shop_dict)} shops")
+
+    if no_interactive:
+        if default_ids:
+            return default_ids
+        print("Error: No shop IDs available. Use --shop-ids=1,2,3 to specify.")
+        sys.exit(1)
+
+    has_search = shop_dict is not None and len(shop_dict) > 0
+    default_str = ','.join(str(x) for x in default_ids) if default_ids else ''
+    prompt_suffix = f" [{default_str}]" if default_str else ""
+
+    while True:
+        if has_search:
+            print(f"  ? = search shops")
+        try:
+            id_input = input(f"Enter shop IDs (comma-separated){prompt_suffix}: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nAborted.")
+            sys.exit(1)
+
+        if id_input == '?' and has_search:
+            search_tshop_interactive(shop_dict)
+            continue
+
+        if not id_input:
+            if default_ids:
+                shop_ids = list(default_ids)
+            else:
+                print("No shop IDs entered. Please enter at least one.")
+                continue
+        else:
+            try:
+                shop_ids = [int(x.strip()) for x in id_input.split(',') if x.strip()]
+            except ValueError:
+                print("Invalid input. Enter numbers separated by commas.")
+                continue
+
+        if not shop_ids:
+            continue
+
+        # Validate against t_shop if available
+        if shop_dict:
+            print(f"\nShop ID validation (t_shop):")
+            all_valid = True
+            for sid in shop_ids:
+                if sid in shop_dict:
+                    print(f"  {sid:>4} : {shop_dict[sid]}")
+                else:
+                    print(f"  {sid:>4} : [NOT FOUND in t_shop]")
+                    all_valid = False
+
+            if all_valid:
+                prompt = "All shop IDs valid. Proceed? [Y/n]: "
+            else:
+                prompt = "Warning: Some shop IDs not found. Proceed anyway? [y/N]: "
+
+            try:
+                answer = input(prompt).strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                print("\nAborted.")
+                sys.exit(1)
+
+            if all_valid and answer == 'n':
+                continue
+            if not all_valid and answer != 'y':
+                continue
+
+        return shop_ids
+
+
+# =========================================================================
 # kurodlc structure analysis
 # =========================================================================
 
@@ -1299,73 +1626,6 @@ def main():
     used_ids = collect_all_used_ids(base_dir, items_dict)
     print(f"Total used IDs (game + all DLCs): {len(used_ids)}")
 
-    # ---- Determine shop config ----
-    if manual_shop_ids:
-        shop_ids = manual_shop_ids
-    else:
-        shop_ids = get_existing_shop_ids(data)
-        if not shop_ids:
-            shop_ids = [21, 22, 248, 258]  # Fallback: common Kuro 2 costume shops
-            print(f"  No existing shop_ids found, using defaults: {shop_ids}")
-
-    # Get templates from existing entries
-    costume_tmpl = get_costume_template(data)
-    item_tmpl = get_item_template(data)
-    shop_tmpl = get_shop_template(data)
-
-    # ---- Find available IDs using smart algorithm ----
-    count_needed = len(resolved)
-    print(f"\nSearching for {count_needed} available ID(s) in range [{min_id}, {max_id}]...")
-
-    try:
-        available_ids = find_available_ids_in_range(used_ids, count_needed, min_id, max_id)
-    except ValueError as e:
-        print(f"\n[ERROR] {e}")
-        sys.exit(1)
-
-    # Report ID assignment strategy
-    if len(available_ids) > 1:
-        is_continuous = available_ids == list(range(min(available_ids), max(available_ids) + 1))
-        id_range_str = f"{min(available_ids)}-{max(available_ids)}"
-        strategy = "continuous block" if is_continuous else "scattered (using gaps)"
-        print(f"Found {len(available_ids)} IDs: {id_range_str} ({strategy})")
-    elif available_ids:
-        print(f"Found ID: {available_ids[0]}")
-
-    # ---- Generate entries ----
-    print(f"\n{'='*60}")
-    print(f"Generating entries")
-    print(f"Shop IDs: {shop_ids}")
-    print(f"{'='*60}\n")
-
-    new_costume_entries = []
-    new_item_entries = []
-    new_shop_entries = []
-    new_item_ids = []
-
-    for i, (mdl_name, char_id, char_name) in enumerate(resolved):
-        item_id = available_ids[i]
-        new_item_ids.append(item_id)
-
-        # Generate display name
-        item_name = f"{char_name} generated {mdl_name}"
-        item_desc = item_name
-
-        # CostumeParam
-        costume_entry = make_costume_entry(costume_tmpl, mdl_name, char_id, item_id)
-        new_costume_entries.append(costume_entry)
-
-        # ItemTableData
-        item_entry = make_item_entry(item_tmpl, item_id, char_id, item_name, item_desc)
-        new_item_entries.append(item_entry)
-
-        # ShopItem
-        shop_entries = make_shop_entries(shop_tmpl, item_id, shop_ids)
-        new_shop_entries.extend(shop_entries)
-
-        print(f"  item_id={item_id}  char={char_id:>3d}  {char_name:<20s}  mdl={mdl_name}")
-
-    # ---- Summary ----
     # ---- DLCTableData: determine DLC ID and name if needed ----
     dlc_id = None
     dlc_name = None
@@ -1461,6 +1721,77 @@ def main():
             dlc_name = name_input if name_input else dlc_name_default
 
         print(f"  DLC record: id={dlc_id}, name='{dlc_name}'")
+
+    # ---- Determine shop config ----
+    if manual_shop_ids:
+        shop_ids = manual_shop_ids
+    else:
+        existing_shop_ids = get_existing_shop_ids(data)
+        if existing_shop_ids:
+            print(f"\n  Existing shop_ids in file: {existing_shop_ids}")
+        else:
+            print(f"\n  No existing shop_ids found in file.")
+        shop_ids = prompt_shop_ids_interactive(
+            base_dir, source_type, source_path, no_interactive,
+            default_ids=existing_shop_ids or None
+        )
+
+    # Get templates from existing entries
+    costume_tmpl = get_costume_template(data)
+    item_tmpl = get_item_template(data)
+    shop_tmpl = get_shop_template(data)
+
+    # ---- Find available IDs using smart algorithm ----
+    count_needed = len(resolved)
+    print(f"\nSearching for {count_needed} available ID(s) in range [{min_id}, {max_id}]...")
+
+    try:
+        available_ids = find_available_ids_in_range(used_ids, count_needed, min_id, max_id)
+    except ValueError as e:
+        print(f"\n[ERROR] {e}")
+        sys.exit(1)
+
+    # Report ID assignment strategy
+    if len(available_ids) > 1:
+        is_continuous = available_ids == list(range(min(available_ids), max(available_ids) + 1))
+        id_range_str = f"{min(available_ids)}-{max(available_ids)}"
+        strategy = "continuous block" if is_continuous else "scattered (using gaps)"
+        print(f"Found {len(available_ids)} IDs: {id_range_str} ({strategy})")
+    elif available_ids:
+        print(f"Found ID: {available_ids[0]}")
+
+    # ---- Generate entries ----
+    print(f"\n{'='*60}")
+    print(f"Generating entries")
+    print(f"Shop IDs: {shop_ids}")
+    print(f"{'='*60}\n")
+
+    new_costume_entries = []
+    new_item_entries = []
+    new_shop_entries = []
+    new_item_ids = []
+
+    for i, (mdl_name, char_id, char_name) in enumerate(resolved):
+        item_id = available_ids[i]
+        new_item_ids.append(item_id)
+
+        # Generate display name
+        item_name = f"{char_name} generated {mdl_name}"
+        item_desc = item_name
+
+        # CostumeParam
+        costume_entry = make_costume_entry(costume_tmpl, mdl_name, char_id, item_id)
+        new_costume_entries.append(costume_entry)
+
+        # ItemTableData
+        item_entry = make_item_entry(item_tmpl, item_id, char_id, item_name, item_desc)
+        new_item_entries.append(item_entry)
+
+        # ShopItem
+        shop_entries = make_shop_entries(shop_tmpl, item_id, shop_ids)
+        new_shop_entries.extend(shop_entries)
+
+        print(f"  item_id={item_id}  char={char_id:>3d}  {char_name:<20s}  mdl={mdl_name}")
 
     # ---- Summary ----
     print(f"\n{'='*60}")
