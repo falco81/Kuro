@@ -8,6 +8,7 @@ This section provides comprehensive, in-depth documentation for advanced users, 
   - [resolve_id_conflicts_in_kurodlc.py](#resolve_id_conflicts_in_kurodlcpy)
   - [shops_find_unique_item_id_from_kurodlc.py](#shops_find_unique_item_id_from_kurodlcpy)
   - [shops_create.py](#shops_createpy)
+  - [shops_replace_in_kurodlc.py](#shops_replace_in_kurodlcpy) ⭐ NEW
   - [kurodlc_add_mdl.py](#kurodlc_add_mdlpy) ⭐ NEW
   - [visualize_id_allocation.py](#visualize_id_allocationpy)
   - [convert_kurotools_schemas.py](#convert_kurotools_schemaspy)
@@ -407,6 +408,191 @@ python shops_create.py template_my_mod.kurodlc.json
 ```
 
 **Result:** 3 items × 3 shops = 9 shop assignments in `output_template_my_mod.kurodlc.json`.
+
+---
+
+### shops_replace_in_kurodlc.py
+
+**Version:** v1.1  
+**Purpose:** Batch replace shop IDs in .kurodlc.json files by rebuilding the ShopItem section
+
+#### How It Works
+
+The script replaces the **entire ShopItem section** of `.kurodlc.json` files with a newly generated one based on the **Cartesian product** of extracted item_ids × new shop_ids. It does not edit individual entries — it deletes all existing ShopItem entries and creates new ones from scratch.
+
+**Step 1: File Selection.** Without arguments, the script scans the current directory for all `.kurodlc.json` files using `get_all_kurodlc_files()`. A specific file can be passed as a positional argument. Multiple files can also be specified.
+
+**Step 2: t_shop Loading (optional).** The `load_tshop_data()` function scans for `t_shop.json`, `t_shop.tbl`, `t_shop.tbl.original`, or P3A archives (`script_en.p3a`, `script_eng.p3a`, `zzz_combined_tables.p3a`). JSON sources work without external libraries; TBL and P3A sources require `kurodlc_lib` and `p3a_lib`. If multiple usable sources exist, an interactive menu is shown. If no sources or libraries are available, t_shop validation is silently skipped and the script continues without it. The loaded data is stored as a `{id: shop_name}` dict used for validation and interactive search.
+
+**Step 3: Shop ID Input.** Three modes for specifying new shop IDs:
+
+- **`--new-shop-ids=21,22,248`** — Same shop IDs for all files, no prompting.
+- **Interactive prompt** (default) — Shows current shop_ids from the first file, prompts once, applies to all files.
+- **`--per-file`** — Prompts separately for each file. Empty input skips a file.
+
+When t_shop data is loaded, the prompt shows a `? = search shops` hint. Typing `?` enters interactive search mode where users can search by name or ID using the same syntax as `find_all_shops.py`: `id:NUMBER` for exact ID, `name:TEXT` for name search, plain number for auto-detect (exact + partial ID match), or plain text for name search. Empty input returns to the shop ID prompt.
+
+**Step 4: Validation.** After shop IDs are entered, `validate_shop_ids()` checks each ID against the loaded t_shop dict. Valid IDs show their shop name, missing IDs show `[NOT FOUND in t_shop]`. If all IDs are valid, the default is to proceed (`[Y/n]`). If some are missing, the default is to decline (`[y/N]`). Declining returns to the shop ID prompt (retry loop), not a skip or abort. With `--no-interactive`, validation warnings are printed but the script proceeds. If t_shop is unavailable, validation is skipped entirely.
+
+**Step 5: Item ID Extraction.** The `extract_ids_by_mode()` function extracts item_ids from selected sections based on the extraction mode:
+
+- `all` (default) — Extracts from all four sections: ShopItem (`item_id`), CostumeParam (`item_id`), ItemTableData (`id`), DLCTableData (nested `items` arrays)
+- `shop` — ShopItem only
+- `costume` — CostumeParam only
+- `item` — ItemTableData only
+- `dlc` — DLCTableData only
+- Combinations: `costume+item`, `shop+costume`, etc.
+
+Extracted IDs are deduplicated. For shop-only files (no CostumeParam/ItemTableData/DLCTableData), the `shop` mode is the natural choice.
+
+**Step 6: ShopItem Rebuild.** The `get_shop_template()` function takes the first existing ShopItem entry as a structural template (preserving field order and default values). If no entries exist, a hardcoded default is used. The `build_new_shop_items()` function generates the Cartesian product: for each (item_id, shop_id) pair, a new entry is created from the template with `item_id` and `shop_id` replaced.
+
+**Step 7: Write.** The entire `ShopItem` key in the JSON is replaced with the new array. Dry-run is the default — the script shows what would change (old count → new count) without writing. With `--apply`, a timestamped backup is created first (unless `--no-backup`), then the file is written with `ensure_ascii=True` (matching game format) or `ensure_ascii=False` (with `--no-ascii-escape`).
+
+#### All Parameters
+
+```
+shops_replace_in_kurodlc.py [file.kurodlc.json ...] [mode] [options]
+
+ARGUMENTS:
+  [file]              Target .kurodlc.json file(s) (optional)
+                      If omitted, processes ALL .kurodlc.json in current directory
+
+EXTRACTION MODES (which sections to extract item_ids from):
+  all                 All sections (default)
+  shop                ShopItem only
+  costume             CostumeParam only
+  item                ItemTableData only
+  dlc                 DLCTableData only
+  costume+item        Multiple sections combined with +
+  shop+costume        Any combination is valid
+
+OPTIONS:
+  --new-shop-ids=1,2,3  New shop IDs to use (same for all files)
+  --per-file            Prompt for new shop IDs individually per file
+  --apply               Apply changes (without this, runs in dry-run mode)
+  --dry-run             Explicit dry-run (default behavior)
+  --no-backup           Skip backup creation when applying
+  --no-interactive      Error out instead of prompting
+  --no-ascii-escape     Write UTF-8 directly (e.g. Agnès instead of Agn\u00e8s)
+  --help                Show help message
+
+t_shop SOURCES (for validation, auto-detected, optional):
+  t_shop.json                   Direct JSON
+  t_shop.tbl.original           Original binary table
+  t_shop.tbl                    Binary table
+  script_en.p3a                 P3A archive (extracts t_shop.tbl)
+  script_eng.p3a                P3A archive (extracts t_shop.tbl)
+  zzz_combined_tables.p3a       P3A archive (extracts t_shop.tbl)
+```
+
+#### Examples
+
+**Batch Preview (all files, dry-run):**
+```bash
+python shops_replace_in_kurodlc.py --new-shop-ids=21,22,248,258
+```
+
+**Sample Output:**
+```
+Loading t_shop from: t_shop.json
+Loaded t_shop: 215 shops
+
+Shop ID validation (t_shop):
+    21 : Haute Couture Oracion - Edith (Costumes)
+    22 : Haute Couture Oracion - Edith (Accessories)
+   248 : Marche aux Puces Ruan - Gwyn
+   258 : Stellar Boutique - Paulette
+All shop IDs valid. Proceed? [Y/n]: y
+
+Extraction mode: costume+dlc+item+shop
+New shop_ids: [21, 22, 248, 258]
+[DRY RUN MODE]
+
+============================================================
+
+Processing: FalcoDLC.kurodlc.json
+  Sections: costume(CostumeParam), dlc(DLCTableData), item(ItemTableData), shop(ShopItem)
+  Current shop_ids: [21, 22, 248, 258]
+  Extracted: ShopItem: 12 IDs
+  Extracted: CostumeParam: 3 IDs
+  Unique item_ids: 3
+  New shop_ids: [21, 22, 248, 258]
+  ShopItem entries: 12 -> 12 (3 items x 4 shops)
+  [NO CHANGE] ShopItem already matches.
+
+Processing: UMat.kurodlc.json
+  Sections: shop(ShopItem)
+  Current shop_ids: [21, 22, 248, 258]
+  Extracted: ShopItem: 12 IDs
+  Unique item_ids: 3
+  New shop_ids: [21, 22, 248, 258]
+  ShopItem entries: 12 -> 12 (3 items x 4 shops)
+  [NO CHANGE] ShopItem already matches.
+
+============================================================
+Files processed: 2
+Files would change: 0
+============================================================
+```
+
+**Interactive Search:**
+```
+Enter new shop IDs (comma-separated, e.g. 21,22,248,258):
+  ? = search shops
+> ?
+
+  === Shop search (215 shops) ===
+  id:N = exact ID | name:TEXT = name search | or just type
+  Empty line returns to shop ID input.
+
+  search> couture
+    21 : Haute Couture Oracion - Edith (Costumes)
+    22 : Haute Couture Oracion - Edith (Accessories)
+  (2 result(s))
+
+  search> id:248
+   248 : Marche aux Puces Ruan - Gwyn
+  (1 result(s))
+
+  search>
+Enter new shop IDs (comma-separated, e.g. 21,22,248,258):
+  ? = search shops
+> 21,22,248
+```
+
+**Per-file Mode:**
+```bash
+python shops_replace_in_kurodlc.py --per-file --apply
+```
+
+```
+Processing: FalcoDLC.kurodlc.json
+  Current shop_ids: [21, 22, 248, 258]
+  Enter new shop IDs for this file (comma-separated, or Enter to skip):
+  > 21,22
+  ...
+
+Processing: UMat.kurodlc.json
+  Current shop_ids: [21, 22, 248, 258]
+  Enter new shop IDs for this file (comma-separated, or Enter to skip):
+  >
+  [SKIP] No shop IDs provided, skipping file.
+```
+
+**Validation Retry:**
+```
+> 21,9999
+
+Shop ID validation (t_shop):
+    21 : Haute Couture Oracion - Edith (Costumes)
+  9999 : [NOT FOUND in t_shop]
+Warning: Some shop IDs not found. Proceed anyway? [y/N]:
+
+Enter new shop IDs (comma-separated, e.g. 21,22,248,258):
+  ? = search shops
+> 21,22
+```
 
 ---
 
