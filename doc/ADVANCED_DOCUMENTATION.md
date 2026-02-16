@@ -8,8 +8,8 @@ This section provides comprehensive, in-depth documentation for advanced users, 
   - [resolve_id_conflicts_in_kurodlc.py](#resolve_id_conflicts_in_kurodlcpy)
   - [shops_find_unique_item_id_from_kurodlc.py](#shops_find_unique_item_id_from_kurodlcpy)
   - [shops_create.py](#shops_createpy)
-  - [shops_replace_in_kurodlc.py](#shops_replace_in_kurodlcpy) ⭐ NEW
-  - [kurodlc_add_mdl.py](#kurodlc_add_mdlpy) ⭐ NEW
+  - [shops_replace_in_kurodlc.py](#shops_replace_in_kurodlcpy)
+  - [kurodlc_add_mdl.py](#kurodlc_add_mdlpy)
   - [visualize_id_allocation.py](#visualize_id_allocationpy)
   - [convert_kurotools_schemas.py](#convert_kurotools_schemaspy)
   - [find_all_items.py](#find_all_itemspy)
@@ -18,14 +18,15 @@ This section provides comprehensive, in-depth documentation for advanced users, 
   - [find_unique_item_id_for_t_costumes.py](#find_unique_item_id_for_t_costumespy)
   - [find_unique_item_id_for_t_item_category.py](#find_unique_item_id_for_t_item_categorypy)
   - [find_unique_item_id_from_kurodlc.py](#find_unique_item_id_from_kurodlcpy)
+  - [fix_subcategory.py](#fix_subcategorypy)
 - [3D Model Viewer Scripts](#3d-model-viewer-scripts)
   - [viewer.py](#viewerpy)
   - [viewer_mdl.py](#viewer_mdlpy)
   - [viewer_mdl_optimized.py](#viewer_mdl_optimizedpy)
   - [viewer_mdl_window.py](#viewer_mdl_windowpy)
   - [viewer_mdl_textured.py](#viewer_mdl_texturedpy)
-  - [viewer_mdl_textured_anim.py](#viewer_mdl_textured_animpy) ⭐ MAIN VIEWER
-  - [viewer_mdl_textured_scene.py](#viewer_mdl_textured_scenepy) ⭐ SCENE VIEWER
+  - [viewer_mdl_textured_anim.py](#viewer_mdl_textured_animpy) — Main Viewer
+  - [viewer_mdl_textured_scene.py](#viewer_mdl_textured_scenepy) — Scene Viewer
 - [Library Files](#library-files)
   - [kurodlc_lib.py](#kurodlc_libpy)
   - [p3a_lib.py](#p3a_libpy)
@@ -598,29 +599,35 @@ Enter new shop IDs (comma-separated, e.g. 21,22,248,258):
 
 ### kurodlc_add_mdl.py
 
-**Version:** v2.1  
-**Purpose:** Automatically generate complete DLC entries for new MDL model files
+**Version:** v2.2  
+**Purpose:** Scan for .mdl files and create complete DLC entries, including new .kurodlc.json files from scratch
 
 #### How It Works
 
-This script automates the process of adding new costume models to a `.kurodlc.json` file. It solves the problem of manually creating four interconnected data entries for each MDL file — a tedious and error-prone process.
+This script creates DLC entries for new costume MDL files in a `.kurodlc.json` file. It handles four interconnected data sections per MDL.
 
-**Step 1: MDL Scanning.** The script calls `scan_mdl_files()` which uses `glob` to find all `*.mdl` files in the same directory as the target `.kurodlc.json`. It extracts just the filename stems (without `.mdl` extension). It then compares these against `get_existing_mdl_names()`, which reads the `CostumeParam` section and collects all `mdl_name` values. Only MDLs not already present in the config are flagged as "new".
+**Step 1: Load or Create Target File.** If the target `.kurodlc.json` exists, the script loads it. If the file does not exist, the script creates a new empty structure with four sections (`CostumeParam`, `DLCTableData`, `ItemTableData`, `ShopItem`). Missing sections in existing files are initialized as empty arrays.
 
-**Step 2: Data Source Selection.** The script needs two game data tables: `t_name` (for character identification) and `t_item` (for used ID detection). The `detect_all_sources()` function scans for files matching both prefixes simultaneously. For JSON sources, it requires both `t_name.json` and `t_item.json` to exist. For P3A archives, a single archive contains all tables. Sources where files are missing are marked as invalid. If multiple valid sources exist, interactive selection is shown (unless `--no-interactive`).
+**Step 2: MDL Scanning.** The script calls `scan_mdl_files()` which uses `glob` to find all `*.mdl` files in the same directory as the target `.kurodlc.json`. It extracts just the filename stems (without `.mdl` extension). It then compares these against `get_existing_mdl_names()`, which reads the `CostumeParam` section and collects all `mdl_name` values. Only MDLs not already present in the config are flagged as "new".
 
-**Step 3: Character Resolution.** For each new MDL, the script calls `extract_chr_prefix()` which uses regex `(chr\d+)` to extract the character prefix from filenames like `chr5001_c02aa` → `chr5001`, or `q_chr5001_c56q` → `chr5001`. This prefix is looked up in the character map built by `build_char_map()`, which loads t_name data and maps each `model` field's chr prefix to its `char_id` and `name`. If a character can't be resolved automatically, interactive mode prompts the user to enter `char_restrict` and character name manually. With `--no-interactive`, unresolved MDLs are skipped.
+**Step 3: Data Source Selection.** The script needs two game data tables: `t_name` (for character identification) and `t_item` (for used ID detection). The `detect_all_sources()` function scans for files matching both prefixes simultaneously. For JSON sources, it requires both `t_name.json` and `t_item.json` to exist. For P3A archives, a single archive contains all tables. Sources where files are missing are marked as invalid. If multiple valid sources exist, interactive selection is shown (unless `--no-interactive`).
 
-**Step 4: Smart ID Assignment.** The script builds a complete set of used IDs by calling `collect_all_used_ids()`, which merges IDs from three sources: the game item database (t_item), all `.kurodlc.json` files in the directory (scanning CostumeParam, ItemTableData, DLCTableData, and ShopItem sections), and internal DLC IDs. It then calls `find_available_ids_in_range()` (the same algorithm as `resolve_id_conflicts_in_kurodlc.py`) to find free IDs. The algorithm tries a continuous block from the middle first, then falls back to scattered search.
+**Step 4: Character Resolution.** For each new MDL, the script calls `extract_chr_prefix()` which uses regex `(chr\d+)` to extract the character prefix from filenames like `chr5001_c02aa` → `chr5001`, or `q_chr5001_c56q` → `chr5001`. This prefix is looked up in the character map built by `build_char_map()`, which loads t_name data and maps each `model` field's chr prefix to its `char_id` and `name`. If a character can't be resolved automatically, interactive mode prompts the user to enter `char_restrict` and character name manually. With `--no-interactive`, unresolved MDLs are skipped.
 
-**Step 5: Entry Generation.** For each resolved MDL, the script generates four types of entries:
+**Step 5: Smart Item ID Assignment.** The script builds a complete set of used IDs by calling `collect_all_used_ids()`, which merges IDs from three sources: the game item database (t_item), all `.kurodlc.json` files in the directory (scanning CostumeParam, ItemTableData, DLCTableData, and ShopItem sections), and internal DLC IDs. It then calls `find_available_ids_in_range()` (the same algorithm as `resolve_id_conflicts_in_kurodlc.py`) to find free IDs. The algorithm tries a continuous block from the middle first, then falls back to scattered search.
+
+**Step 6: DLC ID Assignment (v2.2).** When the target file has no existing `DLCTableData` records (including new files created from scratch), the script needs to assign a DLC ID (range 1–350). It loads t_dlc data via `load_t_dlc_data()` from `t_dlc.json`, `t_dlc.tbl`, or P3A archives. The `collect_used_dlc_ids()` function merges DLC IDs from game data and all `.kurodlc.json` files in the directory. `find_available_dlc_id()` finds the first unused ID starting from the end of the used range. In interactive mode, the user can search the DLC database with `?` (using `search_tdlc_interactive()`) and confirm or override the suggested ID. With `--no-interactive`, the suggested ID is used automatically.
+
+**Step 7: Shop ID Selection (v2.2).** If `--shop-ids` is not specified, the script determines shop IDs via `prompt_shop_ids_interactive()`. This function loads t_shop data from available sources (`t_shop.json`, `t_shop.tbl`, P3A archives) and provides interactive search functionality. The user can type `?` to enter search mode (`search_tshop_interactive()`), which supports `id:N` for exact ID lookup, `name:TEXT` for name search, or plain text for auto-detect. Entered shop IDs are validated against the t_shop database with shop name display. For existing files, shop IDs are auto-detected from the current ShopItem section. For new files with no existing entries, default shop IDs of `[21, 22, 248, 258]` are offered.
+
+**Step 8: Entry Generation.** For each resolved MDL, the script generates four types of entries:
 
 - **CostumeParam** — Created by `make_costume_entry()`, which uses the first existing CostumeParam entry as a template (or a hardcoded default). It sets `item_id` to the new ID, `mdl_name` to the MDL filename, and `char_restrict` to the resolved character ID.
 - **ItemTableData** — Created by `make_item_entry()`, using the first existing ItemTableData entry as template. Sets `id` to the new ID, `name` to `"<CharName> generated <mdl_name>"` (a placeholder for manual editing), `category` to 17 (costume category), and matches `char_restrict`.
-- **ShopItem** — Created by `make_shop_entries()` for each shop ID. Shop IDs are auto-detected from existing ShopItem entries or fall back to `[21, 22, 248, 258]` (common Kuro 2 costume shops). Can be overridden with `--shop-ids`.
-- **DLCTableData** — New item IDs are appended to the `items` array of the first existing DLC record. If no record exists, a minimal one is created.
+- **ShopItem** — Created by `make_shop_entries()` for each shop ID.
+- **DLCTableData** — New item IDs are appended to the `items` array of the first existing DLC record. If no record exists, a new record is created with the assigned DLC ID and name.
 
-**Step 6: Write.** By default the script runs in **dry-run mode** — it shows exactly what would change but writes nothing. Only with `--apply` are changes actually written. Before writing, a timestamped backup (`_YYYYMMDD_HHMMSS.bak`) is created (unless `--no-backup`). The `--no-ascii-escape` flag writes UTF-8 directly (e.g., `Agnès` instead of `Agn\u00e8s`).
+**Step 9: Write.** By default the script runs in **dry-run mode** — it shows exactly what would change but writes nothing. Only with `--apply` are changes actually written. Before writing an existing file, a timestamped backup (`_YYYYMMDD_HHMMSS.bak`) is created (unless `--no-backup`). New files are written directly without backup. The output JSON preserves section order: CostumeParam, DLCTableData, ItemTableData, ShopItem. The `--no-ascii-escape` flag writes UTF-8 directly (e.g., `Agnès` instead of `Agn\u00e8s`).
 
 #### All Parameters
 
@@ -629,13 +636,14 @@ kurodlc_add_mdl.py <file.kurodlc.json> [options]
 
 ARGUMENTS:
   <file>              Target .kurodlc.json file (required)
+                      If the file does not exist, creates a new DLC file from scratch.
 
 OPTIONS:
   --apply             Apply changes (without this, runs in dry-run mode)
   --dry-run           Explicit dry-run (default behavior, no changes written)
   --shop-ids=1,2,3    Override shop IDs (default: auto-detect from file)
-  --min-id=N          Minimum ID for search range (default: 1)
-  --max-id=N          Maximum ID for search range (default: 5000)
+  --min-id=N          Minimum item ID for search range (default: 1)
+  --max-id=N          Maximum item ID for search range (default: 5000)
   --no-interactive    Auto-select sources without prompting
   --no-backup         Skip backup creation when applying
   --no-ascii-escape   Write UTF-8 directly (e.g. Agnès instead of Agn\u00e8s)
@@ -647,6 +655,26 @@ REQUIRED FILES (in same directory as kurodlc.json):
                       script_eng.p3a, zzz_combined_tables.p3a
   t_item source       One of: t_item.json, t_item.tbl, script_en.p3a,
                       script_eng.p3a, zzz_combined_tables.p3a
+
+OPTIONAL FILES:
+  t_dlc source        One of: t_dlc.json, t_dlc.tbl, P3A archives
+                      Used for DLC ID assignment when creating new DLCTableData records.
+  t_shop source       One of: t_shop.json, t_shop.tbl, P3A archives
+                      Used for shop ID validation and interactive search.
+
+DLC ID ASSIGNMENT (v2.2):
+  When no DLCTableData records exist (new file or empty DLC section):
+  - Scans t_dlc data + existing .kurodlc.json files for used DLC IDs
+  - Assignable range: 1-349
+  - Suggests next available ID after the last used one
+  - Interactive mode: ? = search DLC database by name/ID
+  - Non-interactive mode: uses suggested ID automatically
+
+ITEM ID ASSIGNMENT (v2.0):
+  Smart algorithm in range 1-5000 (configurable with --min-id/--max-id):
+  1. Collects used IDs from t_item + all .kurodlc.json files
+  2. Tries continuous block from midpoint (2500), searching outward
+  3. Falls back to scattered search if fragmentation prevents continuous block
 ```
 
 #### Examples
@@ -701,6 +729,63 @@ Summary of changes:
 [DRY RUN] No files modified. Use --apply to write changes.
 ```
 
+**Create New DLC from Scratch (v2.2):**
+```bash
+python kurodlc_add_mdl.py NewMod.kurodlc.json --apply
+```
+
+**Sample Output (new file + DLC ID assignment):**
+```
+File 'NewMod.kurodlc.json' does not exist — will create new DLC file.
+Creating: NewMod.kurodlc.json
+  CostumeParam:  0 entries
+  ItemTableData: 0 entries
+  DLCTableData:  0 entries
+  ShopItem:      0 entries
+
+Found 3 .mdl file(s) in directory
+New .mdl files to add: 3
+  + chr5001_c02aa
+  + chr5302_c210
+  + chr5100_c03bb
+
+...
+
+No existing DLCTableData record — need to assign a DLC ID.
+Loading t_dlc from: 45 game DLC entries
+
+DLC ID status:
+  Current IDs in use: 1-320 (48 total)
+  Assignable range:   1-349 (45 used, 304 available)
+  Suggested ID:       321
+
+  ? = search DLCs
+Enter DLC ID [321]: 321
+Enter DLC name [NewMod]: NewMod
+  DLC record: id=321, name='NewMod'
+
+  No existing shop_ids found in file.
+  ? = search shops
+Enter shop IDs [21,22,248,258]: 21,22
+
+...
+
+============================================================
+Summary of changes:
+============================================================
+  CostumeParam:  +3 entries
+  ItemTableData: +3 entries
+  DLCTableData:  new record (id=321) with 3 item(s)
+  ShopItem:      +6 entries (3 items x 2 shops)
+============================================================
+
+Written: NewMod.kurodlc.json
+
+Done! 3 new MDL(s) added successfully (new file created).
+
+Reminder: Review generated item names in ItemTableData
+```
+
 **Apply with Custom Range:**
 ```bash
 python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --apply --min-id=3000 --max-id=4000
@@ -716,6 +801,25 @@ Enter char_restrict value, or press Enter to skip, 'q' to abort:
 
   custom_model_xyz char_restrict = 1
   custom_model_xyz character name = Van
+```
+
+**Interactive Shop Search (v2.2):**
+```
+  No existing shop_ids found in file.
+  ? = search shops
+Enter shop IDs: ?
+
+  === Shop search (215 shops) ===
+  id:N = exact ID | name:TEXT = name search | or just type
+  Empty line returns to shop ID input.
+
+  search> couture
+    21 : Haute Couture Oracion - Edith (Costumes)
+    22 : Haute Couture Oracion - Edith (Accessories)
+  (2 result(s))
+
+  search>
+Enter shop IDs: 21,22
 ```
 
 ---
@@ -1059,6 +1163,44 @@ OK        : 2
 BAD       : 1
 
 Source used for check: t_item.json
+```
+
+---
+
+### fix_subcategory.py
+
+**Purpose:** Batch fix `subcategory` values in ItemTableData entries across all `.kurodlc.json` files
+
+#### How It Works
+
+The script scans all `.kurodlc.json` files in the current directory. For each file, it iterates through the `ItemTableData` section and looks for entries where `category == 17` (costume) and `subcategory == 15`. Matching entries have their `subcategory` changed to `16`.
+
+This fixes a specific data issue where costume items have an incorrect subcategory value, which can cause them to not appear correctly in-game.
+
+Dry-run by default — the script reports how many entries would be fixed without writing. With `--apply`, timestamped backups are created before writing each modified file.
+
+#### All Parameters
+
+```
+fix_subcategory.py [--apply]
+
+OPTIONS:
+  --apply             Apply changes (without this, runs in dry-run mode)
+```
+
+#### Example
+
+```bash
+python fix_subcategory.py
+```
+
+**Sample Output:**
+```
+  FalcoDLC.kurodlc.json: 3 entry(s) with category=17, subcategory=15→16
+  UMat.kurodlc.json: 1 entry(s) with category=17, subcategory=15→16
+
+Total: 4 entries in 2 file(s)
+[DRY RUN] No files modified. Use --apply to write changes.
 ```
 
 ---
@@ -1679,7 +1821,7 @@ A `.kurodlc.json` file contains DLC mod data organized into sections:
 The `item_id` field connects all sections:
 
 ```
-CostumeParam.item_id ─┐
+CostumeParam.item_id ──┐
 ItemTableData.id ──────┼── Same ID value
 DLCTableData.items[] ──┤
 ShopItem.item_id ──────┘
