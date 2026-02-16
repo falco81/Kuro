@@ -1,4 +1,5 @@
 @ECHO OFF
 
-python -m pip install colorama zstandard lz4 xxhash blowfish pyreadline3
+python -m pip install colorama zstandard lz4 xxhash blowfish
+
 
