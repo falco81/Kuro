@@ -51,6 +51,76 @@ except ImportError as e:
     MISSING_LIB = str(e)
 
 
+# -------------------------
+# Cross-platform input with pre-filled text
+# -------------------------
+
+def _prefill_windows(text):
+    """Inject text into Windows console input buffer via WriteConsoleInputW."""
+    import ctypes
+    import ctypes.wintypes as wt
+
+    handle = ctypes.windll.kernel32.GetStdHandle(-10)  # STD_INPUT_HANDLE
+
+    class KEY_EVENT_RECORD(ctypes.Structure):
+        _fields_ = [
+            ("bKeyDown", ctypes.c_int),
+            ("wRepeatCount", ctypes.c_ushort),
+            ("wVirtualKeyCode", ctypes.c_ushort),
+            ("wVirtualScanCode", ctypes.c_ushort),
+            ("uChar", ctypes.c_wchar),
+            ("dwControlKeyState", ctypes.c_ulong),
+        ]
+
+    class INPUT_RECORD_Event(ctypes.Union):
+        _fields_ = [("KeyEvent", KEY_EVENT_RECORD)]
+
+    class INPUT_RECORD(ctypes.Structure):
+        _fields_ = [
+            ("EventType", ctypes.c_ushort),
+            ("Event", INPUT_RECORD_Event),
+        ]
+
+    written = ctypes.c_ulong()
+    for ch in text:
+        ir = INPUT_RECORD()
+        ir.EventType = 0x0001  # KEY_EVENT
+        ir.Event.KeyEvent.bKeyDown = True
+        ir.Event.KeyEvent.wRepeatCount = 1
+        ir.Event.KeyEvent.uChar = ch
+        ir.Event.KeyEvent.dwControlKeyState = 0
+        ctypes.windll.kernel32.WriteConsoleInputW(
+            handle, ctypes.byref(ir), 1, ctypes.byref(written)
+        )
+
+
+def input_with_prefill(prompt, prefill=""):
+    """Display prompt with pre-filled editable text. Cross-platform."""
+    if not prefill:
+        return input(prompt)
+
+    if sys.platform == 'win32':
+        try:
+            _prefill_windows(prefill)
+            return input(prompt)
+        except Exception:
+            pass  # Fall through to readline / fallback
+
+    try:
+        import readline
+        readline.set_startup_hook(lambda: readline.insert_text(prefill))
+        try:
+            return input(prompt)
+        finally:
+            readline.set_startup_hook()
+    except (ImportError, AttributeError):
+        pass  # Fall through to fallback
+
+    # Final fallback: show default in brackets
+    result = input(f"{prompt}[{prefill}] ").strip()
+    return result if result else prefill
+
+
 # =========================================================================
 # Generic table loading (pattern from resolve_id_conflicts_in_kurodlc.py)
 # Supports: t_name, t_item, or any t_*.tbl / t_*.json
@@ -1373,6 +1443,7 @@ def print_usage():
         "  --no-interactive    Auto-select sources without prompting\n"
         "  --no-backup         Skip backup creation when applying\n"
         "  --no-ascii-escape   Write UTF-8 directly (e.g. Agnès instead of Agn\\u00e8s)\n"
+        "  --prompt-names      Interactively prompt for each item name\n"
         "  --help              Show this help message\n"
         "\n"
         "Required files (in same directory as kurodlc.json):\n"
@@ -1388,7 +1459,7 @@ def print_usage():
         "\n"
         "What gets generated for each new MDL:\n"
         "  CostumeParam    - char_restrict from t_name, mdl_name, new item_id\n"
-        "  ItemTableData   - name: '<CharName> generated <mdl_name>'\n"
+        "  ItemTableData   - name: '<CharName>'s generated <mdl_name>'\n"
         "                    (placeholder for manual editing)\n"
         "  DLCTableData    - item_id appended to existing DLC record,\n"
         "                    or new record created with prompted DLC ID and name\n"
@@ -1440,6 +1511,7 @@ def main():
     no_interactive = False
     do_backup = True
     ensure_ascii = True
+    prompt_names = False
 
     args = sys.argv[2:]
 
@@ -1472,6 +1544,8 @@ def main():
             do_backup = False
         elif arg == '--no-ascii-escape':
             ensure_ascii = False
+        elif arg == '--prompt-names':
+            prompt_names = True
         elif arg.startswith('--'):
             print(f"Error: Unknown option '{arg}'")
             sys.exit(1)
@@ -1776,8 +1850,24 @@ def main():
         new_item_ids.append(item_id)
 
         # Generate display name
-        item_name = f"{char_name} generated {mdl_name}"
+        possessive = f"{char_name}'" if char_name.endswith('s') else f"{char_name}'s"
+        item_name = f"{possessive} generated {mdl_name}"
         item_desc = item_name
+
+        if prompt_names:
+            prefill = possessive + " "
+            try:
+                name_input = input_with_prefill(
+                    f"  [{item_id}] {mdl_name} name: ", prefill
+                ).strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\nAborted.")
+                sys.exit(1)
+            if name_input:
+                item_name = name_input
+                item_desc = item_name
+            else:
+                print(f"    → using: {item_name}")
 
         # CostumeParam
         costume_entry = make_costume_entry(costume_tmpl, mdl_name, char_id, item_id)
