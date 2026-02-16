@@ -198,10 +198,11 @@ When creating DLC mods for Kuro engine games, modders face multiple challenges:
 - Team coordination requires manual tracking
 - Fragmentation analysis is impossible manually
 
-**5. MDL-to-DLC Entry Creation (Automation Problem)** ⭐ NEW
+**5. MDL-to-DLC Entry Creation**
 - Adding new costume models to a DLC requires creating entries in four sections manually
 - Character identification from filenames is error-prone
 - Finding safe IDs across game data and existing DLCs is tedious
+- DLC ID assignment requires checking t_dlc data
 - A single mod can have dozens of MDL files to process
 
 **6. Model Preview (3D Visualization Problem)**
@@ -235,17 +236,23 @@ python convert_kurotools_schemas.py
 python visualize_id_allocation.py
 ```
 
-**Quinary: Automatic MDL Entry Generation** ⭐ NEW
+**Quinary: Automatic MDL Entry Generation**
 ```bash
 # Preview what would be added (dry-run, default)
 python kurodlc_add_mdl.py FalcoDLC.kurodlc.json
 
 # Apply changes
 python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --apply
+
+# Create new DLC from scratch
+python kurodlc_add_mdl.py NewMod.kurodlc.json --apply
 ```
 - Scans directory for .mdl files not yet in your DLC
+- Creates .kurodlc.json from scratch if the target file doesn't exist
 - Auto-identifies characters from filenames using t_name data
-- Finds safe IDs from game data + all existing .kurodlc.json files
+- Finds safe item IDs from game data + all existing .kurodlc.json files
+- Uses t_dlc for DLC ID assignment when creating new DLCTableData records
+- Interactive t_shop search for shop ID selection
 - Generates complete CostumeParam, ItemTableData, DLCTableData, and ShopItem entries
 - Dry-run by default, `--apply` required to write
 
@@ -294,10 +301,13 @@ python viewer_mdl/viewer_mdl_window.py character.mdl
 - **🔍 Gap Analysis**: Identify free ID blocks and optimal ranges
 - **🎯 Range Planning**: Find safe ID ranges for large mod projects
 
-### Quinary Purpose: Automatic MDL Entry Generation ⭐ NEW
+### Quinary Purpose: Automatic MDL Entry Generation
 - **🤖 Auto-scan**: Finds .mdl files in directory not yet in your DLC
+- **📄 New File Creation**: Creates .kurodlc.json from scratch if the target does not exist
 - **👤 Character Identification**: Uses t_name data for char_restrict and naming
-- **🆔 Smart ID Assignment**: Searches 1-5000 range across game data + all .kurodlc.json files
+- **🆔 Smart Item ID Assignment**: Searches 1-5000 range across game data + all .kurodlc.json files
+- **🎫 DLC ID Assignment**: Uses t_dlc data (range 1–350) for DLCTableData record creation
+- **🏪 Shop ID Selection**: Interactive t_shop search (`?`) with name/ID lookup
 - **📝 Complete Entries**: Generates CostumeParam, ItemTableData, DLCTableData, ShopItem
 - **🔒 Safe Defaults**: Dry-run by default, timestamped backups with `--apply`
 - **🌐 UTF-8 Support**: `--no-ascii-escape` for proper character display (e.g. Agnès)
@@ -317,7 +327,9 @@ python viewer_mdl/viewer_mdl_window.py character.mdl
 ### Additional Tools
 - **🔍 Item Discovery**: Search and browse game items from JSON, TBL, and P3A sources
 - **👤 Name Browser**: Search character names from game database
+- **🏪 Shop Browser**: Search shops from game database
 - **📋 Multiple Formats**: Support for JSON, TBL, and P3A archive formats
+- **🔧 Subcategory Fix**: Batch fix `subcategory` values in ItemTableData across all DLC files
 - **🎨 User-Friendly**: Interactive menus and colored output (Windows CMD compatible)
 
 ---
@@ -464,7 +476,7 @@ python shops_find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json --generate-
 python shops_create.py template_my_mod.json
 ```
 
-### 3. Add MDL Models to DLC Automatically ⭐ NEW
+### 3. Add MDL Models to DLC Automatically
 ```bash
 # Preview what would be added (dry-run, default)
 python kurodlc_add_mdl.py FalcoDLC.kurodlc.json
@@ -472,11 +484,14 @@ python kurodlc_add_mdl.py FalcoDLC.kurodlc.json
 # Apply changes with backup
 python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --apply
 
+# Create a new DLC file from scratch (file does not need to exist)
+python kurodlc_add_mdl.py NewMod.kurodlc.json --apply
+
 # With custom shop IDs and ID range
 python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --shop-ids=21,22 --min-id=3000 --max-id=4000 --apply
 ```
 
-### 4. Replace Shop IDs in DLC Files ⭐ NEW
+### 4. Replace Shop IDs in DLC Files
 ```bash
 # Preview replacement for all files in directory
 python shops_replace_in_kurodlc.py --new-shop-ids=21,22,248,258
@@ -592,7 +607,7 @@ python shops_create.py template_my_mod.json
 python shops_create.py config.json output.json
 ```
 
-#### 4. `shops_replace_in_kurodlc.py` (v1.1) ⭐ NEW
+#### 4. `shops_replace_in_kurodlc.py` (v1.1)
 **Purpose:** Batch replace shop IDs in .kurodlc.json files with t_shop validation and interactive search
 
 **Features:**
@@ -638,14 +653,17 @@ python shops_replace_in_kurodlc.py UMat.kurodlc.json shop --new-shop-ids=21,22,2
 - `t_shop.json`, `t_shop.tbl`, `t_shop.tbl.original`
 - `script_en.p3a`, `script_eng.p3a`, `zzz_combined_tables.p3a`
 
-#### 5. `kurodlc_add_mdl.py` (v2.1) ⭐ NEW
-**Purpose:** Scan for .mdl files and automatically create complete DLC entries
+#### 5. `kurodlc_add_mdl.py` (v2.2)
+**Purpose:** Scan for .mdl files and create complete DLC entries
 
 **Features:**
 - Scans directory for .mdl files not present in the target .kurodlc.json
+- Creates new .kurodlc.json from scratch if the target file does not exist
 - Uses t_name data for character identification (char_restrict and character names)
-- Smart ID assignment: collects used IDs from t_item + all .kurodlc.json files
+- Smart item ID assignment: collects used IDs from t_item + all .kurodlc.json files in range 1–5000
 - Tries continuous ID block first, falls back to scattered search
+- DLC ID assignment via t_dlc data (range 1–350) when creating new DLCTableData records
+- Interactive t_shop search (`?`) for shop ID selection with name/ID lookup
 - Generates CostumeParam, ItemTableData, DLCTableData, ShopItem entries
 - Dry-run by default (preview only), `--apply` required to write
 - Timestamped backups (`_YYYYMMDD_HHMMSS.bak`)
@@ -658,6 +676,9 @@ python kurodlc_add_mdl.py FalcoDLC.kurodlc.json
 
 # Apply changes
 python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --apply
+
+# Create new DLC file from scratch
+python kurodlc_add_mdl.py NewMod.kurodlc.json --apply
 
 # Custom options
 python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --shop-ids=21,22 --apply
@@ -681,6 +702,7 @@ python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --no-interactive --no-ascii-esca
 - `.mdl` files to add
 - t_name source (`t_name.json`, `t_name.tbl`, or P3A archive)
 - t_item source (`t_item.json`, `t_item.tbl`, or P3A archive)
+- t_dlc source (optional, for DLC ID assignment when creating new DLCTableData)
 
 #### 6. `visualize_id_allocation.py`
 **Purpose:** Visualize ID allocation patterns and statistics
@@ -765,9 +787,21 @@ Extract unique item IDs from DLC files
 python find_unique_item_id_from_kurodlc.py my_mod.kurodlc.json
 ```
 
+### Utility Scripts
+
+#### 14. `fix_subcategory.py`
+**Purpose:** Batch fix `subcategory` values in ItemTableData entries across all `.kurodlc.json` files in the current directory.
+
+Scans for entries where `category=17` and `subcategory=15`, changes `subcategory` to `16`. Dry-run by default.
+
+```bash
+python fix_subcategory.py           # dry-run (preview)
+python fix_subcategory.py --apply   # apply changes with backups
+```
+
 ### 3D Model Viewer Scripts (viewer_mdl/)
 
-#### 14. `viewer_mdl_textured_anim.py` ⭐ MAIN VIEWER
+#### 15. `viewer_mdl_textured_anim.py` ⭐ MAIN VIEWER
 **Purpose:** Full-featured 3D model viewer with textures, skeleton, animations, physics, controller support, FXO shaders, facial animations, skybox, and video recording.
 
 **Usage:**
@@ -798,7 +832,7 @@ python viewer_mdl/viewer_mdl_textured_anim.py character.mdl --debug --skip-popup
 - Mesh highlighting, auto-hide shadow/kage meshes
 - Configurable via `viewer_mdl_textured_config.md`
 
-#### 15. `viewer_mdl_textured_scene.py` — Scene Viewer
+#### 16. `viewer_mdl_textured_scene.py` — Scene Viewer
 **Purpose:** Extended viewer with scene mode for rendering 3D map layouts, building interiors, and terrain
 
 **Usage:**
@@ -829,14 +863,14 @@ python viewer_mdl/viewer_mdl_textured_scene.py --scene mp0010.json
         └───shader/
 ```
 
-#### 16. `viewer_mdl_textured.py` — Textured Viewer (no animations)
+#### 17. `viewer_mdl_textured.py` — Textured Viewer (no animations)
 **Purpose:** Simplified textured model preview without skeleton or animations
 
 ```bash
 python viewer_mdl/viewer_mdl_textured.py character.mdl
 ```
 
-#### 17. `viewer_mdl.py` — HTML Viewer
+#### 18. `viewer_mdl.py` — HTML Viewer
 **Purpose:** Generate HTML visualization of .mdl files with Three.js
 
 ```bash
@@ -846,7 +880,7 @@ python viewer_mdl/viewer_mdl.py character.mdl --use-original-normals
 
 **Output:** `<model_name>_viewer.html`
 
-#### 18. `viewer_mdl_window.py` — Native Window Viewer
+#### 19. `viewer_mdl_window.py` — Native Window Viewer
 **Purpose:** Preview models in native window without creating files
 
 ```bash
@@ -857,14 +891,14 @@ python viewer_mdl/viewer_mdl_window.py character.mdl
 
 **Platform Support:** Windows (Edge WebView2), Linux (GTK + WebKit2), macOS (WKWebView)
 
-#### 19. `viewer_mdl_optimized.py` — Optimized Viewer
+#### 20. `viewer_mdl_optimized.py` — Optimized Viewer
 **Purpose:** Performance-optimized version using base64 compression for large models
 
 ```bash
 python viewer_mdl/viewer_mdl_optimized.py character.mdl
 ```
 
-#### 20. `viewer.py` — Standalone Core Viewer
+#### 21. `viewer.py` — Standalone Core Viewer
 **Purpose:** Minimal standalone viewer with integrated loading functions
 
 ```bash
@@ -913,6 +947,9 @@ python kurodlc_add_mdl.py FalcoDLC.kurodlc.json
 
 # Apply with custom ID range and shop IDs
 python kurodlc_add_mdl.py FalcoDLC.kurodlc.json --shop-ids=21,22 --min-id=3000 --max-id=4000 --apply
+
+# Or create a new DLC file from scratch (no existing file needed)
+python kurodlc_add_mdl.py NewMod.kurodlc.json --apply
 
 # Verify results
 python find_unique_item_id_from_kurodlc.py FalcoDLC.kurodlc.json
@@ -1091,6 +1128,9 @@ Ensure data source (`t_item.json` or `.tbl`) is in current directory.
 **9. pywebview issues on Python 3.12+**
 Python 3.11 is recommended for pywebview compatibility. See `viewer_mdl/build.txt` for details.
 
+**10. Costumes not showing in-game despite correct IDs**
+Check `subcategory` in ItemTableData. Run `fix_subcategory.py` to batch-fix entries where `category=17` has `subcategory=15` (should be 16).
+
 ### Platform-Specific Notes
 
 **Windows:**
@@ -1123,6 +1163,7 @@ Python 3.11 is recommended for pywebview compatibility. See `viewer_mdl/build.tx
 2. **Have game data ready**: Ensure t_name and t_item sources are in the directory
 3. **Check ID ranges**: Use `--min-id` and `--max-id` to control where IDs are assigned
 4. **Use UTF-8**: Add `--no-ascii-escape` for proper character display in the JSON
+5. **New files**: You can create a DLC from scratch — point to a non-existent .kurodlc.json and the script initializes it
 
 ### Shop Assignment
 1. **Generate templates**: Use `shops_find_unique_item_id_from_kurodlc.py --generate-template`
@@ -1147,13 +1188,19 @@ Python 3.11 is recommended for pywebview compatibility. See `viewer_mdl/build.tx
 
 ## 📜 Version History
 
-### v3.1 (2026-02-14) - LATEST ⭐
+### v3.2 (2026-02-16) - LATEST
 **New Features:**
-- **`kurodlc_add_mdl.py` v2.1**: Automatic MDL-to-DLC entry generation
-  - Scans directory for .mdl files not in DLC
-  - Smart ID assignment across game data + all .kurodlc.json files
-  - Character identification from filenames using t_name
-  - Generates complete CostumeParam, ItemTableData, DLCTableData, ShopItem
+- **`kurodlc_add_mdl.py` v2.2**:
+  - Creates `.kurodlc.json` from scratch if the target file does not exist
+  - t_dlc data loading for DLC ID assignment (range 1–350) with interactive search (`?`)
+  - t_shop interactive search for shop ID selection with name/ID lookup
+  - DLC ID validation against existing game and mod DLC IDs
+
+- **`fix_subcategory.py`**: Batch fix `subcategory` in ItemTableData (category=17, 15→16)
+
+### v3.1 (2026-02-14)
+**New Features:**
+- **`kurodlc_add_mdl.py` v2.1**: Safe defaults
   - Dry-run by default, `--apply` required to write
   - Timestamped backups
 
@@ -1162,7 +1209,6 @@ Python 3.11 is recommended for pywebview compatibility. See `viewer_mdl/build.tx
   - Per-file mode for different shop IDs per file
   - t_shop validation with interactive search (`?` in prompt)
   - Extraction modes: all, shop, costume, item, dlc, combinations
-  - Supports full DLC and shop-only files
 
 - **`viewer_mdl_textured_anim.py` Ver 1.0**: Full-featured 3D model viewer
   - Skybox support, lighting and background customization
